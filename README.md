@@ -29,7 +29,8 @@ tool layer for that practice:
 ## Install
 
 ```bash
-uv tool install artoo        # or: pipx install artoo
+uv tool install artoo-artifacts   # or: pipx install artoo-artifacts
+artoo --version                   # the command is `artoo`
 ```
 
 Research-notebook support activates automatically when

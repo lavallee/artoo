@@ -1,9 +1,10 @@
 # Publishes artoo to PyPI via trusted publishing (OIDC — no stored tokens).
 #
 # PREREQUISITE (one-time): register a pending publisher on PyPI →
-# Account settings → Publishing, with owner "lavallee", repo "artoo",
-# workflow "publish.yml", environment "pypi-artoo". The GitHub
-# environment is created automatically on first workflow run.
+# Account settings → Publishing, with project "artoo-artifacts", owner
+# "lavallee", repo "artoo", workflow "publish.yml", environment
+# "pypi-artoo-artifacts". The GitHub environment is created
+# automatically on first workflow run.
 name: Publish to PyPI
 
 on:
@@ -15,8 +16,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment:
-      name: pypi-artoo
-      url: https://pypi.org/p/artoo
+      name: pypi-artoo-artifacts
+      url: https://pypi.org/p/artoo-artifacts
     permissions:
       id-token: write
     steps:
