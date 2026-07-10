@@ -4,9 +4,12 @@ All notable changes to artoo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-07-10
 
-First public release.
+First public release. Proven end-to-end on day one: the explainer
+generator ran against the public [somm](https://github.com/lavallee/somm)
+repo (55k LOC → 15 analysis briefs → 6 pages) and published to GitHub
+Pages through the github-pages adapter.
 
 ### Added
 
