@@ -6,6 +6,10 @@ All notable changes to artoo are documented here. The format follows
 
 ## [0.1.0] — 2026-07-10
 
+Published on PyPI as **`artoo-artifacts`** — the bare `artoo` name is
+blocked by a confusable-name collision with the abandoned `ar_too`
+project. The import package and the command are `artoo` either way.
+
 First public release. Proven end-to-end on day one: the explainer
 generator ran against the public [somm](https://github.com/lavallee/somm)
 repo (55k LOC → 15 analysis briefs → 6 pages) and published to GitHub

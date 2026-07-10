@@ -3,7 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "artoo"
+# Distribution name: the bare "artoo" is blocked on PyPI by a confusable-name
+# collision with the abandoned `ar_too`. Import package and CLI stay `artoo`.
+name = "artoo-artifacts"
 version = "0.1.0"
 description = "Generate and manage artifacts: self-contained HTML mini-sites that pair presentation with the research backing it."
 readme = "README.md"
