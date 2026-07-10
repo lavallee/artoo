@@ -1,0 +1,17 @@
+# python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# artoo local state (never committed)
+.artoo/targets.toml
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/

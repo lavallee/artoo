@@ -1,0 +1,22 @@
+[artifact]
+slug = "artoo-landing"
+title = "artoo"
+description = "Landing page for artoo — generate and manage artifacts."
+kind = "note"
+status = "draft"
+created = "2026-07-10"
+
+[[libraries]]
+name = "artoo-kit"
+version = "0.1.0"
+sha256 = "c5b710294939bd2f01360ad47a20f6a9a3fdc14840bf92a04480fb6f2a2a23a3"
+
+[deploy]
+target = "github-pages"
+
+[deploy.github-pages]
+commit = false
+docs_dir = "docs"
+mode = "docs"
+own_root = true
+subpath = ""

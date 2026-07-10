@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "artoo"
+version = "0.1.0"
+description = "Generate and manage artifacts: self-contained HTML mini-sites that pair presentation with the research backing it."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Marc Lavallee" }]
+keywords = ["artifacts", "static-site", "explainer", "reports", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Documentation",
+  "Topic :: Software Development :: Documentation",
+]
+dependencies = [
+  "click>=8.1",
+]
+
+# NOTE: when flip-notebook publishes to PyPI, add:
+#   [project.optional-dependencies]
+#   research = ["flip-notebook>=0.4"]
+# The integration is a soft import — installing flip by any means activates it.
+
+[project.scripts]
+artoo = "artoo.cli:main"
+
+[project.entry-points."artoo.generators"]
+explainer = "artoo.generators.explainer:generate"
+
+[project.entry-points."artoo.deployers"]
+github-pages = "artoo.deploy.github_pages:GitHubPagesDeployer"
+rsync = "artoo.deploy.rsync:RsyncDeployer"
+command = "artoo.deploy.command:CommandDeployer"
+
+[project.entry-points."artoo.libraries"]
+artoo-kit = "artoo.libraries.kit:library"
+
+[project.urls]
+Homepage = "https://github.com/lavallee/artoo"
+Repository = "https://github.com/lavallee/artoo"
+Changelog = "https://github.com/lavallee/artoo/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/artoo"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]

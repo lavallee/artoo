@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>artoo — generate and manage artifacts</title>
+<meta name="description" content="artoo generates and manages artifacts: self-contained HTML mini-sites that pair presentation with the research backing it.">
+<link rel="stylesheet" href="lib/artoo-kit/tokens.css">
+<link rel="stylesheet" href="lib/artoo-kit/base.css">
+<link rel="stylesheet" href="lib/artoo-kit/article.css">
+<link rel="stylesheet" href="lib/artoo-kit/components.css">
+</head>
+<body>
+<nav class="site-nav">
+  <span class="brand">artoo</span>
+  <button class="nav-toggle" aria-label="Menu">menu</button>
+  <div class="nav-links">
+    <a href="https://github.com/lavallee/artoo">GitHub</a>
+    <a href="https://github.com/lavallee/artoo/blob/main/DESIGN.md">Design</a>
+    <a href="https://github.com/lavallee/artoo/blob/main/CHANGELOG.md">Changelog</a>
+  </div>
+  <button data-theme-toggle class="nav-toggle" style="display:block;margin-left:auto" aria-label="Toggle theme">theme</button>
+</nav>
+<main class="article">
+  <header class="article-header">
+    <div class="article-kicker">artifact generator &amp; manager <span class="badge badge--accent">v0.1.0 alpha</span></div>
+    <h1 class="article-title">Explanations as real pages, not markdown dumps.</h1>
+    <p class="article-dek">artoo generates and manages <em>artifacts</em>:
+    self-contained HTML mini-sites that pair presentation with the research
+    backing it — and knows how to ship them.</p>
+  </header>
+
+  <p>There's a growing practice of getting explanations of systems out of
+  LLMs as navigable sites with diagrams and provenance, and of composing
+  reports from multiple assets. artoo is the tool layer for that practice.</p>
+
+  <h2>What an artifact is</h2>
+  <div class="article-mrow">
+    <p>An artifact is a directory marked by an <code>artifact.toml</code>,
+    living inside whatever repo owns it — a library's explainer lives in
+    that library's repo, and one repo can hold many artifacts. The
+    publishable <code>site/</code> renders from a <code>file://</code> URL:
+    vendored assets, system fonts, no bundler, no CDN dependencies.</p>
+    <aside class="article-marginnote article-marginnote--def">
+      <span class="term">firewall</span>
+      Notebooks, working files, and <code>_</code>-prefixed paths sit next
+      to the presentation but can never ship. Deploys are deny-by-default.
+    </aside>
+  </div>
+
+  <h2>Get started</h2>
+  <pre><code>uv tool install artoo
+
+artoo init site/my-report --kind report --title "Q3 systems report"
+artoo status site/my-report
+artoo deploy site/my-report</code></pre>
+
+  <h2>What it does</h2>
+  <div class="card-grid">
+    <div class="card"><h3>Deployment-aware</h3>
+      <p>Reads your repo's actual GitHub Pages configuration — legacy
+      /docs, Actions workflow, or branch — and routes accordingly. Also
+      ssh/rsync named targets and arbitrary publish commands. Secrets
+      never enter the repo.</p></div>
+    <div class="card"><h3>Site libraries</h3>
+      <p>Shared components are vendored into each artifact with
+      name + version + hash recorded in the manifest: self-contained
+      forever, upgraded deliberately with <code>artoo lib update</code>.</p></div>
+    <div class="card"><h3>Repo explainers</h3>
+      <p><code>artoo generate explainer</code> inventories a repo
+      deterministically, fans per-area analysis out to a cheap worker,
+      synthesizes narrative with a strong one, and assembles a multi-page
+      site with diagrams and a colophon.</p></div>
+    <div class="card"><h3>No API keys</h3>
+      <p>Generators delegate to agent CLIs you already have —
+      <code>codex</code> for analysis fan-out, <code>claude</code> for
+      synthesis. artoo core makes no model calls and holds no keys.</p></div>
+    <div class="card"><h3>Research stays with the piece</h3>
+      <p>Generator runs are recorded as reporter's-notebook sources and
+      claims (via <a href="https://github.com/lavallee/flip">flip</a>) or
+      plain markdown logs — behind the firewall either way.</p></div>
+    <div class="card"><h3>Plugins</h3>
+      <p>Generators, deploy adapters, and site libraries are entry-point
+      plugins. The ecosystem grows in separate repos; the core stays
+      small.</p></div>
+  </div>
+
+  <h2>Honest by construction</h2>
+  <p>Every generated page carries a colophon: when it was built, from which
+  commit, with which workers. An explainer is a dated snapshot of a moving
+  system, and it says so. Deterministic facts (size, layout, history) come
+  from a no-model inventory pass; narrative traces to per-area analysis
+  briefs kept as research backing.</p>
+
+  <footer class="colophon">
+    MIT licensed. Built with artoo itself — this page is the
+    <code>artoo-landing</code> artifact in the artoo repo.<br>
+    <a href="https://github.com/lavallee/artoo">github.com/lavallee/artoo</a>
+  </footer>
+</main>
+<script src="lib/artoo-kit/kit.js"></script>
+</body>
+</html>
