@@ -46,6 +46,26 @@ def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
 
 
+def _git_commit(cwd: Path, message: str) -> subprocess.CompletedProcess:
+    """Commit with a fallback identity for environments (CI, containers)
+    where none is configured — a deploy shouldn't die on git identity."""
+    cmd = ["git"]
+    if not _run(["git", "config", "user.email"], cwd=cwd).stdout.strip():
+        cmd += ["-c", "user.name=artoo", "-c", "user.email=artoo@localhost"]
+    cmd += ["commit", "-m", message]
+    return _run(cmd, cwd=cwd)
+
+
+def _commit_outcome(proc: subprocess.CompletedProcess, msg: str) -> tuple[bool, str]:
+    """(ok, action line) — distinguish a clean tree from a real failure."""
+    if proc.returncode == 0:
+        return True, f"committed: {msg}"
+    output = proc.stdout + proc.stderr
+    if "nothing to commit" in output or "nothing added to commit" in output:
+        return True, "nothing to commit (site unchanged)"
+    return False, (proc.stderr or proc.stdout).strip()
+
+
 def parse_owner_repo(remote_url: str) -> tuple[str, str] | None:
     url = remote_url.strip()
     if url.endswith(".git"):
@@ -215,11 +235,13 @@ class GitHubPagesDeployer:
             rel = str(dest.relative_to(repo_root))
             _run(["git", "add", rel, str(nojekyll.relative_to(repo_root))], cwd=repo_root)
             msg = f"artoo deploy: {ctx.manifest.slug}"
-            commit = _run(["git", "commit", "-m", msg], cwd=repo_root)
-            if commit.returncode == 0:
-                actions.append(f"committed: {msg}")
-            else:
-                actions.append("nothing to commit (site unchanged)")
+            ok, action = _commit_outcome(_git_commit(repo_root, msg), msg)
+            if not ok:
+                return DeployResult(
+                    ok=False, message="copied, but git commit failed",
+                    actions=actions + [action],
+                )
+            actions.append(action)
             if ctx.config.get("push", False):
                 push = _run(["git", "push"], cwd=repo_root)
                 if push.returncode != 0:
@@ -275,11 +297,13 @@ class GitHubPagesDeployer:
 
             _run(["git", "add", "-A"], cwd=worktree)
             msg = f"artoo deploy: {ctx.manifest.slug}"
-            commit = _run(["git", "commit", "-m", msg], cwd=worktree)
-            if commit.returncode == 0:
-                actions.append(f"committed to {branch!r}: {msg}")
-            else:
-                actions.append("nothing to commit (site unchanged)")
+            ok, action = _commit_outcome(_git_commit(worktree, msg), msg)
+            if not ok:
+                return DeployResult(
+                    ok=False, message=f"staged onto {branch!r}, but git commit failed",
+                    actions=actions + [action],
+                )
+            actions.append(action if "nothing" in action else f"committed to {branch!r}: {msg}")
 
             if ctx.config.get("push", False):
                 push = _run(["git", "push", "-u", "origin", branch], cwd=worktree)

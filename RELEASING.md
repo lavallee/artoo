@@ -10,7 +10,10 @@
 5. Commit a clean `chore(release): X.Y.Z`.
 6. Tag: `git tag -a vX.Y.Z -m "artoo X.Y.Z"` → push `main` and the tag.
 7. `gh release create vX.Y.Z` with focused notes and a compare link.
-8. Publish to PyPI: `uv build && uv publish`.
+8. Publishing the release triggers `.github/workflows/publish.yml`
+   (PyPI trusted publishing via the `pypi-artoo` environment). Verify the
+   run; re-dispatch with `gh workflow run publish.yml` if needed.
+   Fallback: `uv build && uv publish` with a token.
 
 Semantic versioning:
 
