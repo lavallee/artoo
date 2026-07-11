@@ -65,11 +65,9 @@ def colophon(meta: dict) -> str:
 
 def render_page(
     *, page: dict, pages: list[dict], site_title: str, body: str,
-    meta: dict, uses_mermaid: bool,
+    meta: dict, mermaid_src: str = "",
 ) -> str:
-    mermaid_tag = (
-        '<script src="lib/vendor/mermaid.min.js"></script>\n' if uses_mermaid else ""
-    )
+    mermaid_tag = f'<script src="{mermaid_src}"></script>\n' if mermaid_src else ""
     return PAGE_SHELL.format(
         title=html.escape(page["title"]),
         site_title=html.escape(site_title),

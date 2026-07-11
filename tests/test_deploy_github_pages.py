@@ -99,3 +99,33 @@ def test_own_root_replaces_docs_tree(git_repo, tmp_path, monkeypatch):
     assert (git_repo / "docs" / "index.html").exists()
     assert not (git_repo / "docs" / "stale.html").exists()
     assert (git_repo / "docs" / ".nojekyll").exists()
+
+
+def test_in_place_artifact_commits_without_copying(git_repo, tmp_path, monkeypatch):
+    """A site living exactly where Pages serves it (docs/<subpath>) is
+    committed in place, never rmtree'd."""
+    monkeypatch.setattr("artoo.deploy.github_pages.shutil.which", lambda _: None)
+    m = scaffold.init_artifact(
+        git_repo / "docs" / "reader", slug="chart-forms",
+        title="Chart forms", kind="reference-guide",
+    )
+    # in-place layout: the artifact dir IS the served dir; site = "."
+    import shutil as sh
+
+    for child in (m.dir / "site").iterdir():
+        sh.move(str(child), m.dir / child.name)
+    (m.dir / "site").rmdir()
+    m.site = "."
+    m.save()
+
+    config = {"mode": "docs", "subpath": "reader"}
+    ctx = _ctx(m, tmp_path, config)
+    result = GitHubPagesDeployer().deploy(ctx)
+    assert result.ok, result.message
+    assert (git_repo / "docs" / "reader" / "artifact.toml").exists()  # not destroyed
+    assert (git_repo / "docs" / "reader" / "index.html").exists()
+    assert any("in place" in a for a in result.actions)
+    log = subprocess.run(
+        ["git", "log", "--oneline", "-1"], cwd=git_repo, capture_output=True, text=True
+    ).stdout
+    assert "artoo deploy: chart-forms" in log

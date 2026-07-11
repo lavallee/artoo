@@ -214,6 +214,34 @@ class GitHubPagesDeployer:
                 ),
             )
 
+        # In-place artifact: the site already lives exactly where Pages
+        # serves it (weaver-style). Nothing to copy — just note what the
+        # firewall would have withheld (it's served regardless here) and
+        # fall through to commit.
+        in_place = (
+            dest.exists()
+            and dest.resolve() == ctx.manifest.site_dir.resolve()
+        )
+        if in_place:
+            held = firewall.withheld(ctx.manifest.site_dir)
+            if ctx.dry_run:
+                return DeployResult(
+                    ok=True,
+                    message="dry run — site is in place, would commit",
+                    actions=[f"site already lives at {dest.relative_to(repo_root)}"],
+                )
+            actions.append(f"site already lives at {dest.relative_to(repo_root)} — nothing to copy")
+            if held:
+                actions.append(
+                    "note: served in place, so the firewall cannot withhold: "
+                    + ", ".join(str(p) for p in held[:6])
+                )
+            nojekyll = published_root / ".nojekyll"
+            if not nojekyll.exists():
+                nojekyll.touch()
+                actions.append(f"created {nojekyll.relative_to(repo_root)}")
+            return self._commit_tree(ctx, repo_root, dest, nojekyll, actions)
+
         if ctx.dry_run:
             return DeployResult(
                 ok=True,
@@ -231,30 +259,37 @@ class GitHubPagesDeployer:
             nojekyll.touch()
             actions.append(f"created {nojekyll.relative_to(repo_root)}")
 
-        if ctx.config.get("commit", True):
-            rel = str(dest.relative_to(repo_root))
-            _run(["git", "add", rel, str(nojekyll.relative_to(repo_root))], cwd=repo_root)
-            msg = f"artoo deploy: {ctx.manifest.slug}"
-            ok, action = _commit_outcome(_git_commit(repo_root, msg), msg)
-            if not ok:
-                return DeployResult(
-                    ok=False, message="copied, but git commit failed",
-                    actions=actions + [action],
-                )
-            actions.append(action)
-            if ctx.config.get("push", False):
-                push = _run(["git", "push"], cwd=repo_root)
-                if push.returncode != 0:
-                    return DeployResult(
-                        ok=False,
-                        message="copied and committed, but push failed",
-                        actions=actions + [push.stderr.strip()],
-                    )
-                actions.append("pushed")
-            else:
-                actions.append("not pushed — push when ready (or set push = true)")
-        else:
+        return self._commit_tree(ctx, repo_root, dest, nojekyll, actions)
+
+    def _commit_tree(
+        self, ctx: DeployContext, repo_root: Path, dest: Path,
+        nojekyll: Path, actions: list[str],
+    ) -> DeployResult:
+        if not ctx.config.get("commit", True):
             actions.append("not committed (commit = false)")
+            return DeployResult(ok=True, message="published into the Pages tree", actions=actions)
+
+        rel = str(dest.relative_to(repo_root))
+        _run(["git", "add", rel, str(nojekyll.relative_to(repo_root))], cwd=repo_root)
+        msg = f"artoo deploy: {ctx.manifest.slug}"
+        ok, action = _commit_outcome(_git_commit(repo_root, msg), msg)
+        if not ok:
+            return DeployResult(
+                ok=False, message="staged, but git commit failed",
+                actions=actions + [action],
+            )
+        actions.append(action)
+        if ctx.config.get("push", False):
+            push = _run(["git", "push"], cwd=repo_root)
+            if push.returncode != 0:
+                return DeployResult(
+                    ok=False,
+                    message="committed, but push failed",
+                    actions=actions + [push.stderr.strip()],
+                )
+            actions.append("pushed")
+        else:
+            actions.append("not pushed — push when ready (or set push = true)")
 
         return DeployResult(ok=True, message="published into the Pages tree", actions=actions)
 
