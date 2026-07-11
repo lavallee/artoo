@@ -34,6 +34,40 @@ MERMAID_URL = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
 ANALYSIS_CONCURRENCY = 3
 
 
+def _ensure_mermaid(m) -> str:
+    """Make a mermaid runtime available to the site; return its site-relative
+    src (or "" if none could be arranged).
+
+    Preference order: an already-vendored copy (stability), then the
+    artoo-mermaid site library (offline, pinned), then a CDN download
+    recorded under [[vendor]].
+    """
+    lib_rel = "lib/mermaid/mermaid.min.js"
+    if (m.site_dir / lib_rel).is_file():
+        return lib_rel
+    vendor_rel = "lib/vendor/mermaid.min.js"
+    if (m.site_dir / vendor_rel).is_file():
+        return vendor_rel
+    try:
+        libraries.get("mermaid")
+        libraries.add(m, "mermaid")
+        click.echo("vendored mermaid from the artoo-mermaid site library")
+        return lib_rel
+    except KeyError:
+        pass
+    try:
+        libraries.vendor_url(m, "mermaid", MERMAID_URL)
+        click.echo("vendored mermaid.min.js from CDN")
+        return vendor_rel
+    except Exception as exc:
+        click.secho(
+            f"! no mermaid available (install artoo-mermaid or go online): {exc}; "
+            "diagrams will render as source blocks",
+            fg="yellow",
+        )
+        return ""
+
+
 def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "unit"
 
@@ -322,15 +356,7 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
 
         # 5. assembly
         uses_mermaid = any('class="mermaid"' in b for b in bodies.values())
-        if uses_mermaid:
-            vendored = m.dir / m.site / "lib" / "vendor" / "mermaid.min.js"
-            if not vendored.is_file():
-                try:
-                    libraries.vendor_url(m, "mermaid", MERMAID_URL)
-                    click.echo("vendored mermaid.min.js")
-                except Exception as exc:
-                    click.secho(f"! could not vendor mermaid ({exc}); diagrams "
-                                "will render as source blocks", fg="yellow")
+        mermaid_src = _ensure_mermaid(m) if uses_mermaid else ""
 
         meta = {
             "date": date.today().isoformat(),
@@ -346,7 +372,7 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
             html_text = templates.render_page(
                 page=page, pages=plan["pages"],
                 site_title=plan["site_title"], body=bodies[page["slug"]],
-                meta=meta, uses_mermaid=uses_mermaid,
+                meta=meta, mermaid_src=mermaid_src,
             )
             (m.site_dir / f"{page['slug']}.html").write_text(html_text, encoding="utf-8")
 
