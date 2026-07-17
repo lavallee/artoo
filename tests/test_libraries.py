@@ -10,6 +10,28 @@ def test_kit_available():
     assert (libs["artoo-kit"].root / "tokens.css").exists()
 
 
+def test_kit_has_light_editorial_type_roles_without_decorative_effects():
+    kit = libraries.available()["artoo-kit"]
+    tokens = (kit.root / "tokens.css").read_text()
+    base = (kit.root / "base.css").read_text()
+    article = (kit.root / "article.css").read_text()
+    components = (kit.root / "components.css").read_text()
+    all_css = "\n".join((tokens, base, article, components)).lower()
+
+    assert "color-scheme: light" in tokens
+    assert '[data-theme="dark"]' in tokens
+    for role in ("--font-prose", "--font-display", "--font-ui", "--font-numeric"):
+        assert role in tokens
+    assert "font-family: var(--font-prose)" in base
+    assert "font-family: var(--font-display)" in base
+    assert "font-family: var(--font-numeric)" in base
+    assert "font-family: var(--font-ui)" in components
+    assert "gradient" not in all_css
+    assert "box-shadow" not in all_css
+    assert "@font-face" not in all_css
+    assert "url(" not in all_css
+
+
 def test_add_vendors_and_records(artifact):
     # scaffold already vendored the kit; verify the record and files
     m = manifest_mod.load(artifact.dir)
