@@ -7,12 +7,14 @@
   var root = document.documentElement;
   var saved = null;
   try { saved = localStorage.getItem("artoo-theme"); } catch (e) { /* file:// */ }
-  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+  if (!root.hasAttribute("data-theme") && (saved === "light" || saved === "dark")) {
+    root.setAttribute("data-theme", saved);
+  }
 
   function currentTheme() {
     var explicit = root.getAttribute("data-theme");
     if (explicit) return explicit;
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    return "light";
   }
 
   document.addEventListener("click", function (event) {

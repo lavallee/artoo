@@ -21,6 +21,51 @@ def test_init_and_status(tmp_path):
     assert "manifest and firewall clean" in result.output
 
 
+def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path):
+    artifact = tmp_path / "art"
+    result = invoke(
+        "init",
+        str(artifact),
+        "--title",
+        "A public finding",
+        "--description",
+        "Evidence for a reader decision.",
+    )
+    assert result.exit_code == 0, result.output
+    assert "work/design-brief.md (private)" in result.output
+
+    page = (artifact / "site" / "index.html").read_text()
+    assert '<html lang="en" data-theme="light">' in page
+    for editorial_surface in (
+        "article-masthead",
+        "article-header",
+        "article-title",
+        "article-dek",
+        "article-byline",
+        "article-figure",
+        "<table>",
+    ):
+        assert editorial_surface in page
+    for dashboard_default in ("data-theme-toggle", "stat-row", "card-grid"):
+        assert dashboard_default not in page
+
+    brief = (artifact / "work" / "design-brief.md").read_text()
+    assert not (artifact / "site" / "work" / "design-brief.md").exists()
+    for field in (
+        "## Reader decision",
+        "## Headline claim",
+        "## Supported claims",
+        "## Unsupported claims and counter-reading",
+        "## Data vintages and denominators",
+        "## Licit comparisons",
+        "## Selected forms",
+        "## Closest DES reference",
+        "## Anti-reference",
+        "## Proof required",
+    ):
+        assert field in brief
+
+
 def test_init_refuses_existing(tmp_path):
     invoke("init", str(tmp_path / "art"))
     result = invoke("init", str(tmp_path / "art"))

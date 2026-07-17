@@ -4,6 +4,23 @@ All notable changes to artoo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- New artifacts use the DES-governed light editorial starter and include a
+  private `work/design-brief.md`; artoo-kit 0.2.0 adds explicit editorial type
+  roles while keeping existing vendored artifact bytes untouched.
+- Explainer planning and page prompts begin from the reader decision, headline
+  claim, evidence limits, counter-reading, and licit comparisons instead of
+  dashboard-like component composition.
+
+### Added
+
+- `artoo vizier-guide` optionally records a successful local `vizier guide`
+  invocation and its complete output in private artifact work files without a
+  Vizier import dependency or direct model call.
+
 ## [0.1.0] — 2026-07-10
 
 Published on PyPI as **`artoo-artifacts`** — the bare `artoo` name is

@@ -61,7 +61,7 @@ my-explainer/
     style.css
     lib/            # vendored site libraries (managed, see below)
   notebook/         # research backing (flip notebook) — never deployed
-  work/             # generator working files — never deployed
+  work/             # design brief, guidance, generator files — never deployed
 ```
 
 `site/` is committed. It must render from a file:// URL or any static
@@ -98,7 +98,7 @@ subpath = "reader"            # where under the published site this lands
 
 [[libraries]]
 name = "artoo-kit"
-version = "0.1.0"
+version = "0.2.0"
 sha256 = "…"                  # provenance of the vendored copy
 
 [[vendor]]
@@ -120,10 +120,16 @@ the library's files into `site/lib/artoo-kit/` and records
 name/version/hash in the manifest. `artoo lib status` detects drift (local
 edits vs. upstream); `artoo lib update` re-vendors a newer version.
 
-- artoo ships one built-in library, **artoo-kit**: design tokens
-  (dark-default + light theme), base styles, article/prose layout with
-  margin notes and pull quotes, components (nav, cards, callouts, tables,
-  badges), and small JS helpers. Neutral, system fonts, ~tens of KB.
+- artoo ships one built-in library, **artoo-kit**: DES-governed design tokens
+  (light editorial default with dark as explicit opt-in), centered long-form
+  prose with wider evidence regions, margin notes, tables, and a restrained
+  component vocabulary. Offline system stacks expose separate serif prose and
+  display roles, sans-serif UI, and monospaced numerics. The kit has no
+  gradients or card/button elevation. Cards remain available for true
+  navigation, not as a default information container.
+- Libraries are snapshots, not live links. Changing Artoo's bundled kit does
+  not rewrite an existing artifact's vendored bytes; `artoo lib update
+  artoo-kit` is the explicit upgrade boundary.
 - External libraries live in **their own repos/packages** and register via
   the `artoo.libraries` entry point, or are vendored from a URL with a
   pinned hash (`[[vendor]]`). Core artoo stays small; the ecosystem grows
@@ -196,6 +202,33 @@ site is then a *render* of the notebook in flip's sense. Without flip,
 generators fall back to plain markdown notes in `work/`. Either way the
 material stays behind the firewall.
 
+### Design authority and local guidance
+
+[DES](https://github.com/lavallee/des) governs Artoo's default public-artifact
+contract: start from a named reader decision and headline claim, record
+supported and unsupported claims, establish vintages and denominators, and use
+only valid axes of comparison. A table or figure earns its place by helping the
+reader make that comparison. A clean Artoo build proves artifact integrity; it
+does not confer visual or editorial acceptance.
+
+`artoo init` records that contract in the non-deployed
+`work/design-brief.md`. [Vizier](https://github.com/lavallee/vizier) is an
+optional local critique and form-selection companion:
+
+```
+artoo vizier-guide "the reader's data job" --context "source and constraints" \
+  --family Ranking --series-count 5 --form-count 3 --prior-count 5 \
+  --no-semantic --artifact path/to/artifact
+```
+
+Artoo invokes the installed `vizier guide` executable and atomically records
+its complete output and invocation metadata at `work/vizier-guidance.md` only
+after a successful exit. A missing or failed executable produces an actionable
+error and no partial receipt. Artoo does not import Vizier, read its private
+corpus, or make a model/API call. This keeps responsibilities bounded: DES owns
+design authority, Vizier offers optional implementation guidance, and Artoo
+owns packaging, provenance, the firewall, and deployment.
+
 ## The explainer generator
 
 The first serious generator: `artoo generate explainer --repo <path>`
@@ -210,8 +243,10 @@ Pipeline (each stage resumable, artifacts cached in `work/`):
    key types/functions, invariants, dependencies, surprises. Structured
    output, validated, recorded as notebook sources/claims.
 3. **Synthesis** (synthesis tier) — the narrative: what this system is,
-   the architecture story, data flow, design decisions worth telling,
-   reading paths for different audiences. Produces page plans, then pages.
+   the reader decision, supportable headline claim, evidence limits and
+   counter-reading, valid comparisons, architecture story, and reading paths.
+   It selects tables or figures for those comparisons, then produces page
+   plans and pages.
 4. **Diagrams** — architecture/data-flow diagrams emitted as Mermaid
    source, rendered client-side by a vendored `mermaid.min.js`.
 5. **Assembly** — pages composed with artoo-kit into `site/`: overview,
@@ -228,6 +263,7 @@ artoo init [path] --kind <kind> --title <t>   scaffold an artifact
 artoo list [root]                             discover artifacts under a tree
 artoo status [artifact]                       manifest, firewall, lib drift
 artoo build [artifact]                        run build commands + checks
+artoo vizier-guide <job> [--artifact <path>]  optional private guidance receipt
 artoo deploy [artifact] [--dry-run]           firewall check, then adapter
 artoo lib add|update|status|list              manage vendored libraries
 artoo generate <generator> [opts]             run a generator plugin

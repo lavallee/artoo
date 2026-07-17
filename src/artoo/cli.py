@@ -11,7 +11,7 @@ from . import __version__, build as build_mod, deploy as deploy_mod
 from . import discover, firewall, generators
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
-from . import scaffold
+from . import scaffold, vizier as vizier_mod
 from .manifest import KINDS, Manifest
 
 
@@ -48,8 +48,54 @@ def init(path: Path, slug: str, title: str, kind: str, description: str, noteboo
     click.echo(f"created {m.dir}")
     click.echo(f"  manifest  {m.path.relative_to(Path.cwd()) if m.path.is_relative_to(Path.cwd()) else m.path}")
     click.echo(f"  site      {m.site}/index.html")
+    click.echo("  design    work/design-brief.md (private)")
     if notebook:
         click.echo("  notebook  notebook/")
+
+
+@main.command(name="vizier-guide")
+@click.argument("job")
+@click.option("--context", default=None, help="Headline, caption, source, or implementation notes.")
+@click.option("--family", default=None, help="Optional FT Visual Vocabulary family.")
+@click.option(
+    "--series-count", type=click.IntRange(min=1), default=None, help="Series/category count."
+)
+@click.option("--form-count", type=click.IntRange(min=1), default=None, help="Forms to return.")
+@click.option(
+    "--prior-count", type=click.IntRange(min=1), default=None, help="Prior-art signals to return."
+)
+@click.option(
+    "--semantic/--no-semantic",
+    default=None,
+    help="Explicitly enable or disable Vizier's local semantic retrieval.",
+)
+@click.option("--artifact", type=click.Path(path_type=Path), default=None)
+def vizier_guide(
+    job: str,
+    context: str | None,
+    family: str | None,
+    series_count: int | None,
+    form_count: int | None,
+    prior_count: int | None,
+    semantic: bool | None,
+    artifact: Path | None,
+):
+    """Record optional local Vizier implementation guidance for an artifact."""
+    m = _resolve(str(artifact) if artifact else None)
+    try:
+        receipt = vizier_mod.run_guide(
+            m,
+            job,
+            context=context,
+            family=family,
+            series_count=series_count,
+            form_count=form_count,
+            prior_count=prior_count,
+            semantic=semantic,
+        )
+    except vizier_mod.VizierGuideError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"wrote private Vizier guidance receipt: {receipt.relative_to(m.dir)}")
 
 
 @main.command(name="list")

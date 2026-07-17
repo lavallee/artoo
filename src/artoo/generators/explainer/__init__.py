@@ -101,10 +101,40 @@ def _default_plan(inv: dict) -> dict:
     return {
         "site_title": f"{name} explained",
         "tagline": inv["readme"].get("first_paragraph", "")[:160],
+        "reader_decision": (
+            f"A developer deciding where to begin reading or changing {name}."
+        ),
+        "headline_claim": (
+            f"The repository inventory identifies {name}'s major areas and their relationships."
+        ),
+        "evidence_limits": [
+            "File counts, line counts, and imports do not establish runtime importance or quality.",
+            "No worker-backed interpretation was available for claims beyond the inventory.",
+        ],
+        "counter_reading": (
+            "A large or highly connected area may be generated, incidental, or simpler than its size suggests."
+        ),
+        "licit_comparisons": [
+            "Area file and line counts taken from the same inventory snapshot.",
+            "Python source and test line counts using the same line-count method.",
+            "Import relationships observed in the same repository revision.",
+        ],
+        "selected_forms": [
+            {
+                "comparison": "Area sizes on one inventory basis",
+                "form": "table",
+                "reason": "Aligned rows make values and scope directly comparable.",
+            },
+            {
+                "comparison": "Observed import relationships",
+                "form": "figure",
+                "reason": "A node-link view exposes direction and connection.",
+            },
+        ],
         "pages": [
             {"slug": "index", "title": "Overview",
              "purpose": f"What {name} is and the shape of the codebase.",
-             "sections": ["What this is", "By the numbers", "Where to go"]},
+             "sections": ["What this is", "Inventory evidence", "Evidence limits", "Where to go"]},
             {"slug": "architecture", "title": "Architecture",
              "purpose": "How the areas of the codebase relate.",
              "sections": ["Areas", "Dependencies"]},
@@ -157,25 +187,29 @@ def _fallback_body(page: dict, inv: dict, units: list[dict], plan: dict,
         if readme.get("first_paragraph"):
             parts.append(f"<p>{html.escape(readme['first_paragraph'])}</p>")
         git = inv["git"]
-        stats = [
-            (f"{inv['python']['source_loc']:,}", "source LOC (py)"),
-            (f"{inv['python']['test_loc']:,}", "test LOC (py)"),
-            (str(len(units)), "areas"),
-            (str(git.get("commits", 0)), "commits"),
+        evidence = [
+            ("Python source lines", f"{inv['python']['source_loc']:,}", "Inventory snapshot"),
+            ("Python test lines", f"{inv['python']['test_loc']:,}", "Same line-count method"),
+            ("Areas", str(len(units)), "Inventory grouping"),
+            ("Commits", str(git.get("commits", 0)), "Repository history at snapshot"),
         ]
-        cells = "".join(
-            f'<div class="stat"><span class="value">{v}</span>'
-            f'<span class="label">{label}</span></div>'
-            for v, label in stats
+        rows = "".join(
+            f"<tr><td>{label}</td><td data-numeric>{value}</td><td>{basis}</td></tr>"
+            for label, value, basis in evidence
         )
-        parts.append(f'<div class="stat-row">{cells}</div>')
-        cards = "".join(
-            f'<a class="card" href="{p["slug"]}.html"><h3>{html.escape(p["title"])}</h3>'
-            f"<p>{html.escape(p['purpose'])}</p></a>"
+        parts.append(
+            '<figure class="article-figure"><table><thead><tr><th>Measure</th>'
+            f"<th>Value</th><th>Basis</th></tr></thead><tbody>{rows}</tbody></table>"
+            "<figcaption>All measures come from one deterministic inventory. "
+            "They describe repository shape, not runtime importance or quality.</figcaption></figure>"
+        )
+        links = "".join(
+            f'<li><a href="{p["slug"]}.html">{html.escape(p["title"])}</a> — '
+            f"{html.escape(p['purpose'])}</li>"
             for p in plan["pages"]
             if p["slug"] != "index"
         )
-        parts.append(f'<div class="card-grid">{cards}</div>')
+        parts.append(f'<nav aria-label="Continue reading"><h2>Where to go</h2><ul>{links}</ul></nav>')
     elif page["slug"] == "architecture":
         mermaid = _unit_graph_mermaid(inv, units)
         parts.append(
