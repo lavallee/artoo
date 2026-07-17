@@ -1,6 +1,5 @@
-/* artoo-kit tokens — the design spine. Never hardcode a hex in pages;
-   reference a token. Dark is the default; light via [data-theme="light"]
-   or the OS preference. */
+/* artoo-kit tokens — the DES-governed public-artifact spine. Light is the
+   default; dark is available only through an explicit [data-theme="dark"]. */
 
 :root {
   /* primitives */
@@ -34,27 +33,33 @@
   --chart-7: #f0e442;
   --chart-8: #999999;
 
-  /* semantic — dark default */
-  --bg: var(--p-zinc-950);
-  --surface: var(--p-zinc-900);
-  --surface-2: var(--p-zinc-850);
-  --border: #2c3038;
-  --border-strong: #3a3f4a;
-  --text: var(--p-zinc-100);
-  --text-2: var(--p-zinc-300);
-  --muted: var(--p-zinc-400);
-  --accent: var(--p-accent-400);
+  /* semantic — explicit light editorial default */
+  --bg: var(--p-cream-50);
+  --surface: #ffffff;
+  --surface-2: var(--p-cream-100);
+  --border: var(--p-cream-200);
+  --border-strong: #d8d0bf;
+  --text: var(--p-ink-900);
+  --text-2: #333a49;
+  --muted: var(--p-ink-600);
+  --accent: var(--p-accent-600);
   --accent-strong: var(--p-accent-500);
-  --success: var(--p-green-400);
-  --warn: var(--p-amber-400);
-  --danger: var(--p-red-400);
-  --code-bg: #14161b;
-  --selection: #2b4a86;
+  --success: #277553;
+  --warn: #8a5a00;
+  --danger: #a33b32;
+  --code-bg: #f0ece3;
+  --selection: #c7d7f5;
 
-  /* typography — system stacks only */
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: Charter, "Iowan Old Style", Georgia, Cambria, "Times New Roman", serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  /* editorial type roles — offline system stacks only */
+  --font-prose: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  --font-display: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  --font-ui: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-numeric: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* compatibility aliases for already-authored pages that opt into this kit */
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-prose);
+  --font-mono: var(--font-numeric);
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -80,12 +85,10 @@
   --sp-16: 4rem;
   --sp-24: 6rem;
 
-  /* shape, elevation, motion */
+  /* shape and motion */
   --radius-sm: 4px;
   --radius: 8px;
   --radius-lg: 14px;
-  --shadow-1: 0 1px 3px rgb(0 0 0 / 0.3);
-  --shadow-2: 0 4px 16px rgb(0 0 0 / 0.35);
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 120ms;
   --dur: 200ms;
@@ -93,45 +96,26 @@
   --measure: 68ch;      /* prose line length */
   --margin-col: 200px;  /* article margin-note gutter */
 
-  color-scheme: dark;
-}
-
-[data-theme="light"] {
-  --bg: var(--p-cream-50);
-  --surface: #ffffff;
-  --surface-2: var(--p-cream-100);
-  --border: var(--p-cream-200);
-  --border-strong: #d8d0bf;
-  --text: var(--p-ink-900);
-  --text-2: #333a49;
-  --muted: var(--p-ink-600);
-  --accent: var(--p-accent-600);
-  --accent-strong: var(--p-accent-500);
-  --code-bg: #f0ece3;
-  --selection: #c7d7f5;
-  --shadow-1: 0 1px 3px rgb(31 36 48 / 0.08);
-  --shadow-2: 0 4px 16px rgb(31 36 48 / 0.10);
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="light"]) {
-    --bg: var(--p-cream-50);
-    --surface: #ffffff;
-    --surface-2: var(--p-cream-100);
-    --border: var(--p-cream-200);
-    --border-strong: #d8d0bf;
-    --text: var(--p-ink-900);
-    --text-2: #333a49;
-    --muted: var(--p-ink-600);
-    --accent: var(--p-accent-600);
-    --accent-strong: var(--p-accent-500);
-    --code-bg: #f0ece3;
-    --selection: #c7d7f5;
-    --shadow-1: 0 1px 3px rgb(31 36 48 / 0.08);
-    --shadow-2: 0 4px 16px rgb(31 36 48 / 0.10);
-    color-scheme: light;
-  }
+[data-theme="dark"] {
+  --bg: var(--p-zinc-950);
+  --surface: var(--p-zinc-900);
+  --surface-2: var(--p-zinc-850);
+  --border: #2c3038;
+  --border-strong: #3a3f4a;
+  --text: var(--p-zinc-100);
+  --text-2: var(--p-zinc-300);
+  --muted: var(--p-zinc-400);
+  --accent: var(--p-accent-400);
+  --accent-strong: var(--p-accent-500);
+  --success: var(--p-green-400);
+  --warn: var(--p-amber-400);
+  --danger: var(--p-red-400);
+  --code-bg: #14161b;
+  --selection: #2b4a86;
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,7 +3,8 @@ import json
 from click.testing import CliRunner
 
 from artoo.generators import available
-from artoo.generators.explainer import _extract_json, _strip_fences, generate
+from artoo.generators.explainer import _default_plan, _extract_json, _strip_fences, generate
+from artoo.generators.explainer import prompts
 
 
 def test_registered():
@@ -19,6 +20,59 @@ def test_extract_json():
 def test_strip_fences():
     assert _strip_fences("```html\n<p>x</p>\n```") == "<p>x</p>"
     assert _strip_fences("<p>x</p>") == "<p>x</p>"
+
+
+def _prompt_inventory():
+    return {
+        "name": "reader-repo",
+        "loc_by_extension": {".py": 10},
+        "python": {"source_loc": 8, "test_loc": 2, "packages": []},
+        "readme": {"first_paragraph": "A repo for readers."},
+    }
+
+
+def test_planning_prompt_is_argument_first():
+    prompt = " ".join(
+        prompts.plan_prompt(_prompt_inventory(), {"core": "A grounded brief."}).split()
+    )
+    for contract_term in (
+        "reader decision",
+        "headline claim",
+        "evidence limits",
+        "counter-reading",
+        "licit comparisons",
+        "selected_forms",
+        "units, vintages, denominators",
+    ):
+        assert contract_term in prompt
+    assert "form directly helps the reader" in prompt
+    assert "dashboard shell" in prompt
+
+
+def test_page_prompt_selects_evidence_forms_instead_of_component_composition():
+    inv = _prompt_inventory()
+    plan = _default_plan(inv)
+    page = plan["pages"][0]
+    prompt = " ".join(
+        prompts.page_prompt(
+            inv, plan, page, {"core": "Ground truth at src/core.py:1."}
+        ).split()
+    )
+
+    for contract_term in (
+        "Reader decision:",
+        "Headline claim:",
+        "Evidence limits:",
+        "Counter-reading:",
+        "Licit comparisons:",
+        "Selected forms and reasons:",
+        "supports a licit reader comparison",
+        "margin notes for definitions and file-level provenance",
+    ):
+        assert contract_term in prompt
+    assert "a stat-row or pullnumber" not in prompt
+    assert "cards for links to related pages" not in prompt
+    assert "Cards are available only for true navigation" in prompt
 
 
 def _no_mermaid(monkeypatch):
@@ -58,6 +112,10 @@ def test_degraded_run(fake_repo, monkeypatch):
     assert "Deterministic build" in index  # honest about degraded mode
     assert "colophon" in index
     assert "fake-repo" in index
+    assert 'data-theme="light"' in index
+    assert "data-theme-toggle" not in index
+    assert "stat-row" not in index
+    assert "card-grid" not in index
 
     plan = json.loads((out / "work" / "plan.json").read_text())
     assert plan["pages"][0]["slug"] == "index"

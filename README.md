@@ -25,6 +25,10 @@ tool layer for that practice:
   explainer) delegate to agent CLIs you already have — `claude`, `codex` —
   with cheap tiers for fan-out analysis and strong tiers for synthesis.
   artoo core makes no model calls and holds no keys.
+- **DES governs the public-artifact default.** New work starts as a light,
+  long-form editorial argument with an explicit reader decision, evidence
+  limits, and valid comparisons. Artoo remains responsible for packaging,
+  provenance, the private-file firewall, and deployment.
 
 ## Install
 
@@ -52,6 +56,36 @@ artoo status site/my-report
 artoo deploy site/my-report
 ```
 
+`artoo init` also creates `work/design-brief.md`, a private authoring contract
+for the reader decision, headline claim, evidence boundaries, data vintages,
+licit comparisons, forms, DES references, and proof required. It never enters
+the deployable `site/` tree.
+
+## Optional Vizier guidance
+
+[Vizier](https://github.com/lavallee/vizier) is an optional local companion for
+implementation critique and form selection. If its keyless `vizier` CLI is
+installed, Artoo can run `vizier guide` and retain the full invocation and
+output behind the artifact firewall:
+
+```bash
+artoo vizier-guide \
+  "compare district spending over time without hiding enrollment change" \
+  --context "Headline, caption, source, and implementation constraints" \
+  --family "Change over time" --series-count 4 \
+  --form-count 3 --prior-count 5 --no-semantic \
+  --artifact site/my-report
+```
+
+The receipt is `work/vizier-guidance.md`. Artoo shells out to the installed CLI;
+Vizier is not an Artoo dependency, and this path makes no direct model or API
+call. Vizier advises on visual form and implementation. DES remains the design
+authority, while Artoo owns artifact packaging, provenance, and deployment.
+
+A clean `artoo build` proves build-command and artifact/firewall integrity. It
+does not prove visual or editorial acceptance; review the rendered artifact
+against its design brief and DES reference before publishing.
+
 ## Generate a repo explainer
 
 ```bash
@@ -62,8 +96,10 @@ artoo deploy site/explainer
 The explainer inventories the repo deterministically, fans out per-module
 analysis to a cheap worker (`codex`), synthesizes the narrative with a strong
 worker (`claude`), renders architecture diagrams, and assembles a multi-page
-site with the built-in design kit. The result is a dated snapshot with a
-colophon saying exactly how it was made.
+site with the built-in design kit. Planning starts from a named reader decision,
+supportable headline claim, counter-reading, and licit comparisons before it
+selects tables or figures. The result is a dated snapshot with a colophon saying
+exactly how it was made.
 
 ## Status
 

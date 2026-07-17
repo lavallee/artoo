@@ -13,6 +13,7 @@
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
 }
 
 .site-nav .brand {
@@ -149,6 +150,8 @@ a.card:hover {
   color: var(--text);
   display: block;
   line-height: var(--leading-tight);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat .label {

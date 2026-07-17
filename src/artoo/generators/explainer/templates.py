@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 
 PAGE_SHELL = """<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,11 +23,10 @@ PAGE_SHELL = """<!doctype html>
   <div class="nav-links">
 {nav_links}
   </div>
-  <button data-theme-toggle class="nav-toggle" style="display:block;margin-left:auto" aria-label="Toggle theme">theme</button>
 </nav>
 <main class="article">
 {body}
-<footer class="colophon article-full" style="margin-left:var(--sp-6);margin-right:var(--sp-6)">
+<footer class="colophon article-full article-colophon">
 {colophon}
 </footer>
 </main>
