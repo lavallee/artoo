@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from artoo import libraries
@@ -52,3 +54,33 @@ def test_tree_hash_deterministic(artifact):
     m = manifest_mod.load(artifact.dir)
     d = libraries.vendored_dir(m, "artoo-kit")
     assert libraries.tree_hash(d) == libraries.tree_hash(d)
+
+
+def test_callout_status_uses_type_not_side_border():
+    css = (libraries.available()["artoo-kit"].root / "components.css").read_text()
+    callout_rules = [
+        (selectors, declarations)
+        for selectors, declarations in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+        if ".callout" in selectors
+    ]
+
+    assert callout_rules
+    side_border = re.compile(
+        r"\bborder-(?:left|right|inline-(?:start|end))(?:-[\w-]+)?\s*:"
+    )
+    assert not [
+        selectors.strip()
+        for selectors, declarations in callout_rules
+        if side_border.search(declarations)
+    ]
+
+    for modifier, token in (
+        ("warn", "warn"),
+        ("danger", "danger"),
+        ("success", "success"),
+    ):
+        selector = f".callout--{modifier} .callout-title"
+        assert any(
+            selector in selectors and f"color: var(--{token})" in declarations
+            for selectors, declarations in callout_rules
+        )

@@ -88,7 +88,6 @@ a.card:hover {
 
 .callout {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius);
   background: var(--surface);
   padding: var(--sp-3) var(--sp-4);
@@ -105,9 +104,9 @@ a.card:hover {
   margin-bottom: var(--sp-1);
 }
 
-.callout--warn { border-left-color: var(--warn); }
-.callout--danger { border-left-color: var(--danger); }
-.callout--success { border-left-color: var(--success); }
+.callout--warn .callout-title { color: var(--warn); }
+.callout--danger .callout-title { color: var(--danger); }
+.callout--success .callout-title { color: var(--success); }
 
 /* -- badges & meta ---------------------------------------------------------- */
 
