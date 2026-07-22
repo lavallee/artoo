@@ -11,6 +11,11 @@ build/
 # artoo local state (never committed)
 .artoo/targets.toml
 
+# somm telemetry sidecars — SQLite writes these next to the db and rewrites
+# them constantly; they are runtime state, not content.
+.somm/*.sqlite-shm
+.somm/*.sqlite-wal
+
 # editors / os
 .DS_Store
 .idea/

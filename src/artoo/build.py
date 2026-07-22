@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass, field
+from datetime import date
 
 from . import firewall
 from .manifest import Manifest
@@ -15,6 +16,7 @@ class BuildResult:
     ran: list[str] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
     withheld: list[str] = field(default_factory=list)
+    stamped: str = ""  # the `updated` date written back, if any
 
 
 def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
@@ -44,4 +46,17 @@ def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
     if result.problems:
         result.ok = False
     result.withheld = [str(p) for p in firewall.withheld(m.site_dir)] if m.site_dir.is_dir() else []
+
+    # A successful build is the moment the site last changed, so stamp
+    # `updated` here. Without this the field is declared but never written,
+    # and every consumer that sorts or displays freshness has to fall back to
+    # file mtimes. Only on a real, successful build: a dry run touches
+    # nothing, and a failed build did not produce a new site.
+    if result.ok and not dry_run and m.path is not None:
+        today = date.today().isoformat()
+        if m.updated != today:
+            m.updated = today
+            m.save()
+            result.stamped = today
+
     return result
