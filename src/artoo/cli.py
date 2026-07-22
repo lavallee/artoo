@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -100,9 +101,42 @@ def vizier_guide(
 
 @main.command(name="list")
 @click.argument("root", type=click.Path(exists=True, path_type=Path), default=".")
-def list_cmd(root: Path):
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
+def list_cmd(root: Path, as_json: bool):
     """Discover artifacts under ROOT."""
     paths = discover.find_artifacts(root)
+
+    if as_json:
+        # Indexers and servers need the inventory without re-implementing
+        # manifest parsing (and without guessing that site defaults to "site",
+        # which several real artifacts override). Invalid manifests are
+        # reported rather than dropped, so a typo never silently shrinks a
+        # caller's inventory.
+        entries = []
+        for p in paths:
+            try:
+                m = manifest_mod.load(p)
+            except Exception as exc:
+                entries.append({"path": str(p), "error": str(exc)})
+                continue
+            entries.append(
+                {
+                    "path": str(p),
+                    "slug": m.slug,
+                    "title": m.title,
+                    "description": m.description,
+                    "kind": m.kind,
+                    "status": m.status,
+                    "created": m.created,
+                    "updated": m.updated,
+                    "site": m.site,
+                    "site_dir": str(m.site_dir),
+                    "deploy_target": m.deploy_target,
+                }
+            )
+        click.echo(json.dumps(entries, indent=2))
+        return
+
     if not paths:
         click.echo(f"no artifacts under {root.resolve()}")
         return
@@ -155,6 +189,8 @@ def build_cmd(path: Path | None, dry_run: bool):
     for problem in result.problems:
         click.secho(f"✗ {problem}", fg="red")
     if result.ok:
+        if result.stamped:
+            click.echo(f"stamped updated = {result.stamped}")
         click.secho(f"✓ site ready: {m.site_dir}", fg="green")
     else:
         raise SystemExit(1)
