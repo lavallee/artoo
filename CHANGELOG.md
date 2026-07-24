@@ -14,9 +14,45 @@ All notable changes to artoo are documented here. The format follows
 - Explainer planning and page prompts begin from the reader decision, headline
   claim, evidence limits, counter-reading, and licit comparisons instead of
   dashboard-like component composition.
+- **artoo-kit 0.3.0**: adds the provenance panel (`components.css` styles +
+  `provenance.js` hydrator + in-prose claim anchors), a default `favicon.svg`,
+  and a kit `README.md` documenting panel usage plus the SVG `fill="var(--…)"`
+  gotcha and chart guidance. Existing vendored bytes are untouched until an
+  explicit `artoo lib update artoo-kit`.
+- Explainer pages now link the kit favicon, and — when a notebook projection is
+  produced — carry the provenance panel and a notebook-aware colophon that names
+  the render vintage.
 
 ### Added
 
+- **flip roundtrip (read half)** — artoo now *reads* an attached flip notebook
+  back out, activating when flip is on `PATH` (or pinned via `ARTOO_FLIP_BIN`)
+  and degrading silently when it is absent:
+  - **Provenance ingestion.** `artoo provenance <artifact>` (and every non-dry
+    `artoo build`) runs `flip export json` and lands the policy-filtered
+    `flip-render/1` projection at `site/data/provenance.json`, plus a
+    `provenance.js` global loader so the panel hydrates from `file://`. The
+    notebook `uid`+`updated` are recorded in `artifact.toml` as the render
+    vintage. `--include-private` is used only when the manifest opts in with
+    `[research] include_private = true`; otherwise flip's own visibility /
+    `source_trail_public` filter is never bypassed.
+  - **Provenance panel + colophon** (artoo-kit): a data-driven panel — sources
+    with grades/independence, claims with status and verification-method badges,
+    counts, notebook vintage and generated stamp — that renders nothing when no
+    projection is present.
+  - **Claim anchors.** Bracketed flip ids (`[C7]`, `[A3]`, `[F1]`) that exist in
+    the projection become stable in-prose anchors (`id="claim-C7"`) linking to
+    their panel entry, with the claim text/status as a tooltip. Done client-side
+    by the kit, never touching code blocks; ids the projection does not know are
+    left alone.
+  - **Staleness.** `artoo status` compares the recorded render vintage against
+    the live notebook manifest and reports fresh / stale / never-rendered /
+    unknown — advisory, never a failure.
+  - **Deploy gate.** `artoo deploy` runs `flip doctor --json` on an attached
+    notebook; ERROR-level findings block with an actionable message.
+    `--allow-doctor-errors` overrides; absent flip or notebook skips with a note.
+- `artoo status` and `artoo build` validate every `*.json` under `site/data/`
+  and report parse errors as findings.
 - `artoo vizier-guide` optionally records a successful local `vizier guide`
   invocation and its complete output in private artifact work files without a
   Vizier import dependency or direct model call.
