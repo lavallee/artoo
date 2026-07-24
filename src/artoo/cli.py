@@ -9,9 +9,10 @@ from pathlib import Path
 import click
 
 from . import __version__, build as build_mod, deploy as deploy_mod
-from . import discover, firewall, generators
+from . import discover, firewall, flip_read, generators
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
+from . import provenance as provenance_mod
 from . import scaffold, vizier as vizier_mod
 from .manifest import KINDS, Manifest
 
@@ -21,6 +22,37 @@ def _resolve(path: str | None) -> Manifest:
         return discover.resolve_artifact(Path(path) if path else None)
     except FileNotFoundError as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+def _deploy_doctor_gate(m: Manifest, allow_errors: bool) -> None:
+    """Run flip doctor on the attached notebook; block on ERROR findings."""
+    nb = provenance_mod.attached_notebook(m)
+    if nb is None:
+        return
+    if not flip_read.available():
+        click.echo("  (flip not installed — skipping the doctor pre-publish gate)")
+        return
+    findings, reason = flip_read.doctor_json(nb)
+    if findings is None:
+        click.echo(f"  (flip doctor unavailable — skipping gate: {reason})")
+        return
+    errors = [f for f in findings if str(f.get("level", "")).upper() == "ERROR"]
+    warns = [f for f in findings if str(f.get("level", "")).upper() == "WARN"]
+    if warns:
+        click.secho(f"  ! flip doctor: {len(warns)} WARN finding(s) on the notebook", fg="yellow")
+    if not errors:
+        if not warns:
+            click.secho("  ✓ flip doctor: no ERROR findings on the notebook", fg="green")
+        return
+    for f in errors:
+        click.secho(f"  ✗ flip doctor [{f.get('code', '?')}]: {f.get('message', '')}", fg="red")
+    if allow_errors:
+        click.secho("  ! publishing despite doctor ERRORs (--allow-doctor-errors)", fg="yellow")
+        return
+    raise click.ClickException(
+        f"flip doctor found {len(errors)} ERROR-level finding(s) on the attached "
+        "notebook; fix them, or re-run with --allow-doctor-errors to publish anyway."
+    )
 
 
 @click.group()
@@ -159,6 +191,8 @@ def status(path: Path | None):
     click.echo(f"  kind {m.kind} · status {m.status} · deploy {m.deploy_target or '(unset)'}")
 
     problems = m.validate() + firewall.check(m)
+    if m.site_dir.is_dir():
+        problems += provenance_mod.data_json_problems(m.site_dir)
     for problem in problems:
         click.secho(f"  ✗ {problem}", fg="red")
 
@@ -173,6 +207,17 @@ def status(path: Path | None):
         mark = "✓" if row["state"] == "intact" else "!"
         click.echo(f"  {mark} lib {row['name']} {row['version']} — {row['state']}")
 
+    # Render freshness against the attached notebook — advisory, never a failure.
+    fresh = provenance_mod.staleness(m)
+    if fresh["state"] == "fresh":
+        click.secho(f"  ✓ render fresh — {fresh['detail']}", fg="green")
+    elif fresh["state"] == "stale":
+        click.secho(f"  ! render stale — {fresh['detail']}", fg="yellow")
+    elif fresh["state"] == "never":
+        click.secho(f"  ! render vintage — {fresh['detail']}", fg="yellow")
+    elif fresh["state"] == "unknown":
+        click.secho(f"  ? notebook vintage — {fresh['detail']}", fg="yellow")
+
     if not problems:
         click.secho("  ✓ manifest and firewall clean", fg="green")
 
@@ -186,6 +231,8 @@ def build_cmd(path: Path | None, dry_run: bool):
     result = build_mod.build(m, dry_run=dry_run)
     for command in result.ran:
         click.echo(f"{'would run' if dry_run else 'ran'}: {command}")
+    if result.provenance:
+        click.echo(result.provenance)
     for problem in result.problems:
         click.secho(f"✗ {problem}", fg="red")
     if result.ok:
@@ -196,11 +243,36 @@ def build_cmd(path: Path | None, dry_run: bool):
         raise SystemExit(1)
 
 
+@main.command(name="provenance")
+@click.argument("path", type=click.Path(path_type=Path), required=False)
+def provenance_cmd(path: Path | None):
+    """Project the attached flip notebook into site/data/provenance.json."""
+    m = _resolve(str(path) if path else None)
+    result = provenance_mod.ingest(m)
+    if result.status == "written":
+        c = result.counts
+        grades = " / ".join(f"{n} {g}" for g, n in sorted(c["grades"].items())) or "none graded"
+        click.echo(f"wrote {result.path.relative_to(m.dir)}")
+        click.echo(f"  notebook  {result.vintage.get('uid') or '?'} · updated {result.vintage.get('updated') or '?'}")
+        click.echo(f"  sources   {c['sources']} ({grades})")
+        click.echo(f"  claims    {c['claims']} · {c['load_bearing']} load-bearing")
+        click.secho("  ✓ render vintage recorded in artifact.toml", fg="green")
+    elif result.status == "skipped":
+        click.echo(f"skipped: {result.note}")
+    else:
+        raise click.ClickException(result.note)
+
+
 @main.command(name="deploy")
 @click.argument("path", type=click.Path(path_type=Path), required=False)
 @click.option("--dry-run", is_flag=True, help="Show what would happen; touch nothing remote.")
 @click.option("--skip-build", is_flag=True, help="Skip build commands before deploying.")
-def deploy_cmd(path: Path | None, dry_run: bool, skip_build: bool):
+@click.option(
+    "--allow-doctor-errors",
+    is_flag=True,
+    help="Publish even if flip doctor reports ERROR-level findings on the notebook.",
+)
+def deploy_cmd(path: Path | None, dry_run: bool, skip_build: bool, allow_doctor_errors: bool):
     """Firewall-stage the site, then hand it to the deploy adapter."""
     m = _resolve(str(path) if path else None)
     if not m.deploy_target:
@@ -208,6 +280,11 @@ def deploy_cmd(path: Path | None, dry_run: bool, skip_build: bool):
             "no [deploy] target in the manifest. Set one, e.g.\n"
             '  [deploy]\n  target = "github-pages"'
         )
+
+    # Pre-publish evidentiary gate: if a flip notebook is attached and flip is
+    # installed, refuse on ERROR-level doctor findings about the claims and
+    # citations that are about to go public. Absent flip or notebook: skip.
+    _deploy_doctor_gate(m, allow_doctor_errors)
 
     if not skip_build:
         result = build_mod.build(m, dry_run=dry_run)

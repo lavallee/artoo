@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import date
 
-from . import firewall
+from . import firewall, provenance as provenance_mod
 from .manifest import Manifest
 
 
@@ -17,6 +17,7 @@ class BuildResult:
     problems: list[str] = field(default_factory=list)
     withheld: list[str] = field(default_factory=list)
     stamped: str = ""  # the `updated` date written back, if any
+    provenance: str = ""  # one-line note on the provenance projection, if any
 
 
 def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
@@ -42,7 +43,25 @@ def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
             )
             return result
 
+    # Provenance: if a flip notebook is attached, refresh the projection under
+    # site/data/. Best-effort — no flip, no notebook, or a policy refusal is a
+    # note, never a build failure (artoo core works without flip).
+    if not dry_run:
+        prov = provenance_mod.ingest(m)
+        if prov.status == "written":
+            c = prov.counts
+            result.provenance = (
+                f"provenance.json ← notebook {prov.vintage.get('uid') or '?'} "
+                f"({c.get('sources', 0)} sources, {c.get('claims', 0)} claims)"
+            )
+        elif prov.status == "error":
+            result.provenance = f"provenance skipped: {prov.note}"
+    else:
+        result.provenance = "provenance projection skipped (dry run)"
+
     result.problems.extend(firewall.check(m))
+    if m.site_dir.is_dir():
+        result.problems.extend(provenance_mod.data_json_problems(m.site_dir))
     if result.problems:
         result.ok = False
     result.withheld = [str(p) for p in firewall.withheld(m.site_dir)] if m.site_dir.is_dir() else []
