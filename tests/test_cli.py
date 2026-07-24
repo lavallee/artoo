@@ -26,9 +26,11 @@ def _attach_notebook(art_dir):
 
 
 def test_version():
+    from artoo import __version__
+
     result = invoke("--version")
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert __version__ in result.output
 
 
 def test_init_and_status(tmp_path):
