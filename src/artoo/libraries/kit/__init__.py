@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .. import Library
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 library = Library(
     name="artoo-kit",

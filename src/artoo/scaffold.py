@@ -16,6 +16,7 @@ STARTER_PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
+<link rel="icon" href="lib/artoo-kit/favicon.svg">
 <link rel="stylesheet" href="lib/artoo-kit/tokens.css">
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
