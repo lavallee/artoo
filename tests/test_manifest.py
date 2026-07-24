@@ -72,3 +72,21 @@ def test_load_missing(tmp_path: Path):
 def test_string_escaping():
     man = m.new("x", 'He said "hi"\nback', kind="note")
     assert m.loads(m.dumps(man)).title == 'He said "hi"\nback'
+
+
+def test_research_roundtrip():
+    man = make()
+    man.notebook = "notebook"
+    man.research_include_private = True
+    man.rendered_uid = "nb-abc123"
+    man.rendered_updated = "2026-07-24"
+    back = m.loads(m.dumps(man))
+    assert back.notebook == "notebook"
+    assert back.research_include_private is True
+    assert back.rendered_uid == "nb-abc123"
+    assert back.rendered_updated == "2026-07-24"
+
+
+def test_research_table_only_when_set():
+    man = make()  # no notebook, no research fields
+    assert "[research]" not in m.dumps(man)

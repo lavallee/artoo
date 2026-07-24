@@ -25,6 +25,7 @@ import click
 
 from ... import __version__, libraries
 from ... import manifest as manifest_mod
+from ... import provenance as provenance_mod
 from ... import scaffold, workers
 from ...research import ResearchLog
 from . import inventory as inventory_mod
@@ -392,6 +393,20 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
         uses_mermaid = any('class="mermaid"' in b for b in bodies.values())
         mermaid_src = _ensure_mermaid(m) if uses_mermaid else ""
 
+        # Project the notebook this run recorded into site/data/ so the pages
+        # can carry a data-driven provenance panel and a notebook-aware
+        # colophon. Best-effort: a private notebook (or absent flip) just means
+        # no panel — the pages still render.
+        prov = provenance_mod.ingest(m)
+        if prov.status == "written":
+            click.echo(
+                f"provenance: {prov.counts['sources']} sources, "
+                f"{prov.counts['claims']} claims → site/data/provenance.json"
+            )
+        elif prov.status == "error":
+            click.secho(f"! provenance projection skipped: {prov.note}", fg="yellow")
+        with_panel = prov.status == "written"
+
         meta = {
             "date": date.today().isoformat(),
             "artoo_version": __version__,
@@ -401,12 +416,14 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
                 f"analysis: {analysis_worker if briefs else 'none'}, "
                 f"synthesis: {synthesis_worker if (briefs and have_synthesis) else 'none'}"
             ),
+            "notebook_uid": prov.vintage.get("uid", "") if with_panel else "",
+            "notebook_updated": prov.vintage.get("updated", "") if with_panel else "",
         }
         for page in plan["pages"]:
             html_text = templates.render_page(
                 page=page, pages=plan["pages"],
                 site_title=plan["site_title"], body=bodies[page["slug"]],
-                meta=meta, mermaid_src=mermaid_src,
+                meta=meta, mermaid_src=mermaid_src, provenance=with_panel,
             )
             (m.site_dir / f"{page['slug']}.html").write_text(html_text, encoding="utf-8")
 

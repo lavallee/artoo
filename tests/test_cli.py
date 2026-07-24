@@ -1,10 +1,28 @@
+import click
+import pytest
 from click.testing import CliRunner
 
+from artoo import manifest as manifest_mod
 from artoo.cli import main
+
+from conftest import SAMPLE_PROJECTION
 
 
 def invoke(*args):
     return CliRunner().invoke(main, list(args))
+
+
+def _attach_notebook(art_dir):
+    """Attach a fake flip notebook whose vintage matches SAMPLE_PROJECTION."""
+    nb = art_dir / "notebook"
+    nb.mkdir(exist_ok=True)
+    (nb / "index.md").write_text(
+        "---\nuid: nb-abc123\nupdated: '2026-07-24'\nvisibility: public\n---\n# nb\n",
+        encoding="utf-8",
+    )
+    man = manifest_mod.load(art_dir)
+    man.notebook = "notebook"
+    man.save()
 
 
 def test_version():
@@ -111,3 +129,75 @@ def test_lib_flow(tmp_path):
     assert "artoo-kit" in result.output and "intact" in result.output
     result = invoke("lib", "update", "artoo-kit", "--artifact", str(tmp_path / "art"))
     assert result.exit_code == 0
+
+
+# -- flip roundtrip surfaces --------------------------------------------------
+
+
+def test_init_ships_favicon(tmp_path):
+    invoke("init", str(tmp_path / "art"))
+    page = (tmp_path / "art" / "site" / "index.html").read_text()
+    assert 'rel="icon"' in page and "favicon.svg" in page
+    assert (tmp_path / "art" / "site" / "lib" / "artoo-kit" / "favicon.svg").is_file()
+
+
+def test_provenance_command(tmp_path, flip_stub):
+    invoke("init", str(tmp_path / "art"))
+    _attach_notebook(tmp_path / "art")
+    flip_stub.set_export(SAMPLE_PROJECTION)
+    result = invoke("provenance", str(tmp_path / "art"))
+    assert result.exit_code == 0, result.output
+    assert "wrote" in result.output and "sources" in result.output
+    assert (tmp_path / "art" / "site" / "data" / "provenance.json").is_file()
+    assert (tmp_path / "art" / "site" / "data" / "provenance.js").is_file()
+
+
+def test_provenance_command_skips_without_notebook(tmp_path, flip_stub):
+    invoke("init", str(tmp_path / "art"))
+    result = invoke("provenance", str(tmp_path / "art"))
+    assert result.exit_code == 0
+    assert "skipped" in result.output
+
+
+def test_status_reports_freshness(tmp_path, flip_stub):
+    invoke("init", str(tmp_path / "art"))
+    _attach_notebook(tmp_path / "art")
+    flip_stub.set_export(SAMPLE_PROJECTION)
+    invoke("provenance", str(tmp_path / "art"))
+    result = invoke("status", str(tmp_path / "art"))
+    assert "render fresh" in result.output
+
+
+def test_build_flags_bad_data_json(tmp_path):
+    invoke("init", str(tmp_path / "art"))
+    data = tmp_path / "art" / "site" / "data"
+    data.mkdir(parents=True)
+    (data / "bad.json").write_text("{oops")
+    result = invoke("build", str(tmp_path / "art"))
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
+
+
+def test_deploy_blocks_on_doctor_errors(tmp_path, flip_stub):
+    invoke("init", str(tmp_path / "art"))
+    _attach_notebook(tmp_path / "art")
+    man = manifest_mod.load(tmp_path / "art")
+    man.deploy_target = "command"
+    man.deploy_config = {"command": "true"}
+    man.save()
+    flip_stub.set_doctor([{"level": "ERROR", "code": "dangling-citation", "message": "C3 cites A9"}])
+    result = invoke("deploy", str(tmp_path / "art"), "--dry-run")
+    assert result.exit_code != 0
+    assert "flip doctor found" in result.output
+
+
+def test_deploy_gate_helper_paths(notebook_artifact, flip_stub):
+    from artoo.cli import _deploy_doctor_gate
+
+    flip_stub.set_doctor([{"level": "WARN", "code": "x", "message": "w"}])
+    _deploy_doctor_gate(notebook_artifact, False)  # WARN alone does not block
+
+    flip_stub.set_doctor([{"level": "ERROR", "code": "x", "message": "boom"}])
+    with pytest.raises(click.ClickException):
+        _deploy_doctor_gate(notebook_artifact, False)
+    _deploy_doctor_gate(notebook_artifact, True)  # override does not raise

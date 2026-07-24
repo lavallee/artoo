@@ -43,6 +43,15 @@ class Manifest:
     site: str = "site"
     notebook: str = ""
 
+    # Research (flip) roundtrip. `include_private` is the explicit opt-in that
+    # lets provenance ingestion pass `--include-private` to flip; without it the
+    # projection is policy-filtered exactly as flip ships it. `rendered_uid` and
+    # `rendered_updated` are the notebook vintage the site was last rendered
+    # from — the join `artoo status` uses to detect a stale render.
+    research_include_private: bool = False
+    rendered_uid: str = ""
+    rendered_updated: str = ""
+
     deploy_target: str = ""
     deploy_config: dict = field(default_factory=dict)
 
@@ -154,8 +163,17 @@ def dumps(m: Manifest) -> str:
     if build_pairs:
         blocks.append(_table("build", build_pairs))
 
+    research_pairs: list[tuple[str, object]] = []
     if m.notebook:
-        blocks.append(_table("research", [("notebook", m.notebook)]))
+        research_pairs.append(("notebook", m.notebook))
+    if m.research_include_private:
+        research_pairs.append(("include_private", m.research_include_private))
+    if m.rendered_uid:
+        research_pairs.append(("rendered_uid", m.rendered_uid))
+    if m.rendered_updated:
+        research_pairs.append(("rendered_updated", m.rendered_updated))
+    if research_pairs:
+        blocks.append(_table("research", research_pairs))
 
     if m.workers:
         blocks.append(_table("workers", sorted(m.workers.items())))
@@ -198,6 +216,9 @@ def loads(text: str) -> Manifest:
         build_commands=list(build.get("commands", [])),
         site=build.get("site", "site"),
         notebook=research.get("notebook", ""),
+        research_include_private=bool(research.get("include_private", False)),
+        rendered_uid=str(research.get("rendered_uid", "")),
+        rendered_updated=str(research.get("rendered_updated", "")),
         deploy_target=target,
         deploy_config=dict(deploy_config),
         workers=dict(data.get("workers", {})),

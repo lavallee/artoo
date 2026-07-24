@@ -38,7 +38,31 @@ artoo --version                   # the command is `artoo`
 ```
 
 Research-notebook support activates automatically when
-[flip](https://github.com/lavallee/flip) is installed alongside artoo.
+[flip](https://github.com/lavallee/flip) is installed alongside artoo — both
+the write half (generator runs recorded as sources/claims/sessions) and the
+read half (below). artoo discovers flip on `PATH`; pin a specific build with
+`ARTOO_FLIP_BIN`. With no flip installed, artoo core works unchanged.
+
+## Provenance roundtrip
+
+When an artifact declares an attached notebook (`[research] notebook = "…"`),
+artoo reads it back out at build time:
+
+```bash
+artoo provenance site/my-report   # flip export json → site/data/provenance.json
+artoo status site/my-report       # ... and reports if the render is stale
+```
+
+`artoo build` refreshes `site/data/provenance.json` (flip's policy-filtered
+`flip-render/1` projection) and records the notebook `uid`+`updated` in
+`artifact.toml` as the render vintage. The artoo-kit **provenance panel**
+renders that data — sources with grades, claims with status and
+verification-method badges, counts, and the notebook vintage — and turns
+bracketed flip ids (`[C7]`) in prose into stable anchors that link to their
+panel entry. `artoo deploy` runs `flip doctor` on the notebook first and blocks
+on ERROR-level findings (`--allow-doctor-errors` overrides). The projection is
+filtered by flip itself; artoo only passes `--include-private` when the manifest
+sets `[research] include_private = true`. All of it no-ops cleanly without flip.
 
 ## Quickstart
 

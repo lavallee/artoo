@@ -87,6 +87,8 @@ site = "site"                 # publishable root, relative to the manifest
 
 [research]
 notebook = "notebook"         # optional flip notebook directory
+# include_private = true       # opt in to `flip export json --include-private`
+# rendered_uid / rendered_updated  # written by `artoo build`: the render vintage
 
 [deploy]
 target = "github-pages"
@@ -202,6 +204,34 @@ site is then a *render* of the notebook in flip's sense. Without flip,
 generators fall back to plain markdown notes in `work/`. Either way the
 material stays behind the firewall.
 
+**The read half of the roundtrip.** The write path imports flip as a Python
+library; the read path deliberately does not — a site generator wants whatever
+`flip` is on the user's `PATH`, not whatever version sits in artoo's own venv.
+So the consumer surfaces shell out to the CLI (`flip export json`, `flip doctor
+--json`), discovered on `PATH` or pinned with `ARTOO_FLIP_BIN`, and degrade to a
+no-op when flip is absent — artoo core never hard-depends on it. flip is the
+single source of truth; `site/` is a pure, disposable render (SPEC §11), joined
+by stable ids and versioned by notebook vintage:
+
+- `artoo provenance` / `artoo build` run `flip export json` and write the
+  policy-filtered `flip-render/1` projection to `site/data/provenance.json`
+  (plus a `provenance.js` global loader for `file://`), recording the notebook
+  `uid`+`updated` into `artifact.toml` as `[research] rendered_uid` /
+  `rendered_updated`. The projection is filtered by flip's own `visibility` /
+  `source_trail_public` policy; artoo passes `--include-private` **only** when
+  the manifest opts in with `[research] include_private = true`.
+- The artoo-kit **provenance panel** and **notebook-aware colophon** render that
+  data (grades, claim status, verification methods, counts, vintage). Bracketed
+  flip ids in prose (`[C7]`, `[A3]`) that the projection knows become stable
+  anchors linking to their panel entry — done client-side by the kit, matching
+  its existing client-side enhancements (theme, nav, mermaid) and never touching
+  committed HTML or code blocks.
+- `artoo status` compares the recorded vintage against the live notebook
+  manifest (`index.md` frontmatter) and flags a stale render — advisory only.
+- `artoo deploy` gates on `flip doctor --json`: ERROR-level findings on the
+  attached notebook block publication (`--allow-doctor-errors` overrides),
+  tying the deploy firewall to evidentiary integrity, not just file safety.
+
 ### Design authority and local guidance
 
 [DES](https://github.com/lavallee/des) governs Artoo's default public-artifact
@@ -261,10 +291,12 @@ which commit — an explainer is a *dated snapshot*, and says so.
 ```
 artoo init [path] --kind <kind> --title <t>   scaffold an artifact
 artoo list [root]                             discover artifacts under a tree
-artoo status [artifact]                       manifest, firewall, lib drift
-artoo build [artifact]                        run build commands + checks
+artoo status [artifact]                       manifest, firewall, lib drift, render freshness
+artoo build [artifact]                        run build commands + checks + provenance
+artoo provenance [artifact]                   project an attached flip notebook into site/data/
 artoo vizier-guide <job> [--artifact <path>]  optional private guidance receipt
-artoo deploy [artifact] [--dry-run]           firewall check, then adapter
+artoo deploy [artifact] [--dry-run] [--allow-doctor-errors]
+                                              flip-doctor gate, firewall check, then adapter
 artoo lib add|update|status|list              manage vendored libraries
 artoo generate <generator> [opts]             run a generator plugin
 artoo doctor [root]                           repo-wide coherence report

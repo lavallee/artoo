@@ -11,6 +11,7 @@ PAGE_SHELL = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — {site_title}</title>
 <meta name="description" content="{description}">
+<link rel="icon" href="lib/artoo-kit/favicon.svg">
 <link rel="stylesheet" href="lib/artoo-kit/tokens.css">
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
@@ -24,16 +25,27 @@ PAGE_SHELL = """<!doctype html>
 {nav_links}
   </div>
 </nav>
-<main class="article">
+<main class="article" data-claim-anchors>
 {body}
-<footer class="colophon article-full article-colophon">
+{provenance_panel}<footer class="colophon article-full article-colophon">
 {colophon}
 </footer>
 </main>
-{mermaid_tag}<script src="lib/artoo-kit/kit.js"></script>
+{mermaid_tag}{provenance_scripts}<script src="lib/artoo-kit/kit.js"></script>
 </body>
 </html>
 """
+
+# The panel hydrates from site/data/provenance.js (offline global) or a fetch of
+# provenance.json — only emitted when a projection was actually produced.
+PROVENANCE_PANEL = (
+    '<section class="provenance article-full" data-artoo-provenance>'
+    "</section>\n"
+)
+PROVENANCE_SCRIPTS = (
+    '<script src="data/provenance.js"></script>\n'
+    '<script src="lib/artoo-kit/provenance.js"></script>\n'
+)
 
 
 def nav_links(pages: list[dict], current_slug: str) -> str:
@@ -57,6 +69,18 @@ def colophon(meta: dict) -> str:
         parts.append(f"Describes <code>{meta['repo_name']}</code> at commit <code>{meta['commit']}</code>.")
     if meta.get("workers"):
         parts.append(f"Workers: {html.escape(meta['workers'])}.")
+    # Notebook-aware: when the site was rendered from a flip notebook, name the
+    # vintage so the reader (and `artoo status`) can see what it reflects.
+    if meta.get("notebook_uid") or meta.get("notebook_updated"):
+        vintage = " ".join(
+            bit for bit in (
+                f"notebook <code>{html.escape(meta.get('notebook_uid', ''))}</code>"
+                if meta.get("notebook_uid") else "",
+                f"updated {html.escape(meta.get('notebook_updated', ''))}"
+                if meta.get("notebook_updated") else "",
+            ) if bit
+        )
+        parts.append(f"Rendered from {vintage}; see the provenance panel for sources and claims.")
     parts.append("Machine-written from a deterministic inventory plus per-area "
                  "code analysis; verify load-bearing claims against the source.")
     return "  " + "<br>\n  ".join(parts)
@@ -64,7 +88,7 @@ def colophon(meta: dict) -> str:
 
 def render_page(
     *, page: dict, pages: list[dict], site_title: str, body: str,
-    meta: dict, mermaid_src: str = "",
+    meta: dict, mermaid_src: str = "", provenance: bool = False,
 ) -> str:
     mermaid_tag = f'<script src="{mermaid_src}"></script>\n' if mermaid_src else ""
     return PAGE_SHELL.format(
@@ -75,4 +99,6 @@ def render_page(
         body=body,
         colophon=colophon(meta),
         mermaid_tag=mermaid_tag,
+        provenance_panel=PROVENANCE_PANEL if provenance else "",
+        provenance_scripts=PROVENANCE_SCRIPTS if provenance else "",
     )
