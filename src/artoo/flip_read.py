@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -44,16 +45,25 @@ def available() -> bool:
 
 
 def _run(nb_dir: Path, args: list[str]) -> subprocess.CompletedProcess | None:
-    """Run ``flip <args>`` pinned to ``nb_dir``; None if flip cannot be run."""
+    """Run ``flip <args>`` pinned to ``nb_dir``; None if flip cannot be run.
+
+    Both ``--notebook`` (explicit pin) *and* ``cwd=nb_dir`` are used: flip is
+    designed to be run from anywhere inside the notebook, and some subcommands
+    (notably ``resolve``) rely on the working directory to locate the enclosing
+    workspace even when ``--notebook`` is given. Running with the notebook as
+    cwd keeps every subcommand happy; the pin still guarantees the right root.
+    """
     binary = flip_bin()
     if binary is None:
         return None
+    cwd = str(nb_dir) if nb_dir.is_dir() else None
     try:
         return subprocess.run(
             [binary, "--notebook", str(nb_dir), *args],
             capture_output=True,
             text=True,
             timeout=_TIMEOUT,
+            cwd=cwd,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -105,6 +115,60 @@ def doctor_json(nb_dir: Path) -> tuple[list[dict] | None, str]:
     if not isinstance(findings, list):
         return None, "flip doctor --json did not emit a list"
     return findings, ""
+
+
+def resolve_json(nb_dir: Path, ref: str) -> tuple[dict | None, str]:
+    """Resolve a flip reference (``C7``, ``A3``, …) to its entity, as JSON.
+
+    ``(data, "")`` when the id exists in ``nb_dir``; ``(None, reason)`` when flip
+    is absent, the id is unknown (flip exits non-zero with a "no page with id"
+    message), or the output cannot be parsed. This is the typo-protection the
+    feedback verb uses before routing a cited id into the notebook.
+    """
+    proc = _run(nb_dir, ["resolve", ref, "--json"])
+    if proc is None:
+        return None, "flip is not installed (or ARTOO_FLIP_BIN does not resolve)"
+    if proc.returncode != 0:
+        return None, (proc.stderr or proc.stdout or f"flip could not resolve {ref}").strip()
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        return None, f"flip resolve emitted invalid JSON: {exc}"
+    if not isinstance(data, dict):
+        return None, "flip resolve did not emit an object"
+    return data, ""
+
+
+def question_add(nb_dir: Path, text: str) -> tuple[str | None, str]:
+    """Open a flip question in ``nb_dir``; return its allocated ``Q#``.
+
+    ``(qid, "")`` on success — the id is parsed from flip's ``Q<n> open · …``
+    confirmation line (``""`` if the line cannot be parsed but the command
+    succeeded); ``(None, reason)`` when flip is absent or the command fails.
+    This is a *write* into the canonical notebook: the artifact-side feedback
+    verb routes reader corrections here rather than editing the render.
+    """
+    proc = _run(nb_dir, ["question", "add", text])
+    if proc is None:
+        return None, "flip is not installed (or ARTOO_FLIP_BIN does not resolve)"
+    if proc.returncode != 0:
+        return None, (proc.stderr or proc.stdout or "flip question add failed").strip()
+    match = re.search(r"\bQ\d+\b", proc.stdout)
+    return (match.group(0) if match else ""), ""
+
+
+def log_event(nb_dir: Path, text: str) -> tuple[bool, str]:
+    """Append one event to ``nb_dir``'s work log (``flip log``).
+
+    ``(True, "")`` on success; ``(False, reason)`` when flip is absent or the
+    command fails. The ``--as-log`` route for artifact-side feedback.
+    """
+    proc = _run(nb_dir, ["log", text])
+    if proc is None:
+        return False, "flip is not installed (or ARTOO_FLIP_BIN does not resolve)"
+    if proc.returncode != 0:
+        return False, (proc.stderr or proc.stdout or "flip log failed").strip()
+    return True, ""
 
 
 def read_vintage(nb_dir: Path) -> dict | None:

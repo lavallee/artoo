@@ -48,6 +48,38 @@ def test_doctor_json_clean_and_errors(flip_stub, tmp_path):
     assert findings[0]["level"] == "ERROR"
 
 
+def test_resolve_json_known_and_unknown(flip_stub, tmp_path):
+    flip_stub.set_ids(["C1", "A3"])
+    data, reason = flip_read.resolve_json(tmp_path, "C1")
+    assert reason == "" and data["id"] == "C1"
+    data, reason = flip_read.resolve_json(tmp_path, "C9")
+    assert data is None and "no page with id" in reason
+
+
+def test_question_add_returns_qid(flip_stub, tmp_path):
+    qid, reason = flip_read.question_add(tmp_path, "why?")
+    assert reason == "" and qid == "Q1"
+    qid, _ = flip_read.question_add(tmp_path, "why again?")
+    assert qid == "Q2"
+
+
+def test_log_event(flip_stub, tmp_path):
+    ok, reason = flip_read.log_event(tmp_path, "did a thing")
+    assert ok and reason == ""
+    assert flip_stub.logs() == ["did a thing"]
+
+
+def test_write_helpers_degrade_without_flip(monkeypatch, tmp_path):
+    monkeypatch.delenv("ARTOO_FLIP_BIN", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    data, reason = flip_read.resolve_json(tmp_path, "C1")
+    assert data is None and "not installed" in reason
+    qid, reason = flip_read.question_add(tmp_path, "x")
+    assert qid is None and "not installed" in reason
+    ok, reason = flip_read.log_event(tmp_path, "x")
+    assert ok is False and "not installed" in reason
+
+
 def test_read_vintage_from_frontmatter(notebook_artifact):
     vintage = flip_read.read_vintage(notebook_artifact.dir / "notebook")
     assert vintage == {"uid": "nb-abc123", "updated": "2026-07-24"}
