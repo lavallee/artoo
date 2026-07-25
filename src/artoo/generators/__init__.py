@@ -15,8 +15,9 @@ import click
 
 def _builtin() -> dict[str, click.Command]:
     from .explainer import generate as explainer
+    from .notebook_report import generate as notebook_report
 
-    return {"explainer": explainer}
+    return {"explainer": explainer, "notebook-report": notebook_report}
 
 
 def available() -> dict[str, click.Command]:
