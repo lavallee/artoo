@@ -63,6 +63,20 @@ class _FlipStub:
     def set_doctor(self, findings):
         (self.dir / "doctor.json").write_text(json.dumps(findings), encoding="utf-8")
 
+    def set_ids(self, ids):
+        """Ids that `flip resolve <id> --json` should resolve; others 404."""
+        (self.dir / "ids.json").write_text(json.dumps(list(ids)), encoding="utf-8")
+
+    def questions(self):
+        """Texts passed to `flip question add`, in order."""
+        f = self.dir / "questions.log"
+        return f.read_text(encoding="utf-8").splitlines() if f.exists() else []
+
+    def logs(self):
+        """Texts passed to `flip log`, in order."""
+        f = self.dir / "log.log"
+        return f.read_text(encoding="utf-8").splitlines() if f.exists() else []
+
 
 @pytest.fixture
 def flip_stub(tmp_path, monkeypatch):
@@ -90,6 +104,29 @@ def flip_stub(tmp_path, monkeypatch):
                 data = json.loads(f.read_text()) if f.exists() else []
                 sys.stdout.write(json.dumps(data))
                 sys.exit(1 if any(x.get("level") == "ERROR" for x in data) else 0)
+            if "resolve" in args:
+                ref = args[args.index("resolve") + 1]
+                ids_f = R / "ids.json"
+                known = json.loads(ids_f.read_text()) if ids_f.exists() else []
+                if ref in known:
+                    sys.stdout.write(json.dumps({{"ref": ref, "id": ref, "title": ref}}))
+                    sys.exit(0)
+                sys.stderr.write("no page with id '%s'" % ref)
+                sys.exit(1)
+            if "question" in args and "add" in args:
+                text = args[args.index("add") + 1]
+                logf = R / "questions.log"
+                prior = logf.read_text().splitlines() if logf.exists() else []
+                with logf.open("a") as fh:
+                    fh.write(text + "\\n")
+                sys.stdout.write("Q%d open · %s" % (len(prior) + 1, text))
+                sys.exit(0)
+            if "log" in args:
+                text = args[args.index("log") + 1]
+                with (R / "log.log").open("a") as fh:
+                    fh.write(text + "\\n")
+                sys.stdout.write("logged 2026-07-25T00:00:00Z · agent:test")
+                sys.exit(0)
             sys.exit(0)
             """
         ),

@@ -90,8 +90,14 @@ class Manifest:
             problems.append(f"artifact.status {self.status!r} not one of {', '.join(STATUSES)}")
         if ".." in self.site or Path(self.site).is_absolute():
             problems.append("build.site must be a relative path inside the artifact")
-        if self.notebook and (".." in self.notebook or Path(self.notebook).is_absolute()):
-            problems.append("research.notebook must be a relative path inside the artifact")
+        # The notebook binding is a relative path. It may escape the artifact
+        # dir with ``..``: the read-direction generator (`generate
+        # notebook-report`) renders *from* a canonical flip notebook that lives
+        # elsewhere (SPEC §11 — the render is derived, the notebook is the
+        # source of truth), so an external, parent-escaping path is legitimate.
+        # It must still be relative (never absolute) and never overlap site/.
+        if self.notebook and Path(self.notebook).is_absolute():
+            problems.append("research.notebook must be a relative path, not absolute")
         if self.notebook:
             site = Path(self.site)
             nb = Path(self.notebook)

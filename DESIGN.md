@@ -232,6 +232,37 @@ by stable ids and versioned by notebook vintage:
   attached notebook block publication (`--allow-doctor-errors` overrides),
   tying the deploy firewall to evidentiary integrity, not just file safety.
 
+**The structural verbs (both directions of the loop).** Beyond reading a
+notebook into the colophon/panel, artoo carries the two verbs that make the
+roundtrip bidirectional:
+
+- **`artoo generate notebook-report --notebook <path>`** renders a report
+  artifact *from* an existing flip notebook — the read-direction sibling of the
+  explainer (which writes *into* a fresh notebook). It is a generator, not
+  `artoo build --from-notebook`: `build` verifies/refreshes an existing
+  artifact, while a generator authors one, and the generator plug-point already
+  owns the create-or-reuse contract and deterministic-fallback idiom. It is
+  fully deterministic — no workers, no model calls. It consumes the
+  `flip-render/1` projection plus the current draft (`drafts/current`, else the
+  newest `drafts/vN` — SPEC §11), renders draft Markdown to HTML (via a small
+  built-in converter for the flip-draft subset, since artoo vendors no Markdown
+  library), and falls back to an honest, clearly-marked skeleton when no draft
+  exists. Regeneration is idempotent and vintage-stamped: same notebook in, same
+  page out, ids stable so deep links survive. **The generator owns its output
+  directory** — regen overwrites, and the colophon says so; hand edits belong in
+  the notebook (flip principle 8). Because the canonical notebook lives
+  elsewhere, the `[research] notebook` binding may escape the artifact dir with
+  `..` (still relative, never absolute, never overlapping `site/`).
+- **`artoo feedback <artifact> "<text>" [--claim C7 | --source A3] [--as-log]`**
+  closes the loop the other way without ever mutating the published bytes
+  (SPEC §6.8). It routes feedback into the attached notebook as a flip question
+  (default) or a flip log event (`--as-log`), with the routed text carrying the
+  artifact ref and the cited id. A cited id is verified with `flip resolve
+  --json` and refused if unknown (typo protection). An append-only breadcrumb in
+  the artifact's private `work/feedback.jsonl` is the artifact-side receipt of
+  the back-flow; `site/` is never touched. It refuses with an actionable message
+  when no notebook is attached or flip is absent.
+
 ### Design authority and local guidance
 
 [DES](https://github.com/lavallee/des) governs Artoo's default public-artifact
@@ -294,11 +325,15 @@ artoo list [root]                             discover artifacts under a tree
 artoo status [artifact]                       manifest, firewall, lib drift, render freshness
 artoo build [artifact]                        run build commands + checks + provenance
 artoo provenance [artifact]                   project an attached flip notebook into site/data/
+artoo feedback <artifact> "<text>" [--claim C7 | --source A3] [--as-log]
+                                              route feedback into the attached notebook
 artoo vizier-guide <job> [--artifact <path>]  optional private guidance receipt
 artoo deploy [artifact] [--dry-run] [--allow-doctor-errors]
                                               flip-doctor gate, firewall check, then adapter
 artoo lib add|update|status|list              manage vendored libraries
 artoo generate <generator> [opts]             run a generator plugin
+  explainer        --repo <path>              multi-page repo explainer (write direction)
+  notebook-report  --notebook <path>          report rendered from a flip notebook (read direction)
 artoo doctor [root]                           repo-wide coherence report
 ```
 

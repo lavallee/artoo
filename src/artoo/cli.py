@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -396,6 +397,87 @@ class _GenerateGroup(click.Group):
 @main.command(cls=_GenerateGroup, name="generate")
 def generate_cmd():
     """Run a generator plugin."""
+
+
+# -- feedback -----------------------------------------------------------------
+
+
+@main.command()
+@click.argument("artifact", type=click.Path(path_type=Path))
+@click.argument("text")
+@click.option("--claim", default=None, help="Cite a claim id (e.g. C7) this feedback is about.")
+@click.option("--source", default=None, help="Cite a source id (e.g. A3) this feedback is about.")
+@click.option("--as-log", is_flag=True, help="Record a flip log event instead of opening a question.")
+def feedback(artifact: Path, text: str, claim: str | None, source: str | None, as_log: bool):
+    """Route artifact-side feedback INTO the attached flip notebook.
+
+    The published render is never edited (SPEC §6.8): a correction re-enters the
+    canonical notebook as a flip question (default) or a flip log event
+    (--as-log), keyed by the cited stable id. A breadcrumb is recorded in the
+    artifact's private work/feedback.jsonl. site/ is never touched.
+    """
+    m = _resolve(str(artifact))
+
+    if claim and source:
+        raise click.ClickException("give at most one of --claim / --source, not both.")
+
+    nb = provenance_mod.attached_notebook(m)
+    if nb is None:
+        raise click.ClickException(
+            "no flip notebook is attached to this artifact, so there is nowhere "
+            "to route feedback. Bind one with [research] notebook = \"…\" in "
+            "artifact.toml (it may point outside the artifact), then retry."
+        )
+    if not flip_read.available():
+        raise click.ClickException(
+            "flip is not installed (or ARTOO_FLIP_BIN does not resolve), so "
+            "feedback cannot be routed into the notebook. Install flip, or pin it "
+            "with ARTOO_FLIP_BIN, then retry."
+        )
+
+    cited = claim or source
+    if cited:
+        resolved, reason = flip_read.resolve_json(nb, cited)
+        if resolved is None:
+            raise click.ClickException(
+                f"{cited} does not resolve in the attached notebook "
+                f"({m.notebook}): {reason}. Check the id against the provenance panel."
+            )
+
+    # The routed text carries the artifact ref and the cited id so a reader of
+    # the notebook question/log knows exactly what it is about.
+    prefix = f"artifact feedback ({m.slug})"
+    routed_text = f"{prefix} on [{cited}]: {text}" if cited else f"{prefix}: {text}"
+
+    if as_log:
+        ok, reason = flip_read.log_event(nb, routed_text)
+        if not ok:
+            raise click.ClickException(f"flip log failed: {reason}")
+        routed_as = "log"
+        landed = "logged an event"
+    else:
+        qid, reason = flip_read.question_add(nb, routed_text)
+        if qid is None:
+            raise click.ClickException(f"flip question add failed: {reason}")
+        routed_as = f"question:{qid}" if qid else "question"
+        landed = f"opened question {qid}" if qid else "opened a question"
+
+    # Artifact-side receipt of the back-flow: private, firewalled (work/ never
+    # ships). Append-only, one JSON object per line.
+    breadcrumb = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ref": cited or "",
+        "text": text,
+        "routed_as": routed_as,
+        "notebook": str(m.notebook),
+    }
+    work = m.dir / "work"
+    work.mkdir(exist_ok=True)
+    with (work / "feedback.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(breadcrumb, ensure_ascii=False) + "\n")
+
+    click.secho(f"✓ {landed} in the notebook{f' about {cited}' if cited else ''}", fg="green")
+    click.echo("  recorded in work/feedback.jsonl (private — never deployed)")
 
 
 # -- doctor -------------------------------------------------------------------

@@ -64,6 +64,31 @@ on ERROR-level findings (`--allow-doctor-errors` overrides). The projection is
 filtered by flip itself; artoo only passes `--include-private` when the manifest
 sets `[research] include_private = true`. All of it no-ops cleanly without flip.
 
+### The structural verbs
+
+Two verbs make the loop bidirectional:
+
+```bash
+# Read direction: render a report FROM a canonical flip notebook.
+artoo generate notebook-report --notebook path/to/notebook --out site/report
+
+# Reverse direction: route a correction back INTO the notebook (never edits site/).
+artoo feedback site/report "C7 overstates the effect" --claim C7
+```
+
+`generate notebook-report` is fully deterministic (no model calls). It renders
+the notebook's current draft (`drafts/current`, else newest `drafts/vN`) to HTML,
+or — with no draft — an honest structured skeleton (questions, claims by status,
+sources by grade). The notebook is canonical; re-running regenerates the page in
+place, so **edits belong in the notebook, not the render** (the colophon says so).
+`--include-private` renders a non-public notebook in full.
+
+`artoo feedback` never touches `site/`: it opens a flip question (default) or a
+`flip log` event (`--as-log`) in the attached notebook, carrying the artifact ref
+and any cited id. A cited `--claim`/`--source` id is verified against the notebook
+and refused if unknown (typo protection); a private breadcrumb is recorded in
+`work/feedback.jsonl`.
+
 ## Quickstart
 
 ```bash

@@ -35,6 +35,7 @@ class ProvenanceResult:
     path: Path | None = None
     vintage: dict = field(default_factory=dict)
     counts: dict = field(default_factory=dict)
+    data: dict = field(default_factory=dict)  # the raw flip-render/1 projection
 
     @property
     def ok(self) -> bool:
@@ -119,7 +120,7 @@ def ingest(m: Manifest) -> ProvenanceResult:
         m.save()
 
     return ProvenanceResult(
-        "written", path=dest, vintage=vintage, counts=_counts(data)
+        "written", path=dest, vintage=vintage, counts=_counts(data), data=data
     )
 
 

@@ -4,6 +4,52 @@ All notable changes to artoo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **flip roundtrip (structural verbs)** — the two directions of the notebook⇄
+  artifact loop, both degrading cleanly when flip is absent:
+  - **`artoo generate notebook-report --notebook <path> [--out <dir>]`** — the
+    read-direction generator. Renders a report artifact *from* an existing flip
+    notebook (canonical) rather than recording into a fresh one. Fully
+    deterministic: no worker CLIs, no model calls. Consumes the notebook's
+    `flip-render/1` projection (honouring flip's visibility policy) plus the
+    current draft (`drafts/current`, else the newest `drafts/vN`). With a draft
+    it renders the draft Markdown to HTML; with none it emits an honest,
+    clearly-marked skeleton (questions, claims by status, sources by grade). The
+    page carries the provenance panel, claim anchors, and a colophon that names
+    the notebook vintage and states the regeneration contract loudly: the
+    generator owns its output dir, regen overwrites, and hand edits belong in the
+    notebook (flip principle 8). `artifact.toml` records the `[research]`
+    notebook binding (which may point outside the artifact) and the render
+    vintage. `--include-private` renders a non-public notebook in full.
+  - **`artoo feedback <artifact> "<text>" [--claim C7 | --source A3] [--as-log]`**
+    — the reverse direction. Routes artifact-side feedback INTO the attached
+    notebook, never touching `site/`: by default opens a flip question whose text
+    carries the artifact ref and the cited id; `--as-log` records a flip log
+    event instead. A cited `--claim`/`--source` id is verified with `flip
+    resolve --json` and refused if unknown (typo protection). A breadcrumb
+    (ts/ref/text/routed-as) is appended to the artifact's private
+    `work/feedback.jsonl`. Refuses with an actionable message when no notebook is
+    attached or flip is absent.
+- A conservative built-in Markdown→HTML converter for the flip-draft subset
+  (headings, paragraphs, lists, fenced code, blockquotes, rules, and inline
+  bold/italic/code/links), used by `notebook-report`. Documented limits: no
+  nested lists, tables, images, or HTML passthrough. Bracketed flip ids (`[C7]`)
+  are left intact for the kit's claim-anchor hydrator.
+
+### Changed
+
+- `[research] notebook` may now be a relative path that points *outside* the
+  artifact directory (e.g. `../demo-nb`). The read-direction generator renders
+  from a canonical notebook that legitimately lives elsewhere (SPEC §11); the
+  binding must still be relative (never absolute) and never overlap `site/`.
+- `flip_read` now runs flip with the notebook as the working directory in
+  addition to the `--notebook` pin, so subcommands that resolve the enclosing
+  workspace from cwd (notably `resolve`) work when artoo is invoked from
+  anywhere.
+
 ## [0.2.0] — 2026-07-24
 
 ### Changed
