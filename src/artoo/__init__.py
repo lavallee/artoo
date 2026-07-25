@@ -5,4 +5,4 @@ publishable HTML mini-site (``site/``) plus the research material that backs
 it, kept behind a deny-by-default deploy firewall.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
