@@ -21,6 +21,7 @@ KINDS = [
     "reference-guide",
     "research-review",
     "walkthrough",
+    "presentation",
     "case-study",
     "explorer",
     "note",

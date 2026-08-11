@@ -43,6 +43,29 @@ the write half (generator runs recorded as sources/claims/sessions) and the
 read half (below). artoo discovers flip on `PATH`; pin a specific build with
 `ARTOO_FLIP_BIN`. With no flip installed, artoo core works unchanged.
 
+## Decks
+
+`kind = "presentation"` is a first-class output, not an article with different
+styling. `artoo init --kind presentation` stamps a working deck: acts, speaker
+notes, an overview grid, keyboard and touch navigation, deep-linkable slides,
+and an A4-landscape print stylesheet that puts one slide on one page.
+
+```bash
+artoo init talks/q3-review --kind presentation --title "Q3 review"
+```
+
+The machinery is the built-in **`artoo-deck`** library, vendored and hash-pinned
+like any other. It reads structure from the markup rather than configuration —
+`data-act` groups slides in the overview, `data-short` labels them — and with
+JavaScript off every slide is still in the document and the deck still prints
+whole. See `src/artoo/libraries/deck/README.md` for the markup contract.
+
+Every class it ships is prefixed `deck-`, and a test enforces that. Chrome and
+content share one stylesheet, so an unprefixed chrome class captures content
+using the same word: a `.bar` fixed header sets `height: 46px` on an SVG
+`<rect class="bar">` and collapses a chart. Keep your own classes out of the
+`deck-` namespace and the two cannot reach each other.
+
 ## Provenance roundtrip
 
 When an artifact declares an attached notebook (`[research] notebook = "…"`),

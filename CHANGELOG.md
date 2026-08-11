@@ -4,6 +4,39 @@ All notable changes to artoo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-08-11
+
+### Added
+
+- **`presentation` as a first-class kind.** A deck is a different reading mode
+  from an article — one frame at a time, an act structure, speaker notes, a
+  landscape page when printed — not a styled article. `presentation` joins
+  `KINDS`, and `artoo init --kind presentation` now stamps a working three-slide
+  deck rather than an article skeleton. It was already the fourth most used kind
+  in the wild while being rejected by validation, so every deck reported a red
+  mark on `artoo status` forever.
+- **`artoo-deck`, the second built-in site library.** Chrome, slide machinery, a
+  small content vocabulary, and a landscape print stylesheet, vendored to
+  `site/lib/artoo-deck/` with a pinned hash like any library. Navigation reads
+  structure from the markup (`data-act`, `data-short`, `.deck-notes`) rather than
+  from configuration, and degrades to a complete printable document with
+  JavaScript off.
+
+### Fixed
+
+- **Kind-aware scaffolding, which DESIGN.md described and `init` did not do.**
+  `kind` previously reached the starter page only as a kicker string; every kind
+  produced the same article. It now selects both the skeleton and the library.
+
+### Notes
+
+Every class in `artoo-deck` is prefixed `deck-`, and a test enforces it. The
+prefix is load-bearing rather than cosmetic: chrome and content share one
+stylesheet, and an unprefixed `.bar` fixed-header rule will set `height: 46px`
+on an SVG `<rect class="bar">` and silently collapse every bar in a chart. That
+is a real incident from a hand-built deck, and it is the reason the machinery
+now ships as a library instead of being copied between artifacts.
+
 ## [0.3.0] — 2026-07-25
 
 ### Added

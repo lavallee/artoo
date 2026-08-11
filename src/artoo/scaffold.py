@@ -63,6 +63,117 @@ STARTER_PAGE = """<!doctype html>
 </html>
 """
 
+DECK_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{description}">
+<link rel="icon" href="lib/artoo-deck/favicon.svg">
+<link rel="stylesheet" href="lib/artoo-deck/deck.css">
+<style>
+  /* Your deck's own vocabulary. Keep these out of the `deck-` namespace so
+     the library and your content cannot capture each other's classes. */
+  .deck-root {{ --deck-print-id: "{title} \00b7"; }}
+</style>
+</head>
+<body class="deck-root">
+
+<header class="deck-bar">
+  <span class="deck-mark">{initial}</span>
+  <span class="deck-who">{title}</span>
+  <span class="deck-spacer"></span>
+  <button type="button" data-deck-toggle="overview" aria-pressed="false">Overview</button>
+  <button type="button" data-deck-toggle="notes" aria-pressed="false">Notes</button>
+  <button type="button" data-deck-toggle="help">?</button>
+  <nav class="deck-pager" aria-label="Slide navigation">
+    <button type="button" data-deck-prev aria-label="Previous slide">&#8249;</button>
+    <span class="deck-counter" data-deck-counter>1 / 1</span>
+    <button type="button" data-deck-next aria-label="Next slide">&#8250;</button>
+  </nav>
+</header>
+<div class="deck-progress"><i data-deck-progress style="width:0%"></i></div>
+<nav class="deck-pager-m" aria-label="Slide navigation">
+  <button type="button" data-deck-prev aria-label="Previous slide">&#8249;</button>
+  <span class="deck-counter" data-deck-counter>1 / 1</span>
+  <button type="button" data-deck-next aria-label="Next slide">&#8250;</button>
+</nav>
+
+<main class="deck-stage" data-deck>
+
+<section class="deck-slide" data-act="Opening" data-short="Title">
+  <div class="deck-inner">
+    <p class="deck-eyebrow">{kind}</p>
+    <h1>{title}</h1>
+    <p class="deck-lede">{description}</p>
+    <aside class="deck-notes"><b>Speaker note</b>
+      <p>Say what decision this deck helps the room make, and how long it will
+      take. Notes are hidden until toggled, and they print with the slide.</p>
+    </aside>
+  </div>
+</section>
+
+<section class="deck-slide" data-act="Evidence" data-short="The claim">
+  <div class="deck-inner">
+    <p class="deck-eyebrow">The claim</p>
+    <h2>State the single claim the evidence can carry</h2>
+    <div class="deck-stat-row">
+      <div class="deck-stat"><b>00</b><span>the number that carries the claim</span></div>
+      <div class="deck-stat"><b>00</b><span>its denominator</span></div>
+    </div>
+    <p>Develop the argument in one screen. A slide that needs scrolling is
+    two slides.</p>
+    <div class="deck-callout"><p>Use a callout for the sentence you want
+    repeated back to you.</p></div>
+    <aside class="deck-notes"><b>Speaker note</b>
+      <p>Name the vintage and the denominator out loud; they belong on the
+      slide too.</p>
+    </aside>
+  </div>
+</section>
+
+<section class="deck-slide" data-act="Evidence" data-short="Limits">
+  <div class="deck-inner">
+    <p class="deck-eyebrow">Limits</p>
+    <h2>What the evidence cannot establish</h2>
+    <div class="deck-grid two">
+      <div class="deck-cell"><b>Supported</b><p>What the measurement does show.</p></div>
+      <div class="deck-cell"><b>Not supported</b><p>The strongest counter-reading, stated before anyone asks.</p></div>
+    </div>
+    <aside class="deck-notes"><b>Speaker note</b>
+      <p>Saying the limit first is what earns the rest of the deck.</p>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<div class="deck-overview" data-deck-overview></div>
+
+<div class="deck-help" data-deck-help>
+  <div class="deck-help-card">
+    <h3>Keyboard</h3>
+    <dl>
+      <dt>&rarr; &darr; space</dt><dd>Next slide</dd>
+      <dt>&larr; &uarr;</dt><dd>Previous slide</dd>
+      <dt>Home / End</dt><dd>First / last slide</dd>
+      <dt>1&ndash;9</dt><dd>Jump to slide</dd>
+      <dt>o</dt><dd>Overview</dd>
+      <dt>s</dt><dd>Speaker notes</dd>
+      <dt>f</dt><dd>Fullscreen</dd>
+      <dt>p</dt><dd>Print / export PDF</dd>
+      <dt>?</dt><dd>This panel</dd>
+      <dt>Esc</dt><dd>Close overlays</dd>
+    </dl>
+  </div>
+</div>
+
+<script src="lib/artoo-deck/deck.js"></script>
+</body>
+</html>
+"""
+
 DESIGN_BRIEF = """# Design brief
 
 Private working document. Artoo keeps this file outside `site/`; it is not deployed.
@@ -139,17 +250,22 @@ def init_artifact(
     site = path / m.site
     site.mkdir(exist_ok=True)
     index = site / "index.html"
+    # Kind-aware scaffolding. A presentation is a different reading mode, not a
+    # styled article: one frame at a time, an act structure, a landscape page.
+    # It gets the deck skeleton and the deck library.
+    starter, lib = (DECK_PAGE, "artoo-deck") if kind == "presentation" else (STARTER_PAGE, "artoo-kit")
     if not index.exists():
         index.write_text(
-            STARTER_PAGE.format(
+            starter.format(
                 title=html.escape(title),
                 description=html.escape(deck),
                 kind=html.escape(kind),
                 created=m.created,
+                initial=html.escape(title[:1].upper() or "A"),
             ),
             encoding="utf-8",
         )
-    libraries.add(m, "artoo-kit")
+    libraries.add(m, lib)
 
     work = path / "work"
     work.mkdir(exist_ok=True)

@@ -106,3 +106,46 @@ def test_callout_status_uses_type_not_side_border():
             selector in selectors and f"color: var(--{token})" in declarations
             for selectors, declarations in callout_rules
         )
+
+
+def test_deck_available():
+    libs = libraries.available()
+    assert "artoo-deck" in libs
+    root = libs["artoo-deck"].root
+    for name in ("deck.css", "deck.js", "favicon.svg"):
+        assert (root / name).exists()
+
+
+def test_deck_is_self_contained():
+    """No external requests: a deck must render from file:// like any artifact."""
+    deck = libraries.available()["artoo-deck"]
+    css = (deck.root / "deck.css").read_text()
+    js = (deck.root / "deck.js").read_text()
+    assert "@font-face" not in css
+    assert "url(" not in css
+    assert "http://" not in css and "https://" not in css
+    for forbidden in ("fetch(", "XMLHttpRequest", "import(", "src ="):
+        assert forbidden not in js
+
+
+def test_deck_classes_are_all_namespaced():
+    """Chrome and content share one stylesheet, so chrome must not be able to
+    capture a content element that happens to use the same word.
+
+    This is a regression guard with a real incident behind it: an unprefixed
+    ``.bar`` fixed-header rule set ``height: 46px`` on an SVG ``<rect
+    class="bar">`` in a chart, collapsing every bar in the figure.
+    """
+    css = (libraries.available()["artoo-deck"].root / "deck.css").read_text()
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)  # comments name unprefixed classes
+    classes = set(re.findall(r"\.([A-Za-z][\w-]*)", css))
+    unprefixed = {c for c in classes if not c.startswith("deck-")}
+    # Modifier classes are only ever written compounded onto a deck- class.
+    allowed = {"two", "three", "four", "cool", "k", "v"}
+    assert unprefixed <= allowed, f"unprefixed deck classes: {sorted(unprefixed - allowed)}"
+
+
+def test_deck_prints_landscape_one_slide_per_page():
+    css = (libraries.available()["artoo-deck"].root / "deck.css").read_text()
+    assert "size: A4 landscape" in css
+    assert "break-after: page" in css

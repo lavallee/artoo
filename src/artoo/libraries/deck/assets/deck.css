@@ -1,0 +1,272 @@
+/* artoo-deck — slide machinery for presentation artifacts.
+ *
+ * Every class here is prefixed `deck-`. That is not tidiness: a deck's own
+ * content vocabulary and its chrome share one stylesheet, and an unprefixed
+ * chrome class (`.bar` for a fixed header, say) will silently capture a
+ * content element that happens to use the same word — setting, for instance,
+ * a height on an SVG bar and collapsing a chart. Prefixing makes the two
+ * vocabularies unable to reach each other.
+ *
+ * Self-contained: system font stacks, no external requests, renders from
+ * file://. Tokens are redefinable by the artifact's own stylesheet.
+ */
+
+.deck-root {
+  --deck-ink: #18251f;
+  --deck-ink-soft: #46544c;
+  --deck-muted: #6c7873;
+  --deck-paper: #f7f4ec;
+  --deck-paper-deep: #ece6d9;
+  --deck-card: #fffdf8;
+  --deck-rule: #d7d0c2;
+  --deck-accent: #93432f;
+  --deck-accent-soft: #f0ddd6;
+  --deck-signal: #174f42;
+  --deck-signal-soft: #e6efeb;
+  --deck-font-ui: "Inter", "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --deck-font-prose: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --deck-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body.deck-root {
+  margin: 0;
+  background: var(--deck-paper);
+  color: var(--deck-ink);
+  font-family: var(--deck-font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+::selection { background: var(--deck-accent-soft); color: var(--deck-ink); }
+
+/* ---------- chrome ---------- */
+
+.deck-bar {
+  position: fixed; inset: 0 0 auto 0; height: 46px; z-index: 40;
+  display: flex; align-items: center; gap: 0.9rem; padding: 0 1.1rem;
+  border-bottom: 1px solid var(--deck-rule);
+  background: color-mix(in srgb, var(--deck-paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+.deck-mark {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 4px;
+  background: var(--deck-accent); color: #fff;
+  font-size: 0.76rem; font-weight: 800; letter-spacing: -0.02em;
+}
+.deck-who { font-size: 0.8rem; font-weight: 700; letter-spacing: -0.01em; }
+.deck-who span { color: var(--deck-muted); font-weight: 500; }
+.deck-spacer { flex: 1; }
+.deck-bar button {
+  font: inherit; font-size: 0.72rem; font-weight: 600;
+  color: var(--deck-ink-soft); background: transparent;
+  border: 1px solid var(--deck-rule); border-radius: 5px;
+  padding: 0.24rem 0.5rem; cursor: pointer;
+}
+.deck-bar button:hover { border-color: var(--deck-signal); color: var(--deck-ink); background: var(--deck-card); }
+.deck-bar button[aria-pressed="true"] { border-color: var(--deck-accent); color: var(--deck-accent); background: var(--deck-accent-soft); }
+.deck-counter { font-family: var(--deck-font-mono); font-size: 0.72rem; color: var(--deck-muted); min-width: 4.2rem; text-align: right; }
+
+.deck-progress { position: fixed; top: 46px; left: 0; right: 0; height: 2px; z-index: 40; background: var(--deck-paper-deep); }
+.deck-progress i { display: block; height: 100%; background: var(--deck-accent); transition: width 220ms ease; }
+
+.deck-pager { display: flex; align-items: center; gap: 0.35rem; }
+.deck-pager-m { display: none; }
+@media (max-width: 40rem) {
+  .deck-pager { display: none; }
+  .deck-pager-m {
+    position: fixed; inset: auto 0 0 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center; gap: 1rem;
+    padding: 0.5rem; border-top: 1px solid var(--deck-rule);
+    background: var(--deck-card);
+  }
+  .deck-pager-m button {
+    font: inherit; font-size: 1rem; color: var(--deck-ink-soft);
+    background: transparent; border: 1px solid var(--deck-rule);
+    border-radius: 5px; padding: 0.2rem 0.9rem; cursor: pointer;
+  }
+}
+
+/* ---------- the deck ---------- */
+
+.deck-stage { position: absolute; inset: 48px 0 0 0; }
+
+.deck-slide {
+  position: absolute; inset: 0; overflow-y: auto;
+  padding: clamp(1.5rem, 4vh, 3.2rem) clamp(1.25rem, 6vw, 5rem) 5rem;
+  opacity: 0; visibility: hidden; transition: opacity 160ms ease;
+}
+.deck-slide[data-active] { opacity: 1; visibility: visible; }
+.deck-inner { max-width: 70rem; margin: 0 auto; }
+
+.deck-eyebrow {
+  display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.9rem;
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--deck-accent);
+}
+.deck-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--deck-rule); }
+
+.deck-slide h1 {
+  margin: 0 0 1rem; font-size: clamp(1.9rem, 5vw, 3.1rem);
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+}
+.deck-slide h2 {
+  margin: 0 0 0.7rem; font-size: clamp(1.3rem, 3.2vw, 2rem);
+  font-weight: 780; letter-spacing: -0.025em; line-height: 1.15;
+}
+.deck-slide p { margin: 0 0 0.7rem; line-height: 1.55; }
+.deck-lede {
+  font-family: var(--deck-font-prose); font-size: clamp(1rem, 1.9vw, 1.2rem);
+  line-height: 1.5; color: var(--deck-ink-soft); max-width: 46rem;
+}
+
+/* ---------- content vocabulary ---------- */
+
+.deck-stat-row { display: flex; flex-wrap: wrap; gap: 1.4rem 2.2rem; margin: 1.3rem 0; }
+.deck-stat b {
+  display: block; font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+  font-weight: 780; letter-spacing: -0.035em; line-height: 1; color: var(--deck-accent);
+}
+.deck-stat span { display: block; margin-top: 0.35rem; max-width: 13rem; font-size: 0.78rem; line-height: 1.34; color: var(--deck-ink-soft); }
+
+.deck-grid { display: grid; gap: 0; border-top: 1px solid var(--deck-rule); border-left: 1px solid var(--deck-rule); margin: 1.2rem 0; }
+.deck-grid.two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.deck-grid.three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.deck-grid.four { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.deck-cell {
+  background: var(--deck-card); padding: 1rem 1.1rem; min-width: 0;
+  border-right: 1px solid var(--deck-rule); border-bottom: 1px solid var(--deck-rule);
+}
+.deck-cell b { display: block; font-size: 0.95rem; }
+.deck-cell p { margin: 0.35rem 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--deck-ink-soft); }
+
+.deck-facts { display: grid; gap: 0; border-top: 1px solid var(--deck-rule); margin: 1.1rem 0; }
+.deck-facts > div {
+  border-bottom: 1px solid var(--deck-rule); padding: 0.5rem 0;
+  display: grid; grid-template-columns: 7rem 1fr; gap: 0.7rem; align-items: baseline;
+}
+.deck-facts .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--deck-muted); }
+.deck-facts .v { font-size: 0.84rem; line-height: 1.5; color: var(--deck-ink); }
+.deck-facts .v em { color: var(--deck-ink-soft); font-style: normal; }
+
+.deck-table-wrap { overflow-x: auto; border: 1px solid var(--deck-rule); background: var(--deck-card); margin: 1.1rem 0; }
+.deck-table-wrap table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+.deck-table-wrap th, .deck-table-wrap td {
+  text-align: left; padding: 0.5rem 0.8rem; vertical-align: top;
+  border-bottom: 1px solid var(--deck-rule); font-size: 0.86rem; line-height: 1.4;
+}
+.deck-table-wrap th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--deck-muted); }
+.deck-table-wrap tr:last-child td { border-bottom: 0; }
+
+.deck-callout {
+  margin: 1.4rem 0 0; padding: 0.9rem 1.1rem; max-width: 50rem;
+  border-left: 3px solid var(--deck-accent); background: var(--deck-accent-soft);
+}
+.deck-callout p { margin: 0; font-size: 0.98rem; }
+.deck-callout.cool { border-left-color: var(--deck-signal); background: var(--deck-signal-soft); }
+
+/* Figures: a chart or diagram scrolls inside its own box, never the slide. */
+.deck-figure { margin: 1.1rem 0 0.6rem; overflow-x: auto; }
+.deck-figure > svg { display: block; width: 100%; height: auto; }
+
+/* ---------- speaker notes ---------- */
+
+.deck-notes {
+  display: none; margin: 1.5rem 0 0; padding: 0.85rem 1rem; max-width: 50rem;
+  border: 1px dashed var(--deck-rule); border-radius: 6px;
+  background: var(--deck-card); font-size: 0.85rem; line-height: 1.5; color: var(--deck-ink-soft);
+}
+.deck-notes b { display: block; margin-bottom: 0.3rem; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--deck-muted); }
+.deck-notes p { margin: 0 0 0.5rem; }
+.deck-notes p:last-child { margin-bottom: 0; }
+body.deck-show-notes .deck-notes { display: block; }
+
+/* ---------- overview ---------- */
+
+.deck-overview {
+  position: fixed; inset: 48px 0 0 0; z-index: 30; display: none;
+  overflow-y: auto; padding: 1.5rem clamp(1rem, 4vw, 3rem) 4rem;
+  background: var(--deck-paper);
+}
+body.deck-show-overview .deck-overview { display: block; }
+.deck-ov-act { margin-bottom: 1.6rem; }
+.deck-ov-act h5 {
+  margin: 0 0 0.6rem; font-size: 0.66rem; font-weight: 800;
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--deck-accent);
+}
+.deck-ov-grid { display: grid; gap: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); border-top: 1px solid var(--deck-rule); border-left: 1px solid var(--deck-rule); }
+.deck-ov-item {
+  display: block; text-align: left; font: inherit; cursor: pointer;
+  background: var(--deck-card); padding: 0.8rem 0.9rem;
+  border: 0; border-right: 1px solid var(--deck-rule); border-bottom: 1px solid var(--deck-rule);
+}
+.deck-ov-item:hover { background: var(--deck-accent-soft); }
+.deck-ov-item[data-current] { background: var(--deck-accent-soft); box-shadow: inset 3px 0 0 var(--deck-accent); }
+.deck-ov-item i { display: block; font-family: var(--deck-font-mono); font-size: 0.68rem; font-style: normal; color: var(--deck-muted); }
+.deck-ov-item b { display: block; margin-top: 0.2rem; font-size: 0.85rem; font-weight: 600; }
+
+/* ---------- help ---------- */
+
+.deck-help {
+  position: fixed; inset: 0; z-index: 50; display: none;
+  place-items: center; padding: 1.5rem;
+  background: color-mix(in srgb, var(--deck-ink) 40%, transparent);
+}
+body.deck-show-help .deck-help { display: grid; }
+.deck-help-card {
+  background: var(--deck-card); border: 1px solid var(--deck-rule); border-radius: 8px;
+  padding: 1.2rem 1.4rem; max-width: 26rem; width: 100%;
+}
+.deck-help-card h3 { margin: 0 0 0.7rem; font-size: 0.95rem; }
+.deck-help-card dl { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem; margin: 0; font-size: 0.82rem; }
+.deck-help-card dt { font-family: var(--deck-font-mono); color: var(--deck-muted); }
+.deck-help-card dd { margin: 0; }
+
+/* ---------- print: a slide is a landscape frame ---------- */
+
+@media print {
+  /* Landscape by default: a portrait page would either shrink a slide or
+     split it. */
+  @page { size: A4 landscape; margin: 11mm 13mm 13mm; }
+
+  html, body { height: auto; overflow: visible; background: #fff; }
+  body { font-size: 10.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .deck-bar, .deck-progress, .deck-overview, .deck-help,
+  .deck-pager, .deck-pager-m { display: none !important; }
+
+  .deck-stage { position: static; inset: auto; }
+  .deck-slide {
+    position: static; inset: auto;
+    opacity: 1 !important; visibility: visible !important;
+    overflow: visible; min-height: 0; padding: 0 0 0.4rem;
+    page-break-after: always; break-after: page;
+    counter-increment: deck-pg;
+  }
+  .deck-slide:last-of-type { page-break-after: auto; break-after: auto; }
+  .deck-inner { max-width: none; }
+  body { counter-reset: deck-pg; }
+
+  /* Speaker notes print with the slide — a printed deck is usually the
+     one being spoken from. Set `.deck-notes { display: none }` in the
+     artifact's own stylesheet to suppress them. */
+  .deck-notes { display: block; break-inside: avoid; }
+
+  /* Identifier at the top, so the first page of a slide carries it — that
+     is the page most likely to come loose from a stack. Override
+     `--deck-print-id` in the artifact's stylesheet to name the deck. */
+  .deck-slide::before {
+    content: var(--deck-print-id, "") " " counter(deck-pg);
+    display: block; margin-bottom: 0.45rem; padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--deck-rule);
+    font-family: var(--deck-font-mono); font-size: 6.8pt; color: var(--deck-muted);
+    break-after: avoid;
+  }
+
+  .deck-slide h1 { font-size: 24pt; }
+  .deck-slide h2 { font-size: 16pt; margin-bottom: 0.35rem; }
+  .deck-figure { overflow: visible; }
+  .deck-callout, .deck-table-wrap, .deck-grid { break-inside: avoid; }
+}

@@ -8,8 +8,8 @@ and the manifest records name, version, and a content hash. From the hash,
 ``update`` re-vendors deliberately.
 
 Libraries resolve from the ``artoo.libraries`` entry-point group; external
-libraries live in their own repos/packages. artoo ships one built-in,
-``artoo-kit``. One-off assets (a JS runtime like mermaid) are vendored from
+libraries live in their own repos/packages. artoo ships two built-ins:
+``artoo-kit`` for articles and ``artoo-deck`` for presentations. One-off assets (a JS runtime like mermaid) are vendored from
 a URL and recorded under ``[[vendor]]`` with a pinned hash.
 """
 
@@ -38,9 +38,10 @@ class Library:
 
 
 def _builtin() -> dict[str, Library]:
+    from .deck import library as deck
     from .kit import library as kit
 
-    return {kit.name: kit}
+    return {kit.name: kit, deck.name: deck}
 
 
 def available() -> dict[str, Library]:

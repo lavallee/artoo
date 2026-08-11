@@ -27,7 +27,11 @@ conventions of its public siblings [vizier](https://github.com/lavallee/vizier),
   config that never enters the repo.
 - **Kind-aware scaffolding.** New artifacts start from an archetype
   (explainer, report, reference guide, …) with an appropriate skeleton and
-  a research notebook stamped in.
+  a research notebook stamped in. The archetype selects the *library* as
+  well as the skeleton: a `presentation` is a deck — one frame at a time,
+  acts, speaker notes, a landscape page — and gets `artoo-deck`, where the
+  prose kinds get `artoo-kit`. A kind that only changed a kicker string
+  would not be an archetype.
 - **Revision snapshots.** Publishing is preceded by cheap local snapshots
   so any shipped state can be diffed and recovered.
 
@@ -76,7 +80,7 @@ material and never leaves the repo.
 slug = "chart-forms"
 title = "Chart forms — when, how, and when not"
 description = "A guide to 43 chart-form patterns."
-kind = "reference-guide"      # explainer | report | reference-guide | ...
+kind = "reference-guide"      # explainer | report | reference-guide | presentation | ...
 status = "live"               # draft | building | live | archived
 created = "2026-07-10"
 
