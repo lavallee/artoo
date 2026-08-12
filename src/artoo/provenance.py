@@ -89,6 +89,19 @@ def ingest(m: Manifest) -> ProvenanceResult:
 
     data, reason = flip_read.export_json(nb, include_private=m.research_include_private)
     if data is None:
+        # flip's own refusal is correct but names flip's remedy — "pass
+        # --include-private" — and there is no such flag on `artoo
+        # provenance`. Whoever reads this is holding artifact.toml, so the
+        # message has to name the key they can actually set. Left verbatim
+        # otherwise: the visibility policy is flip's to state.
+        if not m.research_include_private and "--include-private" in reason:
+            reason = reason.replace(
+                "or pass --include-private",
+                'or opt in deliberately with `include_private = true` under '
+                '[research] in artifact.toml (this artifact then renders a '
+                'non-public notebook in full — check the deploy firewall before '
+                'publishing it)',
+            )
         return ProvenanceResult("error", note=reason)
 
     data_dir = m.site_dir / DATA_DIR
