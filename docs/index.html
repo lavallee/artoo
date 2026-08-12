@@ -66,6 +66,11 @@ artoo deploy site/my-report</code></pre>
       <p>Shared components are vendored into each artifact with
       name + version + hash recorded in the manifest: self-contained
       forever, upgraded deliberately with <code>artoo lib update</code>.</p></div>
+    <div class="card"><h3>Decks, not styled articles</h3>
+      <p><code>--kind presentation</code> stamps a working deck on the
+      built-in <code>artoo-deck</code> library: acts, speaker notes,
+      landscape print. Structure comes from the markup, and with
+      JavaScript off it still prints whole.</p></div>
     <div class="card"><h3>Repo explainers</h3>
       <p><code>artoo generate explainer</code> inventories a repo
       deterministically, fans per-area analysis out to a cheap worker,
