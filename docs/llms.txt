@@ -1,0 +1,22 @@
+# artoo
+
+> Generate and manage artifacts: self-contained HTML mini-sites that pair presentation with the research backing it. An artifact is a directory with an artifact.toml, renders from a file:// URL, and keeps its research beside the presentation behind a deny-by-default deploy firewall.
+
+With artoo installed, the same reference is available offline as `artoo docs <topic>`, and `artoo init` writes the layout contract into each artifact it creates as AGENTS.md.
+
+## Guides
+
+- [quickstart](https://lavallee.github.io/artoo/reference/quickstart.md): Install, the golden path, and the authoring rules that matter.
+- [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
+- [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
+- [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
+- [generators](https://lavallee.github.io/artoo/reference/generators.md): Plugin generators, worker tiers, and the two built in.
+
+## Site libraries
+
+- [artoo-deck](https://lavallee.github.io/artoo/reference/artoo-deck.md): Slides: acts, speaker notes, overview, keyboard/touch nav, landscape print.
+- [artoo-kit](https://lavallee.github.io/artoo/reference/artoo-kit.md): Long-form article layout, evidence regions, and the provenance panel.
+
+## Optional
+
+- [Complete reference](https://lavallee.github.io/artoo/llms-full.txt): every topic in one file.

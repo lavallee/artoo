@@ -141,6 +141,48 @@ edits vs. upstream); `artoo lib update` re-vendors a newer version.
   pinned hash (`[[vendor]]`). Core artoo stays small; the ecosystem grows
   outside it.
 
+### The authoring contract
+
+An artifact is built by whoever owns its subject, from inside their repo. That
+reader has the artifact directory in front of them and nothing else — artoo's
+README, this file, and the library READMEs are all somewhere they cannot
+reach. Handed a starter page and four vendored stylesheets, the only available
+moves are to reverse-engineer the layout or to copy a previous artifact and
+inherit whatever was wrong with it. Both happen, and both are the tool's fault.
+
+So the contract is a first-class output, with one source and four renderings:
+
+| surface | written by | for |
+|---------|-----------|-----|
+| `AGENTS.md` in the artifact | `artoo init`, `artoo lib add\|update` | whoever is authoring *this* artifact |
+| `artoo docs [topic]` | on demand | anyone with artoo installed |
+| `SKILL.md` + `references/` | `artoo skill install` | an agent that does not yet know artoo exists |
+| `llms.txt`, `reference/*.md` | `scripts/sync-docs-site.py` | readers over HTTP |
+
+`AGENTS.md` is the vendor-neutral filename most coding agents already read
+unprompted, which is why it carries this rather than something artoo-specific.
+Its class tables are generated from the stylesheets the artifact actually
+vendored, so it cannot advertise a class that is not there, and it is written
+into a marked block so regeneration never destroys notes written around it.
+
+Three properties keep this from rotting into the usual stale documentation:
+
+1. **Each library declares its vocabulary in code** (`CLASSES`, `NAMESPACES`),
+   and a test asserts it matches the stylesheets in both directions. An
+   undocumented class fails the suite; so does a documented class the CSS
+   dropped.
+2. **The published copy is drift-tested** against the package.
+3. **The contract is enforced, not merely stated.** `artoo build` reports a
+   class used inside a library's declared namespace that its vendored
+   stylesheet does not define, naming the nearest real class when the mistake
+   is a typo. An invented class renders as nothing, which reads as a styling
+   bug much later and somewhere else.
+
+Namespaces are deliberately narrow — `article-`, `provenance`, `deck-`, not
+generic component names like `card` or `stat`. An artifact's own `.card-hero`
+is a legitimate authorial choice, and a check that cries wolf gets ignored on
+the day it is right.
+
 ### Deployment
 
 Adapters, discovered via the `artoo.deployers` entry point group:
@@ -335,10 +377,15 @@ artoo vizier-guide <job> [--artifact <path>]  optional private guidance receipt
 artoo deploy [artifact] [--dry-run] [--allow-doctor-errors]
                                               flip-doctor gate, firewall check, then adapter
 artoo lib add|update|status|list              manage vendored libraries
+artoo docs [topic] [--all]                    the reference: guides + per-library vocabulary
+artoo skill install [--dir|--user]            SKILL.md + references/ for a coding agent
+artoo skill show                              pipe SKILL.md to stdout
 artoo generate <generator> [opts]             run a generator plugin
   explainer        --repo <path>              multi-page repo explainer (write direction)
   notebook-report  --notebook <path>          report rendered from a flip notebook (read direction)
 artoo doctor [root]                           repo-wide coherence report
+
+`list`, `status`, `build`, and `doctor` accept `--json`.
 ```
 
 ## Non-goals (v0.1)

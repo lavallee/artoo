@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from . import libraries
+from . import agent_guide, libraries
 from . import manifest as manifest_mod
 from .manifest import Manifest
 
@@ -273,6 +273,12 @@ def init_artifact(
 
     if with_notebook:
         _init_notebook(m)
+
+    # Last, so the guide describes the artifact as finished — including the
+    # notebook binding. Whoever authors this artifact next arrives holding
+    # only this directory; the guide is what they read instead of inferring
+    # the layout vocabulary from the vendored stylesheets.
+    agent_guide.write(m)
     return m
 
 

@@ -29,6 +29,11 @@ tool layer for that practice:
   long-form editorial argument with an explicit reader decision, evidence
   limits, and valid comparisons. Artoo remains responsible for packaging,
   provenance, the private-file firewall, and deployment.
+- **The contract travels with the work.** `artoo init` writes an `AGENTS.md`
+  into the artifact carrying the class vocabulary its vendored library
+  defines, `artoo docs` answers the same questions from a shell, and
+  `artoo build` reports a class that vocabulary does not contain. Authoring
+  an artifact should never mean reverse-engineering one.
 
 ## Install
 
@@ -42,6 +47,74 @@ Research-notebook support activates automatically when
 the write half (generator runs recorded as sources/claims/sessions) and the
 read half (below). artoo discovers flip on `PATH`; pin a specific build with
 `ARTOO_FLIP_BIN`. With no flip installed, artoo core works unchanged.
+
+## Quickstart
+
+```bash
+# Scaffold an artifact inside any repo
+artoo init site/my-report --kind report --title "Q3 systems report"
+
+# See every artifact in the repo
+artoo list
+
+# Check health: manifest, firewall, markup, library drift
+artoo status site/my-report
+
+# Read the contract: topics, or one library's full class vocabulary
+artoo docs
+artoo docs artoo-kit
+
+# Publish (adapter chosen by the manifest's [deploy] table)
+artoo deploy site/my-report
+```
+
+`artoo init` also creates `work/design-brief.md`, a private authoring contract
+for the reader decision, headline claim, evidence boundaries, data vintages,
+licit comparisons, forms, DES references, and proof required. It never enters
+the deployable `site/` tree.
+
+## Authoring without guesswork
+
+An artifact is usually built by whoever owns its subject, from inside their
+repo — increasingly an agent rather than a person. That reader has the
+artifact directory and nothing else, so the contract ships with it:
+
+```bash
+artoo init docs/spending --title "Where the money went"
+#   contract  AGENTS.md — layout vocabulary and rules
+```
+
+`AGENTS.md` carries the golden path, the firewall rule, and a table of every
+class the vendored library defines with its role — generated from the
+stylesheets *that artifact* is carrying, so it cannot describe a version it
+does not have. `artoo lib add` and `artoo lib update` regenerate it; anything
+you write outside the managed block is kept.
+
+The same reference answers from a shell, and offline:
+
+```bash
+artoo docs                     # every topic
+artoo docs artoo-kit           # the full class vocabulary, with roles
+artoo docs --all               # the whole contract in one read
+artoo skill install            # SKILL.md + references/ for a coding agent
+```
+
+Then the loop closes at build time. A class used inside a library's namespace
+that its stylesheet does not define is reported, with the nearest real class
+when the mistake is a typo:
+
+```
+✗ site/index.html: class "article-ful" is in the artoo-kit `article-`
+  namespace, but the vendored stylesheet defines no such class (did you mean
+  "article-full"?) — `artoo docs artoo-kit` lists the vocabulary it does define
+```
+
+Your own classes are never second-guessed — only the prefixes a library
+declares it owns. `status`, `build`, and `doctor` all take `--json`.
+
+The reference is also published for readers who cannot run the CLI:
+[llms.txt](https://lavallee.github.io/artoo/llms.txt) and
+[llms-full.txt](https://lavallee.github.io/artoo/llms-full.txt).
 
 ## Decks
 
@@ -112,27 +185,6 @@ and any cited id. A cited `--claim`/`--source` id is verified against the notebo
 and refused if unknown (typo protection); a private breadcrumb is recorded in
 `work/feedback.jsonl`.
 
-## Quickstart
-
-```bash
-# Scaffold an artifact inside any repo
-artoo init site/my-report --kind report --title "Q3 systems report"
-
-# See every artifact in the repo
-artoo list
-
-# Check health: manifest, firewall, library drift
-artoo status site/my-report
-
-# Publish (adapter chosen by the manifest's [deploy] table)
-artoo deploy site/my-report
-```
-
-`artoo init` also creates `work/design-brief.md`, a private authoring contract
-for the reader decision, headline claim, evidence boundaries, data vintages,
-licit comparisons, forms, DES references, and proof required. It never enters
-the deployable `site/` tree.
-
 ## Optional Vizier guidance
 
 [Vizier](https://github.com/lavallee/vizier) is an optional local companion for
@@ -175,7 +227,7 @@ exactly how it was made.
 
 ## Status
 
-v0.1.0 — alpha. The manifest format, CLI surface, and plugin entry points
+v0.4.0 — alpha. The manifest format, CLI surface, and plugin entry points
 are young and may change before 1.0. See [DESIGN.md](DESIGN.md) for the
 architecture and [CHANGELOG.md](CHANGELOG.md) for history.
 

@@ -10,11 +10,11 @@ from pathlib import Path
 import click
 
 from . import __version__, build as build_mod, deploy as deploy_mod
-from . import discover, firewall, flip_read, generators
+from . import agent_guide, discover, docs as docs_mod, firewall, flip_read, generators
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
 from . import provenance as provenance_mod
-from . import scaffold, vizier as vizier_mod
+from . import scaffold, skill as skill_mod, vizier as vizier_mod
 from .manifest import KINDS, Manifest
 
 
@@ -23,6 +23,18 @@ def _resolve(path: str | None) -> Manifest:
         return discover.resolve_artifact(Path(path) if path else None)
     except FileNotFoundError as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+def _refresh_guide(m: Manifest) -> None:
+    """Rewrite AGENTS.md after the vendored set changes.
+
+    The guide's class tables are generated from the vendored stylesheets, so
+    vendoring a library or moving to a new version is exactly the moment they
+    stop being true. Regenerating here means the contract in the artifact can
+    never describe a version it is not carrying.
+    """
+    path = agent_guide.write(m)
+    click.echo(f"refreshed {path.name} for the new vendored set")
 
 
 def _deploy_doctor_gate(m: Manifest, allow_errors: bool) -> None:
@@ -60,7 +72,13 @@ def _deploy_doctor_gate(m: Manifest, allow_errors: bool) -> None:
 @click.version_option(version=__version__, prog_name="artoo")
 def main():
     """Generate and manage artifacts — self-contained HTML mini-sites
-    that pair presentation with the research backing it."""
+    that pair presentation with the research backing it.
+
+    New here? `artoo docs quickstart` is the golden path, and `artoo docs`
+    lists every topic including the layout vocabulary each site library
+    defines. `artoo init` writes an AGENTS.md into the artifact it creates,
+    so the contract travels with the work.
+    """
 
 
 @main.command()
@@ -83,8 +101,11 @@ def init(path: Path, slug: str, title: str, kind: str, description: str, noteboo
     click.echo(f"  manifest  {m.path.relative_to(Path.cwd()) if m.path.is_relative_to(Path.cwd()) else m.path}")
     click.echo(f"  site      {m.site}/index.html")
     click.echo("  design    work/design-brief.md (private)")
+    click.echo(f"  contract  {agent_guide.GUIDE_NAME} — layout vocabulary and rules")
     if notebook:
         click.echo("  notebook  notebook/")
+    click.echo(f"\nRead {m.dir / agent_guide.GUIDE_NAME} before authoring; "
+               f"`artoo docs` has the rest.")
 
 
 @main.command(name="vizier-guide")
@@ -185,9 +206,48 @@ def list_cmd(root: Path, as_json: bool):
 
 @main.command()
 @click.argument("path", type=click.Path(path_type=Path), required=False)
-def status(path: Path | None):
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
+def status(path: Path | None, as_json: bool):
     """Manifest health, firewall report, and library drift for an artifact."""
     m = _resolve(str(path) if path else None)
+    findings = libraries_mod.markup_check(m)
+
+    if as_json:
+        problems = m.validate() + firewall.check(m)
+        if m.site_dir.is_dir():
+            problems += provenance_mod.data_json_problems(m.site_dir)
+        report = {
+            "path": str(m.dir),
+            "slug": m.slug,
+            "title": m.title,
+            "kind": m.kind,
+            "status": m.status,
+            "deploy_target": m.deploy_target,
+            "site_dir": str(m.site_dir),
+            "problems": problems,
+            "withheld": [str(r) for r in firewall.withheld(m.site_dir)]
+            if m.site_dir.is_dir()
+            else [],
+            "libraries": libraries_mod.status(m),
+            # Kept separate from `problems`: a caller fixing markup wants the
+            # class and the suggestion as fields, not a sentence to re-parse.
+            "markup": [
+                {
+                    "file": f.file,
+                    "class": f.cls,
+                    "library": f.library,
+                    "namespace": f.namespace,
+                    "suggestion": f.suggestion,
+                    "message": f.message(),
+                }
+                for f in findings
+            ],
+            "render": provenance_mod.staleness(m),
+            "ok": not problems and not findings,
+        }
+        click.echo(json.dumps(report, indent=2))
+        return
+
     click.echo(f"{m.slug} — {m.title}")
     click.echo(f"  kind {m.kind} · status {m.status} · deploy {m.deploy_target or '(unset)'}")
 
@@ -219,17 +279,42 @@ def status(path: Path | None):
     elif fresh["state"] == "unknown":
         click.secho(f"  ? notebook vintage — {fresh['detail']}", fg="yellow")
 
-    if not problems:
-        click.secho("  ✓ manifest and firewall clean", fg="green")
+    for finding in findings:
+        click.secho(f"  ✗ {finding.message()}", fg="red")
+
+    if not problems and not findings:
+        click.secho("  ✓ manifest, firewall, and markup clean", fg="green")
 
 
 @main.command(name="build")
 @click.argument("path", type=click.Path(path_type=Path), required=False)
 @click.option("--dry-run", is_flag=True)
-def build_cmd(path: Path | None, dry_run: bool):
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
+def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
     """Run the artifact's build commands, then verify the site."""
     m = _resolve(str(path) if path else None)
     result = build_mod.build(m, dry_run=dry_run)
+
+    if as_json:
+        click.echo(
+            json.dumps(
+                {
+                    "ok": result.ok,
+                    "path": str(m.dir),
+                    "slug": m.slug,
+                    "site_dir": str(m.site_dir),
+                    "dry_run": dry_run,
+                    "ran": result.ran,
+                    "problems": result.problems,
+                    "withheld": result.withheld,
+                    "stamped": result.stamped,
+                    "provenance": result.provenance,
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(0 if result.ok else 1)
+
     for command in result.ran:
         click.echo(f"{'would run' if dry_run else 'ran'}: {command}")
     if result.provenance:
@@ -344,6 +429,7 @@ def lib_add(name: str, artifact: Path | None):
     except KeyError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"vendored {record['name']} {record['version']} → {m.site}/lib/{name}/")
+    _refresh_guide(m)
 
 
 @lib.command(name="status")
@@ -370,6 +456,7 @@ def lib_update(name: str, artifact: Path | None):
     except KeyError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"updated {record['name']} → {record['version']}")
+    _refresh_guide(m)
 
 
 @lib.command(name="vendor")
@@ -485,30 +572,123 @@ def feedback(artifact: Path, text: str, claim: str | None, source: str | None, a
 
 @main.command()
 @click.argument("root", type=click.Path(exists=True, path_type=Path), default=".")
-def doctor(root: Path):
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
+def doctor(root: Path, as_json: bool):
     """Repo-wide coherence report over every artifact under ROOT."""
     paths = discover.find_artifacts(root)
-    if not paths:
-        click.echo(f"no artifacts under {root.resolve()}")
-        return
-    healthy = 0
+    reports = []
     for p in paths:
         try:
             m = manifest_mod.load(p)
         except Exception as exc:
-            click.secho(f"✗ {p}: unreadable manifest ({exc})", fg="red")
+            reports.append({"path": str(p), "error": str(exc), "ok": False})
             continue
         problems = m.validate() + firewall.check(m)
         drifted = [r for r in libraries_mod.status(m) if r["state"] != "intact"]
-        if not problems and not drifted:
-            healthy += 1
+        markup_notes = [f.message() for f in libraries_mod.markup_check(m)]
+        reports.append(
+            {
+                "path": str(p),
+                "slug": m.slug,
+                "problems": problems,
+                "drifted": drifted,
+                "markup": markup_notes,
+                "ok": not problems and not drifted and not markup_notes,
+            }
+        )
+
+    if as_json:
+        click.echo(
+            json.dumps(
+                {
+                    "root": str(root.resolve()),
+                    "artifacts": reports,
+                    "clean": sum(1 for r in reports if r["ok"]),
+                    "total": len(reports),
+                },
+                indent=2,
+            )
+        )
+        return
+
+    if not paths:
+        click.echo(f"no artifacts under {root.resolve()}")
+        return
+    for report in reports:
+        if report.get("error"):
+            click.secho(f"✗ {report['path']}: unreadable manifest ({report['error']})", fg="red")
             continue
-        click.echo(f"{m.slug} ({p})")
-        for problem in problems:
+        if report["ok"]:
+            continue
+        click.echo(f"{report['slug']} ({report['path']})")
+        for problem in report["problems"]:
             click.secho(f"  ✗ {problem}", fg="red")
-        for row in drifted:
+        for note in report["markup"]:
+            click.secho(f"  ✗ {note}", fg="red")
+        for row in report["drifted"]:
             click.secho(f"  ! lib {row['name']}: {row['state']}", fg="yellow")
-    click.echo(f"{healthy}/{len(paths)} artifacts clean")
+    clean = sum(1 for r in reports if r["ok"])
+    click.echo(f"{clean}/{len(reports)} artifacts clean")
+
+
+# -- docs -------------------------------------------------------------------
+
+
+@main.command(name="docs")
+@click.argument("topic", required=False)
+@click.option("--all", "everything", is_flag=True, help="Print every topic in one read.")
+def docs_cmd(topic: str | None, everything: bool):
+    """Print artoo's reference: the golden path, the manifest, the firewall,
+    and the class vocabulary each site library defines.
+
+    With no TOPIC, lists what is readable. This is the answer to "what classes
+    can I use here" — the alternative is reading the vendored stylesheets.
+    """
+    if everything:
+        click.echo(docs_mod.render_all(), nl=False)
+        return
+    if topic is None:
+        click.echo(docs_mod.index(), nl=False)
+        return
+    try:
+        click.echo(docs_mod.render(topic), nl=False)
+    except KeyError as exc:
+        raise click.ClickException(str(exc).strip("'")) from exc
+
+
+# -- skill ------------------------------------------------------------------
+
+
+@main.group()
+def skill():
+    """Install artoo's contract as an agent skill."""
+
+
+@skill.command(name="install")
+@click.option(
+    "--dir", "target", type=click.Path(path_type=Path), default=None,
+    help="Where to write the skill (default: ./.claude/skills/artoo).",
+)
+@click.option(
+    "--user", is_flag=True, help="Install for this user (~/.claude/skills/artoo) instead."
+)
+def skill_install(target: Path | None, user: bool):
+    """Write SKILL.md and an offline reference set for a coding agent.
+
+    AGENTS.md teaches an agent already standing in an artifact. This teaches
+    one that has merely been asked for a report, and would otherwise hand-roll
+    the HTML because nothing told it artoo exists.
+    """
+    root = target if target is not None else skill_mod.default_dir(user=user)
+    result = skill_mod.install(Path(root))
+    click.echo(f"installed the artoo skill → {result.root}")
+    click.echo(f"  SKILL.md + {len(result.files) - 1} reference topic(s)")
+
+
+@skill.command(name="show")
+def skill_show():
+    """Print SKILL.md to stdout, for agent frameworks that read it from a pipe."""
+    click.echo(skill_mod.skill_markdown(), nl=False)
 
 
 if __name__ == "__main__":

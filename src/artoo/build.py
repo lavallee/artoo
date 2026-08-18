@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import date
 
-from . import firewall, provenance as provenance_mod
+from . import firewall, libraries as libraries_mod, provenance as provenance_mod
 from .manifest import Manifest
 
 
@@ -62,6 +62,12 @@ def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
     result.problems.extend(firewall.check(m))
     if m.site_dir.is_dir():
         result.problems.extend(provenance_mod.data_json_problems(m.site_dir))
+        # A class invented inside a library's namespace renders as nothing at
+        # all — the page loads, the layout is silently wrong, and the failure
+        # surfaces as "the CSS is broken" much later. Catching it here is what
+        # makes the vocabulary in AGENTS.md worth trusting: guess, and the
+        # build tells you immediately which real class you meant.
+        result.problems.extend(f.message() for f in libraries_mod.markup_check(m))
     if result.problems:
         result.ok = False
     result.withheld = [str(p) for p in firewall.withheld(m.site_dir)] if m.site_dir.is_dir() else []

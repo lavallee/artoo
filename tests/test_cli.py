@@ -1,3 +1,5 @@
+import json
+
 import click
 import pytest
 from click.testing import CliRunner
@@ -38,7 +40,7 @@ def test_init_and_status(tmp_path):
     assert result.exit_code == 0, result.output
     result = invoke("status", str(tmp_path / "art"))
     assert result.exit_code == 0
-    assert "manifest and firewall clean" in result.output
+    assert "manifest, firewall, and markup clean" in result.output
 
 
 def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path):
@@ -203,3 +205,70 @@ def test_deploy_gate_helper_paths(notebook_artifact, flip_stub):
     with pytest.raises(click.ClickException):
         _deploy_doctor_gate(notebook_artifact, False)
     _deploy_doctor_gate(notebook_artifact, True)  # override does not raise
+
+
+# -- machine-readable output ------------------------------------------------
+
+
+def test_status_json_separates_markup_findings_from_manifest_problems(artifact):
+    """A caller fixing markup wants the class and the suggestion as fields —
+    not a sentence to re-parse out of a list of unrelated problems."""
+    index = artifact.site_dir / "index.html"
+    index.write_text(index.read_text().replace("</main>", '<p class="article-ful"></p></main>'))
+
+    result = CliRunner().invoke(main, ["status", str(artifact.dir), "--json"])
+    assert result.exit_code == 0, result.output
+    report = json.loads(result.output)
+
+    assert report["problems"] == []
+    assert report["ok"] is False
+    assert report["markup"][0]["class"] == "article-ful"
+    assert report["markup"][0]["suggestion"] == "article-full"
+    assert report["markup"][0]["library"] == "artoo-kit"
+
+
+def test_status_json_on_a_clean_artifact(artifact):
+    result = CliRunner().invoke(main, ["status", str(artifact.dir), "--json"])
+    report = json.loads(result.output)
+    assert report["ok"] is True
+    assert report["slug"] == artifact.slug
+    assert report["libraries"][0]["state"] == "intact"
+
+
+def test_build_json_exits_nonzero_while_still_emitting_the_report(artifact):
+    """A failing build has to stay parseable; a caller that cannot read the
+    problems has to fall back to scraping stderr."""
+    index = artifact.site_dir / "index.html"
+    index.write_text(index.read_text().replace("</main>", '<p class="article-wide"></p></main>'))
+
+    result = CliRunner().invoke(main, ["build", str(artifact.dir), "--json"])
+    assert result.exit_code == 1
+    report = json.loads(result.output)
+    assert report["ok"] is False
+    assert any("article-wide" in p for p in report["problems"])
+
+
+def test_build_json_reports_a_clean_build(artifact):
+    result = CliRunner().invoke(main, ["build", str(artifact.dir), "--json"])
+    assert result.exit_code == 0
+    report = json.loads(result.output)
+    assert report["ok"] is True
+    assert report["stamped"]
+
+
+def test_doctor_json_covers_every_artifact_in_the_tree(artifact):
+    result = CliRunner().invoke(main, ["doctor", str(artifact.dir.parent), "--json"])
+    assert result.exit_code == 0
+    report = json.loads(result.output)
+    assert report["total"] == 1
+    assert report["clean"] == 1
+    assert report["artifacts"][0]["slug"] == artifact.slug
+
+
+def test_doctor_counts_a_markup_finding_as_unclean(artifact):
+    index = artifact.site_dir / "index.html"
+    index.write_text(index.read_text().replace("</main>", '<p class="article-wide"></p></main>'))
+    result = CliRunner().invoke(main, ["doctor", str(artifact.dir.parent), "--json"])
+    report = json.loads(result.output)
+    assert report["clean"] == 0
+    assert report["artifacts"][0]["markup"]

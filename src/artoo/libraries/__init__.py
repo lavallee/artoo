@@ -18,10 +18,11 @@ from __future__ import annotations
 import hashlib
 import shutil
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from pathlib import Path
 
+from .. import markup
 from ..manifest import Manifest
 
 LIB_ROOT = "lib"  # under the site dir
@@ -29,12 +30,40 @@ LIB_ROOT = "lib"  # under the site dir
 
 @dataclass
 class Library:
+    """A vendorable set of site assets, plus the contract for using them.
+
+    ``namespaces`` and ``classes`` are not documentation ornamentation: they
+    are what lets an artifact carry its own usage contract (``AGENTS.md``),
+    answer ``artoo docs <name>``, and fail a build on an invented class. A
+    library that declares neither still vendors fine — it just cannot teach.
+    """
+
     name: str
     version: str
     root: Path  # directory whose files get vendored
+    summary: str = ""
+    # Class prefixes this library owns. A class inside one of these that the
+    # stylesheet does not define is a guess, and gets reported.
+    namespaces: tuple[str, ...] = ()
+    # Public class -> one-line role. Tested against the stylesheet, so it
+    # cannot drift into describing classes that no longer exist.
+    classes: dict[str, str] = field(default_factory=dict)
+    reference: Path | None = None  # prose contract; defaults to README.md
+
+    def __post_init__(self) -> None:
+        if self.reference is None:
+            candidate = self.root.parent / "README.md"
+            self.reference = candidate if candidate.is_file() else None
 
     def files(self) -> list[Path]:
         return sorted(p for p in self.root.rglob("*") if p.is_file())
+
+    def owns(self, cls: str) -> str:
+        """The namespace of this library that ``cls`` falls in, or ``""``."""
+        for namespace in self.namespaces:
+            if cls.startswith(namespace):
+                return namespace
+        return ""
 
 
 def _builtin() -> dict[str, Library]:
@@ -142,3 +171,55 @@ def vendor_url(m: Manifest, name: str, url: str, *, rel_path: str = "") -> dict:
     m.vendor.append(record)
     m.save()
     return record
+
+
+def markup_check(m: Manifest) -> list[markup.Finding]:
+    """Report classes the artifact's markup invents inside a library namespace.
+
+    Checked against the *vendored* stylesheets, not the installed library: the
+    artifact renders from the bytes it carries, so those bytes are the only
+    honest vocabulary. A library that is vendored but no longer installed is
+    skipped — without its declared namespaces there is no way to tell an
+    invented class from one of the author's own, and guessing would mean
+    false alarms on a page that renders correctly.
+    """
+    site = m.site_dir
+    if not site.is_dir():
+        return []
+
+    checkable = []
+    for entry in m.libraries:
+        name = entry.get("name", "")
+        dest = vendored_dir(m, name)
+        if not dest.is_dir():
+            continue
+        try:
+            lib = get(name)
+        except KeyError:
+            continue
+        if lib.namespaces:
+            checkable.append((lib, markup.declared_classes_in_dir(dest)))
+    if not checkable:
+        return []
+
+    findings = []
+    for path in sorted(site.rglob("*.html")):
+        rel = path.relative_to(m.dir)
+        used = markup.classes_used(path.read_text(encoding="utf-8", errors="replace"))
+        for cls in sorted(used):
+            for lib, declared in checkable:
+                if cls in declared:
+                    break
+                namespace = lib.owns(cls)
+                if namespace:
+                    findings.append(
+                        markup.Finding(
+                            file=str(rel),
+                            cls=cls,
+                            library=lib.name,
+                            namespace=namespace,
+                            suggestion=markup.closest(cls, declared, namespace),
+                        )
+                    )
+                    break
+    return findings
