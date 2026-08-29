@@ -88,18 +88,33 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def base_classes_in_dir(directory: Path) -> set[str]:
+def _stylesheets(directory: Path, exclude: tuple[str, ...] = ()) -> list[Path]:
+    """Stylesheets in ``directory``, minus any matching an ``exclude`` glob.
+
+    The exclusion exists for third-party dist files a library vendors, like a
+    grid engine's own stylesheet. Those define hundreds of classes that are
+    the upstream project's vocabulary, not the library's contract, and asking
+    a library to document them would make the class table useless.
+    """
+    return [
+        path
+        for path in sorted(directory.rglob("*.css"))
+        if not any(path.match(pattern) for pattern in exclude)
+    ]
+
+
+def base_classes_in_dir(directory: Path, exclude: tuple[str, ...] = ()) -> set[str]:
     """Union of ``base_classes`` over every stylesheet in a directory."""
     found: set[str] = set()
-    for path in sorted(directory.rglob("*.css")):
+    for path in _stylesheets(directory, exclude):
         found |= base_classes(_read(path))
     return found
 
 
-def declared_classes_in_dir(directory: Path) -> set[str]:
+def declared_classes_in_dir(directory: Path, exclude: tuple[str, ...] = ()) -> set[str]:
     """Union of ``declared_classes`` over every stylesheet in a directory."""
     found: set[str] = set()
-    for path in sorted(directory.rglob("*.css")):
+    for path in _stylesheets(directory, exclude):
         found |= declared_classes(_read(path))
     return found
 

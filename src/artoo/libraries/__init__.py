@@ -9,7 +9,8 @@ and the manifest records name, version, and a content hash. From the hash,
 
 Libraries resolve from the ``artoo.libraries`` entry-point group; external
 libraries live in their own repos/packages. artoo ships two built-ins:
-``artoo-kit`` for articles and ``artoo-deck`` for presentations. One-off assets (a JS runtime like mermaid) are vendored from
+``artoo-kit`` for articles, ``artoo-deck`` for presentations, and
+``artoo-grid`` for dense comparison tables. One-off assets (a JS runtime like mermaid) are vendored from
 a URL and recorded under ``[[vendor]]`` with a pinned hash.
 """
 
@@ -48,6 +49,11 @@ class Library:
     # Public class -> one-line role. Tested against the stylesheet, so it
     # cannot drift into describing classes that no longer exist.
     classes: dict[str, str] = field(default_factory=dict)
+    # Globs for third-party dist files vendored inside this library. Their
+    # classes belong to the upstream project, so they are excluded from the
+    # vocabulary a library is asked to document — but they still ship, and an
+    # artifact using one is still not flagged.
+    vendored: tuple[str, ...] = ()
     reference: Path | None = None  # prose contract; defaults to README.md
 
     def __post_init__(self) -> None:
@@ -68,9 +74,10 @@ class Library:
 
 def _builtin() -> dict[str, Library]:
     from .deck import library as deck
+    from .grid import library as grid
     from .kit import library as kit
 
-    return {kit.name: kit, deck.name: deck}
+    return {kit.name: kit, deck.name: deck, grid.name: grid}
 
 
 def available() -> dict[str, Library]:

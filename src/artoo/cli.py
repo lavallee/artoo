@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ from . import agent_guide, discover, docs as docs_mod, firewall, flip_read, gene
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
 from . import provenance as provenance_mod
-from . import scaffold, skill as skill_mod, vizier as vizier_mod
+from . import scaffold, serve as serve_mod, skill as skill_mod, vizier as vizier_mod
 from .manifest import KINDS, Manifest
 
 
@@ -347,6 +348,55 @@ def provenance_cmd(path: Path | None):
         click.echo(f"skipped: {result.note}")
     else:
         raise click.ClickException(result.note)
+
+
+@main.command(name="serve")
+@click.argument("path", type=click.Path(path_type=Path), required=False)
+@click.option("--port", default=8765, show_default=True, help="Port to bind on loopback.")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Interface to bind.")
+@click.option("--open", "open_browser", is_flag=True, help="Open the artifact in a browser.")
+@click.option("--quiet", is_flag=True, help="Suppress the per-request log.")
+def serve_cmd(path: Path | None, port: int, host: str, open_browser: bool, quiet: bool):
+    """Serve the artifact locally, with a JSON store behind it.
+
+    Most artifacts read fine from `file://`. An explorer does not: a page whose
+    value is the configuration a reader arrived at needs somewhere durable to
+    put it. This serves exactly what a deploy would ship — the firewall-staged
+    site, so a private working file is absent rather than merely unlinked — and
+    adds one small API under `/_artoo/state` that reads and writes named JSON
+    documents into the artifact's own `state/` directory.
+
+    Those are real files, next to the work and committed with it. `state/` is a
+    sibling of `site/`, so nothing saved here can reach a publish. The page
+    talks to it through `ArtooStore` from artoo-kit, which falls back to browser
+    storage — and says so — when nothing is serving.
+
+    Loopback only, no authentication. This is a working surface, not a host.
+    """
+    m = _resolve(str(path) if path else None)
+    try:
+        httpd, staged, state_dir, tmpdir = serve_mod.serve(m, host=host, port=port, quiet=quiet)
+    except OSError as exc:
+        raise click.ClickException(f"could not bind {host}:{port} — {exc}") from exc
+
+    url = f"http://{host}:{port}/"
+    click.echo(f"serving {m.slug} at {url}")
+    click.echo(f"  site      {len(staged)} staged file(s) from {m.site}/ (firewall applied)")
+    collections = sorted(p.name for p in state_dir.glob("*") if p.is_dir()) if state_dir.is_dir() else []
+    held = f"{', '.join(collections)}" if collections else "empty"
+    click.echo(f"  state     {state_dir.relative_to(m.dir)}/ — {held}")
+    click.echo("  stop      ctrl-c")
+    if open_browser:
+        import webbrowser
+
+        webbrowser.open(url)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        click.echo("\nstopped")
+    finally:
+        httpd.server_close()
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @main.command(name="deploy")

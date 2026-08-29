@@ -28,6 +28,7 @@ AUTHORED = {
     "quickstart": "Install, the golden path, and the authoring rules that matter.",
     "manifest": "Every artifact.toml key, and what the validator enforces.",
     "firewall": "What publishes, what is withheld, and why it is structural.",
+    "serve": "Running an artifact locally, and the state store that makes saves durable.",
     "provenance": "Attaching a flip notebook, the projection, and the roundtrip verbs.",
     "generators": "Plugin generators, worker tiers, and the two built in.",
 }

@@ -21,7 +21,7 @@ def test_documented_classes_match_the_stylesheets_exactly(name):
     lib = libraries.available()[name]
     if not lib.classes:
         pytest.skip(f"{name} declares no vocabulary")
-    defined = markup.base_classes_in_dir(lib.root)
+    defined = markup.base_classes_in_dir(lib.root, lib.vendored)
     assert defined - set(lib.classes) == set(), "undocumented classes in the stylesheet"
     assert set(lib.classes) - defined == set(), "documented classes the stylesheet dropped"
 

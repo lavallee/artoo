@@ -139,6 +139,58 @@ using the same word: a `.bar` fixed header sets `height: 46px` on an SVG
 `<rect class="bar">` and collapses a chart. Keep your own classes out of the
 `deck-` namespace and the two cannot reach each other.
 
+## Dense tables, and explorers that remember
+
+A comparison table of a few hundred entities across a few dozen measures is a
+normal output of analytical work, and hand-rolling one costs the same two days
+every time. **`artoo-grid`** is that work done once, over a vendored Tabulator
+build — declared, not assembled:
+
+```js
+ArtooGrid.create("#table", {
+  data: rows,
+  columns: [
+    { field: "rank", title: "#",        format: "rank", frozen: true, width: 52 },
+    { field: "name", title: "District", format: "name", frozen: true, sub: "county" },
+    { field: "hhi",  title: "Median household income",
+      group: "Means",       format: "currency", bar: true },
+    { field: "prof", title: "Proficient",
+      group: "Achievement", format: "percent",  heat: true },
+  ],
+  toolbar: { search: true, columns: true, download: "districts.csv" },
+});
+```
+
+Sorting, frozen identity columns, column groups, a column picker, in-cell bars
+and percentile heat, and CSV export come with it. Two rules are not negotiable,
+because both failures are expensive and silent: **missing is never zero** —
+`null`, `NaN` and `""` render as an em dash in every format, and a row carrying
+`<field>_state === "suppressed"` says so — and **blanks sort to the bottom in
+both directions**, since a district with no measurement has not scored zero and
+must never top a ranking. Bar and heat domains recompute on every `setData`, so
+a table that reranks on a slider rescales honestly instead of comparing today's
+numbers against yesterday's maximum.
+
+An explorer is only useful the second time if the configuration that made it
+useful the first time survives. `artoo serve` puts a small JSON store behind
+the artifact and writes named documents into its own `state/` directory:
+
+```bash
+artoo serve site/my-explorer --open
+```
+
+```js
+const presets = ArtooStore.open("presets");
+await presets.save("means-heavy", weights);   // → state/presets/means-heavy.json
+```
+
+Real files, next to the work, committed with it, reviewable in a diff — and
+`state/` is a sibling of `site/`, so the firewall can never publish one. The
+server stages the *publishable* site, so it shows exactly what a deploy would:
+a withheld file is absent rather than merely unlinked. With nothing serving,
+`ArtooStore` falls back to `localStorage` and reports `durable === false`, so
+the page can say so instead of implying a save that did not happen.
+
 ## Provenance roundtrip
 
 When an artifact declares an attached notebook (`[research] notebook = "…"`),

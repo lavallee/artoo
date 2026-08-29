@@ -9,12 +9,14 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 - [quickstart](https://lavallee.github.io/artoo/reference/quickstart.md): Install, the golden path, and the authoring rules that matter.
 - [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
 - [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
+- [serve](https://lavallee.github.io/artoo/reference/serve.md): Running an artifact locally, and the state store that makes saves durable.
 - [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
 - [generators](https://lavallee.github.io/artoo/reference/generators.md): Plugin generators, worker tiers, and the two built in.
 
 ## Site libraries
 
 - [artoo-deck](https://lavallee.github.io/artoo/reference/artoo-deck.md): Slides: acts, speaker notes, overview, keyboard/touch nav, landscape print.
+- [artoo-grid](https://lavallee.github.io/artoo/reference/artoo-grid.md): Declarative dense data tables: sorting, frozen identity columns, in-cell bars and heat, column picker, CSV export, and an honest missing-value convention.
 - [artoo-kit](https://lavallee.github.io/artoo/reference/artoo-kit.md): Long-form article layout, evidence regions, and the provenance panel.
 
 ## Optional

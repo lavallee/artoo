@@ -97,7 +97,7 @@ def _vocabulary(m: Manifest) -> str:
             continue
         if not lib.classes:
             continue
-        present = markup.base_classes_in_dir(vendored)
+        present = markup.base_classes_in_dir(vendored, lib.vendored)
         rows = "\n".join(
             f"| `{cls}` | {role} |" for cls, role in lib.classes.items() if cls in present
         )

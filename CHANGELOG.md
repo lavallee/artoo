@@ -8,6 +8,51 @@ All notable changes to artoo are documented here. The format follows
 
 ### Added
 
+- **`artoo-grid`, a third built-in site library.** Dense comparison tables —
+  a few hundred entities across a few dozen measures — declared rather than
+  assembled, over a vendored Tabulator 6.3.1 build: sorting, frozen identity
+  columns, column groups, a column picker, in-cell bars and percentile heat,
+  free-text filtering, and CSV export. The editorial rules live in the column
+  formats, which is the reason to have formats rather than a callback per
+  column. Two of them are not configurable, because both failures are silent
+  and expensive: **missing is never zero** (`null`, `NaN` and `""` render as
+  an em dash in every format; a row carrying `<field>_state === "suppressed"`
+  says *suppressed*, because a value a publisher withheld and a value nobody
+  collected are different facts), and **blanks sort to the bottom in both
+  directions** (a district with no measurement has not scored zero and must
+  never top a ranking by ascending sort). Bar and heat domains recompute on
+  every `setData`, so a table that reranks on a slider rescales honestly
+  instead of comparing today's numbers against yesterday's maximum.
+- **`artoo serve`, and durable state for explorers.** A page whose value is
+  the configuration a reader arrived at is only useful the second time if that
+  configuration survives. `artoo serve` runs the artifact on loopback with a
+  small JSON store under `/_artoo/state`, writing named documents into the
+  artifact's own `state/` directory — real files, next to the work, committed
+  with it, readable in a diff. `state/` is a sibling of `site/`, so the
+  firewall can never publish one. The server serves the *firewall-staged*
+  site rather than `site/` itself, so it shows exactly what a deploy would: a
+  withheld file is absent, not merely unlinked, and a page that only works
+  because it reached a private working file fails locally instead of after
+  publication. Names are slug-validated before they become path segments;
+  writes go through a temp file and a rename.
+- **`ArtooStore` in artoo-kit.** The client for that store, with the honest
+  fallback: from `file://` or a plain static host there is nothing to write
+  to, so it uses `localStorage` and reports `durable === false`. Print
+  `store.describe()` rather than let a reader believe a save reached disk. artoo-kit
+  moves to 0.4.0 for the new asset; `artoo lib update artoo-kit` picks it up.
+- **`artoo docs serve`.** The new topic, covering the state API and where
+  saved documents land.
+
+### Changed
+
+- A site library may now declare `vendored` file globs. Classes defined in a
+  third-party dist file belong to the upstream project, not to the library's
+  contract, so they are excluded from the vocabulary the library is asked to
+  document — while still shipping, and still not being flagged when an artifact
+  uses one. Without this, vendoring an engine's stylesheet would force a
+  library to document several hundred classes it does not own, and the class
+  table exists precisely so the next author does not have to read those.
+
 - **The contract travels with the artifact.** `artoo init` now writes an
   `AGENTS.md` into the artifact it creates: the golden path, the firewall
   rule, and a table of every class the vendored site library defines, with

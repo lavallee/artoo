@@ -5,6 +5,11 @@ default, an explicit dark opt-in, long-form article layout, evidence regions,
 and a small component vocabulary. System font stacks only — a page using the
 kit renders from file:// with zero external requests.
 
+Behaviour ships alongside the styling: ``kit.js`` for the nav, ``provenance.js``
+for the evidence panel, and ``store.js`` for ``ArtooStore``, the client that
+lets a page save named JSON documents through ``artoo serve`` instead of into
+browser storage nobody can review.
+
 ``CLASSES`` below is the kit's public vocabulary, and it is load-bearing in
 three places: ``artoo docs artoo-kit`` prints it, ``artoo init`` writes it
 into the artifact's ``AGENTS.md``, and a test asserts it matches the
@@ -17,7 +22,7 @@ from pathlib import Path
 
 from .. import Library
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 # Class prefixes the kit owns outright. A class starting with one of these
 # that the stylesheet does not define is a guess, not an authorial choice, so
