@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -375,13 +374,13 @@ def serve_cmd(path: Path | None, port: int, host: str, open_browser: bool, quiet
     """
     m = _resolve(str(path) if path else None)
     try:
-        httpd, staged, state_dir, tmpdir = serve_mod.serve(m, host=host, port=port, quiet=quiet)
+        httpd, publishable, state_dir = serve_mod.serve(m, host=host, port=port, quiet=quiet)
     except OSError as exc:
         raise click.ClickException(f"could not bind {host}:{port} — {exc}") from exc
 
     url = f"http://{host}:{port}/"
     click.echo(f"serving {m.slug} at {url}")
-    click.echo(f"  site      {len(staged)} staged file(s) from {m.site}/ (firewall applied)")
+    click.echo(f"  site      {len(publishable)} publishable file(s) in {m.site}/, read live (firewall applied per request)")
     collections = sorted(p.name for p in state_dir.glob("*") if p.is_dir()) if state_dir.is_dir() else []
     held = f"{', '.join(collections)}" if collections else "empty"
     click.echo(f"  state     {state_dir.relative_to(m.dir)}/ — {held}")
@@ -396,7 +395,6 @@ def serve_cmd(path: Path | None, port: int, host: str, open_browser: bool, quiet
         click.echo("\nstopped")
     finally:
         httpd.server_close()
-        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @main.command(name="deploy")

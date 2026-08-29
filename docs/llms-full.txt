@@ -217,10 +217,14 @@ artoo serve site/my-explorer --open --port 9000
 
 ## What it serves
 
-The **firewall-staged** site, not `site/` itself. So the server shows exactly
-what a deploy would show: a withheld file is *absent*, not merely unlinked, and
-a page that only works because it reached a private working file fails here
-rather than after publication.
+Files read live from `site/`, with **every request checked against the same
+firewall rule a deploy applies**. So the server shows exactly what a deploy
+would show — a withheld file is *absent*, not merely unlinked, and a page that
+only works because it reached a private working file fails here rather than
+after publication — while an edit still appears on reload without a restart.
+
+A withheld path answers 404 whether or not the file exists, so the refusal is
+not an oracle for what the artifact is hiding.
 
 Loopback only, no authentication. This is a working surface, not a host.
 

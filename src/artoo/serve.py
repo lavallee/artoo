@@ -22,16 +22,21 @@ write path safe:
 
 * document names are a strict slug — the path is built from a validated name,
   never from raw request text, so ``..`` and absolute paths cannot appear;
-* the site is served from a staged copy produced by the firewall, so a private
-  working file cannot be fetched even by guessing its URL.
+* every request is checked against the same firewall rule a deploy applies, so
+  a private working file cannot be fetched even by guessing its URL.
+
+Files are read live from ``site/`` rather than from a staged snapshot. A
+snapshot would be the obvious way to guarantee the firewall — serve only what
+was copied — but it also freezes the artifact at the moment the server
+started, which makes the one command whose whole job is iteration the one
+command you have to restart after every edit. Filtering per request gives the
+same guarantee against the current bytes.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import shutil
-import tempfile
 from datetime import datetime, timezone
 from functools import partial
 from http import HTTPStatus
@@ -119,7 +124,7 @@ class StateStore:
 
 
 class _Handler(SimpleHTTPRequestHandler):
-    """Static files from the staged site, plus the state API under /_artoo.
+    """Static files from the live site, plus the state API under /_artoo.
 
     The store and the quiet flag arrive per instance rather than as class
     attributes, so two servers in one process (which is exactly what a test
@@ -129,6 +134,7 @@ class _Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, store: StateStore, quiet: bool = False, **kwargs):
         self.store = store
         self.quiet = quiet
+        self._sent_no_store = False
         super().__init__(*args, **kwargs)
 
     def log_message(self, fmt, *args):  # noqa: D102 - stdlib hook
@@ -142,7 +148,6 @@ class _Handler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -167,9 +172,45 @@ class _Handler(SimpleHTTPRequestHandler):
 
     # -- methods ------------------------------------------------------------
 
+    def _withheld(self) -> bool:
+        """Would the firewall refuse to publish the path being requested?
+
+        Checked on the URL rather than on the resolved file, because the answer
+        has to be the same for a path that does not exist: replying 404 for a
+        missing private file and 403 for a present one would turn the firewall
+        into an oracle for what the artifact is hiding.
+        """
+        path = unquote(urlparse(self.path).path).lstrip("/")
+        if not path:
+            return False
+        try:
+            return not firewall.is_publishable(Path(path))
+        except (ValueError, OSError):
+            return True
+
+    def end_headers(self):  # noqa: D102 - stdlib hook
+        """Never let a browser cache a file from this server.
+
+        Reading live from `site/` only helps if the browser asks. Without this
+        an edited stylesheet keeps rendering from cache, and the failure looks
+        like the edit not working rather than like the file not being fetched —
+        which costs more time than the caching ever saves on a loopback server.
+        """
+        if not self._sent_no_store:
+            self.send_header("Cache-Control", "no-store, must-revalidate")
+            self._sent_no_store = True
+        super().end_headers()
+
+    def send_response(self, *args, **kwargs):  # noqa: D102 - stdlib hook
+        self._sent_no_store = False
+        return super().send_response(*args, **kwargs)
+
     def do_GET(self):  # noqa: N802 - stdlib hook
         route = self._route()
         if route is None:
+            if self._withheld():
+                self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+                return None
             return super().do_GET()
         if len(route) == 1:
             collection = route[0]
@@ -185,6 +226,12 @@ class _Handler(SimpleHTTPRequestHandler):
                 return self._error(HTTPStatus.NOT_FOUND, f"no document {name!r} in {collection!r}")
             return self._json(HTTPStatus.OK, document)
         return self._error(HTTPStatus.NOT_FOUND, "unknown state route")
+
+    def do_HEAD(self):  # noqa: N802 - stdlib hook
+        if self._route() is None and self._withheld():
+            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
+            return None
+        return super().do_HEAD()
 
     def do_PUT(self):  # noqa: N802 - stdlib hook
         route = self._route()
@@ -219,36 +266,22 @@ class _Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
 
-def stage(m: Manifest, dest: Path) -> list[Path]:
-    """Copy the publishable site into ``dest``.
-
-    Serving the staged copy rather than ``site/`` itself means the server shows
-    exactly what a deploy would show. A file the firewall withholds is not just
-    unlisted, it is absent — so it cannot be reached by guessing its URL, and a
-    page that only works because it read a private file fails here rather than
-    in production.
-    """
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
-    return firewall.stage(m, dest)
-
-
 def serve(m: Manifest, host: str = "127.0.0.1", port: int = 8765, quiet: bool = False):
-    """Build the server and return ``(httpd, staged_paths, state_dir, tmpdir)``.
+    """Build the server and return ``(httpd, publishable_paths, state_dir)``.
 
-    The caller owns the serve loop and the cleanup of ``tmpdir``; keeping that
-    out of here is what lets the tests exercise a real server on a real socket
-    without a subprocess.
+    The caller owns the serve loop. Keeping it out of here is what lets the
+    tests exercise a real server on a real socket without a subprocess.
+
+    ``publishable_paths`` is a count taken once, for the startup line; the
+    firewall itself is applied per request, so a file added after the server
+    started is served, and one added under a `_` path still is not.
     """
-    tmpdir = Path(tempfile.mkdtemp(prefix="artoo-serve-"))
-    staged = stage(m, tmpdir / "site")
     state_dir = m.dir / STATE_DIR
     handler = partial(
         _Handler,
-        directory=str(tmpdir / "site"),
+        directory=str(m.site_dir),
         store=StateStore(state_dir),
         quiet=quiet,
     )
     httpd = ThreadingHTTPServer((host, port), handler)
-    return httpd, staged, state_dir, tmpdir
+    return httpd, list(firewall.iter_publishable(m.site_dir)), state_dir

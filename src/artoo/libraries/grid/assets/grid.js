@@ -169,7 +169,13 @@
       node.classList.add("grid-heat");
       var p = percentile(domain.sorted, v);
       if (spec.invertHeat) p = 1 - p;
-      node.style.setProperty("--grid-alpha", (0.06 + p * 0.34).toFixed(3));
+      /* The ceiling is deliberately low. A heat column is read alongside its
+         own digits and five neighbours; at strong alpha a block of
+         high-percentile rows becomes one solid slab that hides the ordering
+         it exists to show, and the numbers on top of it stop being legible.
+         A wash that tops out around a quarter opacity still reads as ordered
+         and never competes with the figure. */
+      node.style.setProperty("--grid-alpha", (0.02 + p * 0.24).toFixed(3));
     }
     return node;
   }
@@ -181,6 +187,7 @@
     });
     this.rows = this.config.data || [];
     this.domains = {};
+    this.built = false;
     this._build(mount);
   }
 
@@ -205,6 +212,16 @@
       host.appendChild(note);
     }
 
+    /* Tabulator builds asynchronously, and a caller that renders its data in
+       the same tick as create() — which is the natural thing to write — has
+       its setData and column-visibility calls silently dropped with a console
+       warning. Every method that touches the table therefore goes through
+       this promise. Absorbing that is the wrapper's job; making each caller
+       remember to wait for `tableBuilt` is exactly the assembly work this
+       library exists to remove. */
+    var resolveReady;
+    this.ready = new Promise(function (resolve) { resolveReady = resolve; });
+
     this.table = new global.Tabulator(body, Object.assign({
       data: this.rows,
       index: this.config.index,
@@ -215,13 +232,29 @@
          buffer is generous because these tables are read by scrolling fast. */
       renderVerticalBuffer: 600,
       placeholder: this.config.placeholder || "No rows match the current filters.",
-      columnDefaults: { headerHozAlign: "left", resizable: true, headerTooltip: true },
+      /* Header text wraps rather than ellipsising. Left to itself Tabulator
+         turns a table of twenty measures into twenty columns called "Com…",
+         and two short lines cost one row of vertical space once where an
+         unreadable header costs the reader on every glance. This is the
+         library's own option rather than a CSS override, because its ellipsis
+         rule carries five classes of specificity and winning that fight in a
+         theme stylesheet is not a fight worth maintaining. */
+      columnDefaults: {
+        headerHozAlign: "left",
+        headerWordWrap: true,
+        resizable: true,
+        headerTooltip: true,
+      },
       initialSort: this.config.sort || [],
       rowHeader: false,
     }, this.config.tabulator || {}));
 
     this.table.on("dataFiltered", function (filters, rows) { self._setCount(rows.length); });
-    this.table.on("tableBuilt", function () { self._setCount(self.rows.length); });
+    this.table.on("tableBuilt", function () {
+      self.built = true;
+      self._setCount(self.rows.length);
+      resolveReady(self);
+    });
     if (this.config.onRowClick) {
       this.table.on("rowClick", function (e, row) { self.config.onRowClick(row.getData(), row); });
     }
@@ -389,7 +422,9 @@
     this.rows = rows || [];
     this._recomputeDomains();
     var self = this;
-    return this.table.replaceData(this.rows).then(function () {
+    return this.ready.then(function () {
+      return self.table.replaceData(self.rows);
+    }).then(function () {
       self.table.redraw(true);
       self._setCount(self.table.getDataCount("active"));
     });
@@ -400,11 +435,15 @@
   Grid.prototype.updateRows = function (rows) {
     this.rows = rows || this.rows;
     this._recomputeDomains();
-    return this.table.updateData(rows);
+    var self = this;
+    return this.ready.then(function () { return self.table.updateData(self.rows); });
   };
 
   Grid.prototype.setColumnVisible = function (field, visible) {
-    if (visible) this.table.showColumn(field); else this.table.hideColumn(field);
+    var self = this;
+    this.ready.then(function () {
+      if (visible) self.table.showColumn(field); else self.table.hideColumn(field);
+    });
     if (this.pickerMenu) {
       var boxes = this.pickerMenu.querySelectorAll("input[type=checkbox]");
       var idx = 0;
@@ -417,7 +456,8 @@
   };
 
   Grid.prototype.sortBy = function (field, dir) {
-    this.table.setSort(field, dir || "desc");
+    var self = this;
+    return this.ready.then(function () { self.table.setSort(field, dir || "desc"); });
   };
 
   var ArtooGrid = {

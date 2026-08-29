@@ -29,12 +29,15 @@ All notable changes to artoo are documented here. The format follows
   small JSON store under `/_artoo/state`, writing named documents into the
   artifact's own `state/` directory — real files, next to the work, committed
   with it, readable in a diff. `state/` is a sibling of `site/`, so the
-  firewall can never publish one. The server serves the *firewall-staged*
-  site rather than `site/` itself, so it shows exactly what a deploy would: a
+  firewall can never publish one. Every request is checked against the same
+  firewall rule a deploy applies, so it shows exactly what a deploy would — a
   withheld file is absent, not merely unlinked, and a page that only works
   because it reached a private working file fails locally instead of after
-  publication. Names are slug-validated before they become path segments;
-  writes go through a temp file and a rename.
+  publication — while files are read live, so an edit appears on reload
+  without a restart. A withheld path answers 404 whether or not the file
+  exists, so the refusal is not an oracle for what is hidden. Document names
+  are slug-validated before they become path segments; writes go through a
+  temp file and a rename.
 - **`ArtooStore` in artoo-kit.** The client for that store, with the honest
   fallback: from `file://` or a plain static host there is nothing to write
   to, so it uses `localStorage` and reports `durable === false`. Print

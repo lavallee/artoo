@@ -1,4 +1,4 @@
-"""`artoo serve` — the staged site, and the state store behind it.
+"""`artoo serve` — the live site behind the firewall, and the state store.
 
 These run a real server on a real socket. The state API's whole job is to turn
 a reader's configuration into a file on disk, so testing it against a mock
@@ -7,7 +7,6 @@ not merely unlinked") is only true of an actual HTTP fetch.
 """
 
 import json
-import shutil
 import threading
 import urllib.error
 import urllib.request
@@ -20,14 +19,14 @@ from artoo import serve as serve_mod
 @pytest.fixture
 def server(artifact):
     """A running server for a scaffolded artifact, on an OS-assigned port."""
-    httpd, staged, state_dir, tmpdir = serve_mod.serve(artifact, port=0, quiet=True)
+    httpd, publishable, state_dir = serve_mod.serve(artifact, port=0, quiet=True)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     host, port = httpd.server_address[:2]
     try:
         yield {
             "url": f"http://{host}:{port}",
-            "staged": staged,
+            "publishable": publishable,
             "state_dir": state_dir,
             "artifact": artifact,
         }
@@ -35,7 +34,6 @@ def server(artifact):
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=5)
-        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def request(url, method="GET", payload=None):
@@ -71,6 +69,37 @@ def test_a_withheld_file_is_absent_rather_than_unlinked(server):
     assert exc.value.code == 404
 
 
+def test_a_withheld_path_that_does_not_exist_answers_the_same_way(server):
+    """404 either way, so the refusal is not an oracle for what is hidden."""
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(server["url"] + "/_absent.json", timeout=5)
+    assert exc.value.code == 404
+
+
+def test_an_edit_is_served_without_restarting(server):
+    """The one command whose job is iteration must not need a restart.
+
+    A staged snapshot would guarantee the firewall by construction and freeze
+    the artifact at startup, which is the wrong trade for a working surface.
+    """
+    site = server["artifact"].site_dir
+    (site / "late.txt").write_text("added after the server started")
+    with urllib.request.urlopen(server["url"] + "/late.txt", timeout=5) as res:
+        assert res.read().decode() == "added after the server started"
+
+    (site / "late.txt").write_text("and then changed")
+    with urllib.request.urlopen(server["url"] + "/late.txt", timeout=5) as res:
+        assert res.read().decode() == "and then changed"
+
+
+def test_nothing_is_cached(server):
+    """Live reads only help if the browser asks for the file again."""
+    with urllib.request.urlopen(server["url"] + "/index.html", timeout=5) as res:
+        assert "no-store" in res.headers.get("Cache-Control", "")
+    status, _ = request(server["url"] + "/_artoo/state/presets")
+    assert status == 200
+
+
 def test_a_saved_document_becomes_a_file_on_disk(server):
     status, result = request(
         server["url"] + "/_artoo/state/presets/means-heavy",
@@ -88,7 +117,7 @@ def test_a_saved_document_becomes_a_file_on_disk(server):
 
     # state/ is a sibling of site/, which is what keeps it out of any deploy.
     assert server["state_dir"].parent == server["artifact"].dir
-    assert "state" not in {p.parts[0] for p in server["staged"]}
+    assert "state" not in {p.parts[0] for p in server["publishable"]}
 
 
 def test_roundtrip_list_load_and_delete(server):

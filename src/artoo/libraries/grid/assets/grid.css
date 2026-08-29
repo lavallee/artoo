@@ -25,10 +25,14 @@
   --grid-row-h: 30px;
 
   /* Cell-level scales. Sequential runs one hue up in lightness so it survives
-     greyscale printing; diverging is Okabe-Ito blue/orange, not red/green. */
-  --grid-seq: 62, 99, 180;
-  --grid-pos: 0, 114, 178;
-  --grid-neg: 213, 94, 0;
+     greyscale printing; diverging is Okabe-Ito blue/orange, not red/green.
+     Channels are space-separated because they are consumed as `rgb(var(…) /
+     alpha)`: the slash-alpha form is only valid against space-separated
+     components, and with commas the whole declaration is dropped — silently,
+     leaving a correctly-sized bar painted in nothing at all. */
+  --grid-seq: 62 99 180;
+  --grid-pos: 0 114 178;
+  --grid-neg: 213 94 0;
 
   font-family: var(--grid-font-ui);
   color: var(--grid-text);
@@ -130,31 +134,73 @@
 
 .grid-picker-menu label:hover { background: var(--grid-bg-alt); }
 
-/* -- table body ------------------------------------------------------------- */
+/* -- table body -------------------------------------------------------------
+
+   Every selector below deliberately matches the depth of the Tabulator rule it
+   is replacing. Tabulator themes at three to five classes — `.tabulator
+   .tabulator-header .tabulator-col { background: #e6e6e6 }` — so a tidy
+   `.grid .tabulator-col` loses, and the way it loses is the expensive way: the
+   text takes this stylesheet's colour while the chip keeps Tabulator's, which
+   in a dark theme is light-on-light and completely invisible. Matching depth
+   and relying on source order is the whole technique here; nothing needs
+   `!important`. */
 
 .grid .tabulator {
   background: var(--grid-bg);
   border: 0;
   font-size: var(--text-sm, 0.875rem);
+  color: var(--grid-text);
 }
 
-.grid .tabulator-header {
+.grid .tabulator .tabulator-header {
   background: var(--grid-bg);
   border-bottom: 2px solid var(--grid-line-strong);
   color: var(--grid-text);
   font-weight: 600;
 }
 
-.grid .tabulator-col {
+.grid .tabulator .tabulator-header .tabulator-col {
   background: var(--grid-bg);
   border-right: 1px solid var(--grid-line);
+  color: var(--grid-text);
+}
+
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-moving {
+  background: var(--grid-bg-alt);
 }
 
 .grid .tabulator-col-title {
   font-size: var(--text-xs, 0.75rem);
   letter-spacing: 0.02em;
-  white-space: normal;
-  line-height: 1.25;
+  line-height: 1.2;
+  padding-block: 2px;
+}
+
+.grid .tabulator-col .tabulator-col-content { padding: 4px 6px; }
+
+/* Reserve the sort caret's gutter on wrapped titles. Wrapping itself is
+   Tabulator's `headerWordWrap` column default, set in grid.js; without this
+   padding the caret lands on the last letter of every two-line header. */
+.grid .tabulator-header .tabulator-col.tabulator-sortable .tabulator-col-content .tabulator-col-title {
+  padding-right: 16px;
+}
+
+/* The sort indicator has to survive the dark theme too: Tabulator hard-codes
+   it to #bbb unsorted and #666 sorted, which inverts into invisibility. */
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="none"] .tabulator-col-content .tabulator-col-sorter {
+  color: var(--grid-line-strong);
+}
+
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="ascending"] .tabulator-col-content .tabulator-col-sorter,
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-content .tabulator-col-sorter,
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+  color: var(--grid-accent);
+}
+
+.grid .tabulator .tabulator-header .tabulator-calcs-holder,
+.grid .tabulator .tabulator-header .tabulator-calcs-holder .tabulator-row {
+  background: var(--grid-bg-alt);
+  color: var(--grid-text);
 }
 
 /* A column group header is the only place the grid raises contrast: it is the
@@ -174,34 +220,38 @@
   overflow: hidden;
 }
 
-.grid .tabulator-row {
+.grid .tabulator .tabulator-tableholder .tabulator-table { background: var(--grid-bg); color: var(--grid-text); }
+
+.grid .tabulator .tabulator-row {
   background: var(--grid-bg);
   border-bottom: 1px solid var(--grid-line);
   min-height: var(--grid-row-h);
   color: var(--grid-text);
 }
 
-.grid .tabulator-row.tabulator-row-even { background: var(--grid-bg); }
-.grid .tabulator-row:hover { background: var(--grid-bg-alt); }
+.grid .tabulator .tabulator-row.tabulator-row-even { background: var(--grid-bg); }
+.grid .tabulator .tabulator-row.tabulator-selectable:hover { background: var(--grid-bg-alt); }
+.grid .tabulator .tabulator-row:hover { background: var(--grid-bg-alt); }
 
 /* A row held at the top for comparison, and a selected row, read the same:
    the reader put it there, so it is marked, not decorated. */
 .grid-row-pinned,
-.grid .tabulator-row.tabulator-selected {
-  background: color-mix(in srgb, var(--grid-accent) 10%, var(--grid-bg));
+.grid .tabulator .tabulator-row.tabulator-selected {
+  background: color-mix(in srgb, var(--grid-accent) 12%, var(--grid-bg));
 }
 
-.grid .tabulator-cell {
+.grid .tabulator .tabulator-row .tabulator-cell {
   border-right: 1px solid var(--grid-line);
   padding: 4px 8px;
+  color: var(--grid-text);
 }
 
-.grid .tabulator-row .tabulator-cell.tabulator-frozen {
+.grid .tabulator .tabulator-row .tabulator-cell.tabulator-frozen {
   background: inherit;
   border-right: 1px solid var(--grid-line-strong);
 }
 
-.grid .tabulator-header .tabulator-col.tabulator-frozen {
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-frozen {
   border-right: 1px solid var(--grid-line-strong);
 }
 
