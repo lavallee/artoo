@@ -16,6 +16,7 @@ PAGE_SHELL = """<!doctype html>
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
 <link rel="stylesheet" href="lib/artoo-kit/components.css">
+{library_styles}
 </head>
 <body>
 <nav class="site-nav">
@@ -31,7 +32,7 @@ PAGE_SHELL = """<!doctype html>
 {colophon}
 </footer>
 </main>
-{mermaid_tag}{provenance_scripts}<script src="lib/artoo-kit/kit.js"></script>
+{mermaid_tag}{provenance_scripts}{library_scripts}<script src="lib/artoo-kit/kit.js"></script>
 </body>
 </html>
 """
@@ -45,6 +46,15 @@ PROVENANCE_PANEL = (
 PROVENANCE_SCRIPTS = (
     '<script src="data/provenance.js"></script>\n'
     '<script src="lib/artoo-kit/provenance.js"></script>\n'
+)
+
+MAP_STYLES = '<link rel="stylesheet" href="lib/artoo-map/map.css">'
+MAP_SCRIPTS = (
+    '<script src="lib/artoo-map/cytoscape.min.js"></script>\n'
+    '<script src="data/codegraph.js"></script>\n'
+    '<script src="lib/artoo-map/map.js"></script>\n'
+    '<script>ArtooMap.create("[data-artoo-map]", '
+    '{graph: window.ARTOO_CODEGRAPH, view: "overview", budget: 120});</script>\n'
 )
 
 
@@ -89,6 +99,7 @@ def colophon(meta: dict) -> str:
 def render_page(
     *, page: dict, pages: list[dict], site_title: str, body: str,
     meta: dict, mermaid_src: str = "", provenance: bool = False,
+    code_map: bool = False,
 ) -> str:
     mermaid_tag = f'<script src="{mermaid_src}"></script>\n' if mermaid_src else ""
     return PAGE_SHELL.format(
@@ -101,4 +112,6 @@ def render_page(
         mermaid_tag=mermaid_tag,
         provenance_panel=PROVENANCE_PANEL if provenance else "",
         provenance_scripts=PROVENANCE_SCRIPTS if provenance else "",
+        library_styles=MAP_STYLES if code_map else "",
+        library_scripts=MAP_SCRIPTS if code_map else "",
     )

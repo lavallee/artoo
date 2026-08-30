@@ -17,6 +17,7 @@ from . import manifest as manifest_mod
 from . import provenance as provenance_mod
 from . import scaffold, serve as serve_mod, skill as skill_mod, vizier as vizier_mod
 from . import verify as verify_mod
+from .codegraph_cli import map_group
 from .manifest import FORMS, KINDS, Manifest
 
 
@@ -88,6 +89,9 @@ def main():
     defines. `artoo init` writes concise working rules plus an on-demand full
     reference into the artifact, so the contract travels with the work.
     """
+
+
+main.add_command(map_group)
 
 
 @main.command()

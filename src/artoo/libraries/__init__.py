@@ -8,10 +8,11 @@ and the manifest records name, version, and a content hash. From the hash,
 ``update`` re-vendors deliberately.
 
 Libraries resolve from the ``artoo.libraries`` entry-point group; external
-libraries live in their own repos/packages. Artoo ships four built-ins:
+libraries live in their own repos/packages. Artoo ships five built-ins:
 ``artoo-kit`` for the accessible foundation, ``artoo-controls`` for explorers,
-``artoo-deck`` for presentations, and ``artoo-grid`` for dense comparisons.
-One-off assets are vendored from a URL and recorded with a pinned hash.
+``artoo-deck`` for presentations, ``artoo-grid`` for dense comparisons, and
+``artoo-map`` for evidence-bearing code maps. One-off assets are vendored from
+a URL and recorded with a pinned hash.
 """
 
 from __future__ import annotations
@@ -77,8 +78,15 @@ def _builtin() -> dict[str, Library]:
     from .deck import library as deck
     from .grid import library as grid
     from .kit import library as kit
+    from .map import library as code_map
 
-    return {kit.name: kit, controls.name: controls, deck.name: deck, grid.name: grid}
+    return {
+        kit.name: kit,
+        controls.name: controls,
+        deck.name: deck,
+        grid.name: grid,
+        code_map.name: code_map,
+    }
 
 
 def available() -> dict[str, Library]:

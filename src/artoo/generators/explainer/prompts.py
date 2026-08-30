@@ -37,14 +37,23 @@ inline styles, no external resources):
 """
 
 
-def analysis_prompt(repo_name: str, unit: dict, readme_hint: str) -> str:
+def analysis_prompt(
+    repo_name: str, unit: dict, readme_hint: str, graph_context: str = ""
+) -> str:
     file_list = "\n".join(f"- {p}" for p in unit["files"][:80])
     more = f"\n(and {len(unit['files']) - 80} more files in the same area)" if len(unit["files"]) > 80 else ""
+    ranked = (
+        "\nThe deterministic code graph ranks these source coordinates as the best "
+        "starting points for this area. The ranking is navigation help, not proof of importance:\n"
+        f"{graph_context}"
+        if graph_context
+        else ""
+    )
     return f"""You are analyzing part of the `{repo_name}` repository for a technical
 explainer. Repo context: {readme_hint or "(no README summary available)"}
 
 Read the following files (you have read-only access to the repo):
-{file_list}{more}
+{file_list}{more}{ranked}
 
 Write a brief in markdown with exactly these sections:
 

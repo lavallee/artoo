@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lavallee.github.io/artoo/schema/codegraph-v1.json",
+  "title": "Artoo code graph",
+  "description": "Renderer-neutral, evidence-bearing code and architecture graph.",
+  "type": "object",
+  "required": ["contract", "snapshot", "nodes", "edges", "traces", "views"],
+  "properties": {
+    "contract": { "const": "artoo-codegraph/1" },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "repository", "revision", "dirty", "generated_at", "analyzers",
+        "coverage", "exclusions", "truncation"
+      ],
+      "properties": {
+        "repository": { "type": "string" },
+        "revision": { "type": "string" },
+        "dirty": { "type": "boolean" },
+        "remote": { "type": "string" },
+        "source_base": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "analyzers": { "type": "array", "items": { "type": "object" } },
+        "coverage": { "type": "object" },
+        "exclusions": { "type": "array", "items": { "type": "string" } },
+        "truncation": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "truth", "attributes", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": {
+            "enum": [
+              "repository", "package", "module", "class", "function",
+              "entrypoint", "external", "service", "datastore"
+            ]
+          },
+          "label": { "type": "string" },
+          "truth": { "enum": ["declared", "static", "runtime", "inferred"] },
+          "path": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "parent": { "type": "string" },
+          "attributes": { "type": "object" },
+          "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "kind", "source", "target", "truth", "confidence", "reason", "evidence"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": {
+            "enum": [
+              "contains", "imports", "calls", "invokes", "depends_on", "reads",
+              "writes", "sends", "receives", "declares", "relates"
+            ]
+          },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "truth": { "enum": ["declared", "static", "runtime", "inferred"] },
+          "confidence": { "enum": ["high", "medium", "low"] },
+          "reason": { "type": "string" },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/evidence" }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "traces": { "type": "array", "items": { "type": "object" } },
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "direction", "depth", "budget", "layers"],
+        "properties": {
+          "id": { "type": "string" },
+          "question": { "type": "string" },
+          "direction": { "enum": ["incoming", "outgoing", "both"] },
+          "depth": { "type": "integer", "minimum": 0 },
+          "budget": { "type": "integer", "minimum": 1 },
+          "layers": {
+            "type": "array",
+            "items": { "enum": ["declared", "static", "runtime", "inferred"] }
+          },
+          "edge_kinds": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["path", "line", "kind"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "kind": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

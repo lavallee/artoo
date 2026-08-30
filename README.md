@@ -25,6 +25,9 @@ tool layer for that practice:
   explainer) delegate to agent CLIs you already have — `claude`, `codex` —
   with cheap tiers for fan-out analysis and strong tiers for synthesis.
   artoo core makes no model calls and holds no keys.
+- **Code maps are questions, not hairballs.** A versioned graph keeps declared,
+  static, runtime, and inferred relationships separate, then produces bounded
+  views for focus, paths, source receipts, and agent context.
 - **Artoo owns its artifact contract.** New work starts with an explicit reader
   decision, evidence limits, valid comparisons, and a chosen presentation form.
   Its accessible kit is a foundation, not a visual authority.
@@ -63,6 +66,10 @@ artoo verify site/my-report --browser
 # Read the contract: topics, or one library's full class vocabulary
 artoo docs
 artoo docs artoo-kit
+
+# Build and interrogate a renderer-neutral repository graph
+artoo map build .
+artoo map context .artoo/codegraph.json "where does deploy enter?"
 
 # Publish (adapter chosen by the manifest's [deploy] table)
 artoo deploy site/my-report
@@ -210,6 +217,43 @@ a withheld file is absent rather than merely unlinked. With nothing serving,
 `ArtooStore` falls back to `localStorage` and reports `durable === false`, so
 the page can say so instead of implying a save that did not happen.
 
+## Evidence-bearing code maps
+
+`artoo map` turns a repository snapshot into a renderer-neutral,
+source-anchored `artoo-codegraph/1` document. The built-in analyzer is
+conservative and Python-first: packages, modules, definitions, local imports,
+resolvable local calls, declared dependencies, and command entry points. Parse
+failures and unsupported languages remain visible coverage receipts.
+
+```bash
+artoo map build .                         # → .artoo/codegraph.json
+artoo map view .artoo/codegraph.json --format mermaid
+artoo map why .artoo/codegraph.json artoo.cli.main
+artoo map path .artoo/codegraph.json entrypoint:artoo artoo.cli.main
+artoo map context .artoo/codegraph.json \
+  "what can deploy reach?" --budget-tokens 800
+```
+
+Every relationship says whether it is `declared`, found in `static` source,
+observed in a named `runtime` trace, or `inferred`; it carries a reason and one
+or more source coordinates. Those labels never collapse. Missing runtime
+evidence does not mean a path is absent, and a plausible model edge remains an
+inference.
+
+The same graph now gives every generated explainer an offline **Code map** page:
+saved bounded views, search/focus, incoming and outgoing neighborhoods, directed
+paths, truth-layer toggles, evidence inspection, URL state, and JSON, Mermaid,
+and SVG exports. A keyboard-navigable node table sits beneath the Cytoscape.js
+canvas. The graph also ranks source coordinates for each explainer worker under
+a fixed context budget, so interrogation and presentation do not become two
+unrelated pipelines.
+
+`artoo-map` remains a built-in site library during 0.x. It shares Artoo's graph
+contract, offline vendoring, source receipts, verification, and publish
+firewall; external language analyzers can emit the published JSON Schema
+without becoming core dependencies. See `artoo docs code-maps` and
+`artoo docs artoo-map`.
+
 ## Evidence and provenance roundtrip
 
 Provider-neutral evidence can be declared directly:
@@ -297,17 +341,18 @@ artoo generate explainer --repo . --out site/explainer
 artoo deploy site/explainer
 ```
 
-The explainer inventories the repo deterministically, fans out per-module
-analysis to a cheap worker (`codex`), synthesizes the narrative with a strong
-worker (`claude`), renders architecture diagrams, and assembles a multi-page
-site with the built-in design kit. Planning starts from a named reader decision,
+The explainer inventories the repo deterministically, builds the source-anchored
+code graph and interactive map, fans out per-module analysis to a cheap worker
+(`codex`), synthesizes the narrative with a strong worker (`claude`), renders
+architecture diagrams, and assembles a multi-page site with the built-in design
+kit. Planning starts from a named reader decision,
 supportable headline claim, counter-reading, and licit comparisons before it
 selects tables or figures. The result is a dated snapshot with a colophon saying
 exactly how it was made.
 
 ## Status
 
-v0.5.0 — alpha. The manifest format, CLI surface, and plugin entry points
+v0.6.0 — alpha. The manifest format, CLI surface, and plugin entry points
 are young and may change before 1.0. See [DESIGN.md](DESIGN.md) for the
 architecture and [CHANGELOG.md](CHANGELOG.md) for history.
 

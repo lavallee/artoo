@@ -55,6 +55,7 @@ directory if you omit it.
 | manifest health, firewall report, library drift | `artoo status .` |
 | refresh inputs, verify, stamp `updated` | `artoo build .` |
 | static and optional browser checks | `artoo verify .` |
+| build or interrogate a repository graph | `artoo map --help` |
 | publish (firewall-staged) | `artoo deploy .` |
 | the layout vocabulary, in full | `artoo docs <library>` |
 | everything artoo knows | `artoo docs --all` |
@@ -208,7 +209,7 @@ def render_reference(m: Manifest) -> str:
         _vocabulary(m),
         _rules(m),
         "## More\n\n`artoo docs` lists the manifest, forms, data, evidence, firewall, "
-        "serving, generators, and every installed site library.",
+        "serving, code maps, generators, and every installed site library.",
     ]
     return "\n\n".join(part for part in parts if part).rstrip() + "\n"
 

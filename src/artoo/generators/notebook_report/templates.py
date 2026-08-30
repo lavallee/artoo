@@ -84,4 +84,6 @@ def render_page(
         mermaid_tag="",
         provenance_panel=PROVENANCE_PANEL if provenance else "",
         provenance_scripts=PROVENANCE_SCRIPTS if provenance else "",
+        library_styles="",
+        library_scripts="",
     )

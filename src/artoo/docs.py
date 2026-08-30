@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import libraries as libraries_mod
+from . import codegraph, libraries as libraries_mod
 
 REFERENCE_DIR = Path(__file__).parent / "reference"
 
@@ -34,6 +34,7 @@ AUTHORED = {
     "serve": "Running an artifact locally, and the state store that makes saves durable.",
     "provenance": "Attaching a flip notebook, the projection, and the roundtrip verbs.",
     "generators": "Plugin generators, worker tiers, and the two built in.",
+    "code-maps": "Evidence-bearing repository graphs, bounded questions, and interactive views.",
 }
 
 
@@ -211,4 +212,9 @@ def write_site(docs_dir: Path, base_url: str = SITE_URL) -> list[Path]:
         path = docs_dir / name
         path.write_text(text, encoding="utf-8")
         written.append(path)
+    schema_dir = docs_dir / "schema"
+    schema_dir.mkdir(parents=True, exist_ok=True)
+    schema = schema_dir / "codegraph-v1.json"
+    schema.write_text(codegraph.schema_path().read_text(encoding="utf-8"), encoding="utf-8")
+    written.append(schema)
     return sorted(written)

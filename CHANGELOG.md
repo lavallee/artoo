@@ -6,6 +6,56 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-30
+
+### Added
+
+- **Evidence-bearing code graphs.** `artoo map build` now emits the versioned,
+  renderer-neutral `artoo-codegraph/1` contract: snapshot and analyzer receipts,
+  repository-relative nodes, typed relationships, truth classes, confidence,
+  reasons, source coordinates, runtime-trace slots, and saved bounded views. A
+  bundled JSON Schema gives external analyzers the same boundary without making
+  them Artoo dependencies.
+- **Conservative Python architecture recovery.** The built-in analyzer records
+  packages, modules, classes, functions and signatures, local imports,
+  resolvable local calls, declared project dependencies, and command entry
+  points. Parse failures, unsupported languages, exclusions, dirty state, and
+  truncation remain explicit; absolute workstation paths never enter the graph.
+- **Codebase interrogation verbs.** `artoo map view` projects a saved or focused
+  graph under direction, depth, node-budget, relationship-kind, and truth-layer
+  limits; `why` exposes the reason and coordinates behind adjacent edges;
+  `path` finds a shortest directed evidence path; `context` ranks transparent,
+  question-relevant source coordinates under an approximate token budget;
+  `schema` prints the interchange contract. Mermaid is a deterministic export
+  of the same selected view, not a model-owned source of truth.
+- **`artoo-map`, an offline interactive site library.** A vendored
+  Cytoscape.js 3.34.0 build renders stable breadth-first views with focus,
+  incoming/outgoing traversal, directed paths, declared/static/runtime/inferred
+  layer toggles, evidence inspection, source links when the snapshot is clean,
+  URL state, and JSON, Mermaid, and static SVG exports. A keyboard-navigable
+  node table carries the same selection beneath the canvas.
+
+### Changed
+
+- Every `artoo generate explainer` run now retains
+  `work/codegraph.generated.json`, publishes the same renderer-neutral graph and
+  `file://` loader under `site/data/`, vendors `artoo-map`, and adds a dedicated
+  Code map page. Per-area analysis prompts use the graph's bounded context rank
+  as navigation help while explicitly refusing to treat rank as architectural
+  importance.
+- `artoo docs code-maps`, `artoo docs artoo-map`, the installable skill, generated
+  artifact reference, `llms.txt`, Pages reference, and published JSON Schema now
+  describe the same contract and extension boundary.
+
+### Notes
+
+The graph schema, CLI, explainer integration, and renderer remain inside Artoo
+during 0.x because they share artifact custody, offline vendoring, verification,
+documentation, and the publish firewall. External language analyzers already
+have the JSON boundary. A parser or renderer should split into another package
+only after dependency weight, release cadence, or independent consumers create
+a real operational boundary.
+
 ## [0.5.0] — 2026-08-30
 
 ### Added

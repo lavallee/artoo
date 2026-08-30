@@ -32,13 +32,20 @@ and deep, and paying strong-tier rates for the first is waste.
 artoo generate explainer --repo . --out site/explainer
 ```
 
-Inventories the repo deterministically, fans per-module analysis out to the
-cheap worker, synthesizes the narrative with the strong worker, renders
-architecture diagrams, and assembles a multi-page site with the kit. Planning
-starts from a named reader decision, a supportable headline claim, a
+Inventories the repo deterministically, builds an evidence-bearing
+`artoo-codegraph/1`, fans per-module analysis out to the cheap worker,
+synthesizes the narrative with the strong worker, renders architecture
+diagrams, and assembles a multi-page site with the kit. Graph ranking gives
+each area worker a bounded set of source coordinates to inspect first; the
+ranking is navigation help, not architectural authority. Planning starts from
+a named reader decision, a supportable headline claim, a
 counter-reading, and the licit comparisons — *before* it picks tables or
 figures. The output is a dated snapshot with a colophon recording exactly how
 it was made.
+
+Every explainer also includes an offline Code map page: saved bounded views,
+focus, paths, declared/static/runtime/inferred toggles, and source receipts over
+the same graph the workers used. See `artoo docs code-maps`.
 
 ### `notebook-report` — a report from a notebook
 

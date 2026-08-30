@@ -161,3 +161,17 @@ def test_deck_prints_landscape_one_slide_per_page():
     css = (libraries.available()["artoo-deck"].root / "deck.css").read_text()
     assert "size: A4 landscape" in css
     assert "break-after: page" in css
+
+
+def test_map_available_self_contained_and_carries_upstream_license():
+    code_map = libraries.available()["artoo-map"]
+    root = code_map.root
+    for name in ("map.css", "map.js", "cytoscape.min.js", "CYTOSCAPE-LICENSE"):
+        assert (root / name).is_file()
+    wrapper = (root / "map.js").read_text()
+    css = (root / "map.css").read_text()
+    assert "ArtooMap" in wrapper
+    assert "fetch(" not in wrapper and "XMLHttpRequest" not in wrapper
+    assert 'src="http' not in wrapper and "import(" not in wrapper
+    assert "@font-face" not in css and "url(" not in css
+    assert "The Cytoscape Consortium" in (root / "CYTOSCAPE-LICENSE").read_text()

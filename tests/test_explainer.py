@@ -75,6 +75,18 @@ def test_page_prompt_selects_evidence_forms_instead_of_component_composition():
     assert "Navigation cards use `.nav-card` only" in prompt
 
 
+def test_analysis_prompt_uses_ranked_graph_context_as_navigation_not_authority():
+    prompt = prompts.analysis_prompt(
+        "reader-repo",
+        {"name": "core", "files": ["src/core.py"], "loc": 20},
+        "A repository.",
+        "- src/core.py:7 · function · def run()",
+    )
+    assert "deterministic code graph ranks" in prompt
+    assert "navigation help, not proof of importance" in prompt
+    assert "src/core.py:7" in prompt
+
+
 def _no_mermaid(monkeypatch):
     """Simulate: artoo-mermaid not installed AND offline."""
     from artoo import libraries as libraries_mod
@@ -106,7 +118,12 @@ def test_degraded_run(fake_repo, monkeypatch):
     assert (site / "index.html").is_file()
     assert (site / "architecture.html").is_file()
     assert (site / "reference.html").is_file()
+    assert (site / "code-map.html").is_file()
     assert (site / "lib" / "artoo-kit" / "tokens.css").is_file()
+    assert (site / "lib" / "artoo-map" / "cytoscape.min.js").is_file()
+    assert (site / "data" / "codegraph.json").is_file()
+    assert (site / "data" / "codegraph.js").is_file()
+    assert (out / "work" / "codegraph.generated.json").is_file()
 
     index = (site / "index.html").read_text()
     assert "Deterministic build" in index  # honest about degraded mode
@@ -117,8 +134,23 @@ def test_degraded_run(fake_repo, monkeypatch):
     assert "stat-row" not in index
     assert "card-grid" not in index
 
+    map_page = (site / "code-map.html").read_text()
+    assert 'class="map article-breakout"' in map_page
+    assert 'src="lib/artoo-map/cytoscape.min.js"' in map_page
+    assert 'src="data/codegraph.js"' in map_page
+    assert "ArtooMap.create" in map_page
+
+    graph = json.loads((site / "data" / "codegraph.json").read_text())
+    assert graph["contract"] == "artoo-codegraph/1"
+    assert not any(
+        path.startswith("/")
+        for node in graph["nodes"]
+        if (path := node.get("path", ""))
+    )
+
     plan = json.loads((out / "work" / "plan.json").read_text())
     assert plan["pages"][0]["slug"] == "index"
+    assert any(page["slug"] == "code-map" for page in plan["pages"])
 
     # inventory excluded the artifact's own directory
     inv = json.loads((out / "work" / "inventory.json").read_text())

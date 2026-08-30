@@ -23,7 +23,7 @@ from pathlib import Path
 
 import click
 
-from ... import __version__, libraries
+from ... import __version__, codegraph, libraries
 from ... import manifest as manifest_mod
 from ... import provenance as provenance_mod
 from ... import scaffold, workers
@@ -247,6 +247,60 @@ def _fallback_body(page: dict, inv: dict, units: list[dict], plan: dict,
     return "\n".join(parts)
 
 
+def _map_body(graph: dict) -> str:
+    """The map page stays deterministic even when narrative workers are present."""
+    coverage = graph["snapshot"]["coverage"]
+    truth_counts = {
+        truth: sum(1 for edge in graph["edges"] if edge["truth"] == truth)
+        for truth in sorted(codegraph.TRUTH_CLASSES)
+    }
+    counts = " · ".join(f"{count} {truth}" for truth, count in truth_counts.items() if count)
+    failures = len(coverage["parse_failures"])
+    unsupported = ", ".join(
+        f"{row['files']} {row['language']}"
+        for row in coverage.get("unsupported_languages", [])
+    )
+    limit = (
+        f"{coverage['parsed_files']}/{coverage['candidate_files']} Python files parsed; "
+        f"{failures} parse failure{'s' if failures != 1 else ''}. "
+        + (f"Unsupported source present: {unsupported}. " if unsupported else "")
+        + "Unrecorded runtime paths are not represented."
+    )
+    dirty = (
+        '<div class="callout callout--warn"><span class="callout-title">Dirty snapshot</span>'
+        "Source coordinates describe local changes beyond the recorded commit, so the map prints "
+        "paths but withholds repository links.</div>"
+        if graph["snapshot"]["dirty"]
+        else ""
+    )
+    return "\n".join(
+        [
+            '<header class="article-header">',
+            '<div class="article-kicker">Evidence-bearing code map</div>',
+            '<h1 class="article-title">Interrogate the codebase</h1>',
+            '<p class="article-dek">Begin with a bounded view, then focus, trace a path, or select '
+            "a relationship to inspect why it exists.</p>",
+            "</header>",
+            dirty,
+            '<div class="callout"><span class="callout-title">What the layers mean</span>'
+            "Declared is intended or configured; static is found in source; runtime belongs to a "
+            "named trace; inferred remains a proposal. Turning a layer on never promotes it.</div>",
+            '<div class="map article-breakout" data-artoo-map '
+            'aria-label="Interactive code map"></div>',
+            '<noscript><p class="map-empty">The interactive map needs JavaScript. Use '
+            "<code>artoo map view work/codegraph.generated.json --format mermaid</code> for a "
+            "static projection.</p></noscript>",
+            '<section class="article-full"><h2>Coverage receipt</h2>',
+            f"<p>{html.escape(limit)}</p>",
+            f"<p>{len(graph['nodes'])} nodes · {len(graph['edges'])} relationships"
+            f"{html.escape(' · ' + counts) if counts else ''}.</p>",
+            "<p>The graph is a repository snapshot, not a complete architecture claim. "
+            "A missing edge can mean unsupported syntax, dynamic resolution, an unrecorded trace, "
+            "or an intentionally absent relationship.</p></section>",
+        ]
+    )
+
+
 # -- the command ---------------------------------------------------------------
 
 
@@ -290,6 +344,26 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
     click.echo(f"inventory: {sum(f['loc'] for f in inv['files']):,} LOC across "
                f"{len(inv['files'])} files → {len(units)} analysis units")
 
+    graph_cache = work / "codegraph.generated.json"
+    graph = None
+    if graph_cache.is_file() and not fresh:
+        try:
+            graph = codegraph.load(graph_cache)
+        except codegraph.CodeGraphError:
+            graph = None
+    if graph is None:
+        graph = codegraph.build(repo, exclude=exclude)
+        codegraph.write(graph, graph_cache)
+    codegraph.write_browser_data(graph, m.site_dir / "data")
+    if not (m.site_dir / "lib" / "artoo-map" / "map.js").is_file():
+        libraries.add(m, "artoo-map")
+        click.echo("vendored artoo-map for interactive code interrogation")
+    graph_coverage = graph["snapshot"]["coverage"]
+    click.echo(
+        f"code map: {len(graph['nodes'])} nodes, {len(graph['edges'])} relationships · "
+        f"{graph_coverage['parsed_files']}/{graph_coverage['candidate_files']} Python files parsed"
+    )
+
     overrides = m.workers
     analysis_worker = workers.resolve("analysis", overrides)
     synthesis_worker = workers.resolve("synthesis", overrides)
@@ -316,7 +390,12 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
                 return unit["name"], cache.read_text(encoding="utf-8")
             result = workers.run(
                 "analysis",
-                prompts.analysis_prompt(inv["name"], unit, readme_hint),
+                prompts.analysis_prompt(
+                    inv["name"],
+                    unit,
+                    readme_hint,
+                    codegraph.context(graph, unit["name"], budget_tokens=400)["text"],
+                ),
                 cwd=repo,
                 overrides=overrides,
             )
@@ -358,6 +437,22 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
             plan["site_title"] = title
         if not any(p["slug"] == "index" for p in plan["pages"]):
             plan["pages"][0]["slug"] = "index"
+        if not any(p["slug"] == "code-map" for p in plan["pages"]):
+            map_page = {
+                "slug": "code-map",
+                "title": "Code map",
+                "purpose": "Interrogate bounded relationships and inspect their source receipts.",
+                "sections": ["Map", "Coverage receipt"],
+            }
+            architecture_index = next(
+                (
+                    index + 1
+                    for index, candidate in enumerate(plan["pages"])
+                    if candidate["slug"] == "architecture"
+                ),
+                len(plan["pages"]),
+            )
+            plan["pages"].insert(architecture_index, map_page)
         plan_cache.write_text(json.dumps(plan, indent=1), encoding="utf-8")
         click.echo(f"plan: {len(plan['pages'])} pages — "
                    + ", ".join(p["slug"] for p in plan["pages"]))
@@ -368,6 +463,12 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
         bodies: dict[str, str] = {}
         for page in plan["pages"]:
             cache = pages_dir / f"{page['slug']}.html"
+            if page["slug"] == "code-map":
+                body = _map_body(graph)
+                cache.write_text(body, encoding="utf-8")
+                bodies[page["slug"]] = body
+                click.echo("  wrote code-map")
+                continue
             if cache.is_file() and not fresh:
                 bodies[page["slug"]] = cache.read_text(encoding="utf-8")
                 continue
@@ -406,6 +507,7 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
         elif prov.status == "error":
             click.secho(f"! provenance projection skipped: {prov.note}", fg="yellow")
         with_panel = prov.status == "written"
+        log.add_source(str(graph_cache), note="deterministic artoo-codegraph/1 snapshot")
 
         meta = {
             "date": date.today().isoformat(),
@@ -424,6 +526,7 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
                 page=page, pages=plan["pages"],
                 site_title=plan["site_title"], body=bodies[page["slug"]],
                 meta=meta, mermaid_src=mermaid_src, provenance=with_panel,
+                code_map=page["slug"] == "code-map",
             )
             (m.site_dir / f"{page['slug']}.html").write_text(html_text, encoding="utf-8")
 
