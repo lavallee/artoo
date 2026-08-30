@@ -1,0 +1,353 @@
+/* artoo-grid — a dense, sortable data table that reads as editorial evidence
+   rather than as a spreadsheet widget.
+
+   The vendored Tabulator stylesheet supplies structure only: virtual-scroll
+   geometry, frozen-column offsets, resize handles. Everything with a colour,
+   a border, or a typeface in it is overridden here against the artoo-kit
+   tokens, so a grid on a kit page inherits that page's light/dark decision
+   instead of carrying its own. A grid used without artoo-kit still renders:
+   every token below has a fallback.
+
+   Every public class is prefixed `grid-`. Tabulator's own `tabulator-*`
+   classes are its business, not ours; we restyle them but never ask an
+   author to write one. */
+
+.grid {
+  --grid-bg: var(--surface, #fff);
+  --grid-bg-alt: var(--surface-2, #f3efe7);
+  --grid-line: var(--border, #e9e3d7);
+  --grid-line-strong: var(--border-strong, #d8d0bf);
+  --grid-text: var(--text, #1f2430);
+  --grid-muted: var(--muted, #4a5264);
+  --grid-accent: var(--accent, #3e63b4);
+  --grid-font-ui: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  --grid-font-num: var(--font-numeric, ui-monospace, Menlo, Consolas, monospace);
+  --grid-row-h: 30px;
+
+  /* Cell-level scales. Sequential runs one hue up in lightness so it survives
+     greyscale printing; diverging is Okabe-Ito blue/orange, not red/green.
+     Channels are space-separated because they are consumed as `rgb(var(…) /
+     alpha)`: the slash-alpha form is only valid against space-separated
+     components, and with commas the whole declaration is dropped — silently,
+     leaving a correctly-sized bar painted in nothing at all. */
+  --grid-seq: 62 99 180;
+  --grid-pos: 0 114 178;
+  --grid-neg: 213 94 0;
+
+  font-family: var(--grid-font-ui);
+  color: var(--grid-text);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-line-strong);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+
+/* -- toolbar ---------------------------------------------------------------- */
+
+.grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-2, 0.5rem) var(--sp-3, 0.75rem);
+  border-bottom: 1px solid var(--grid-line);
+  background: var(--grid-bg-alt);
+  font-size: var(--text-sm, 0.875rem);
+}
+
+.grid-count {
+  color: var(--grid-muted);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+
+.grid-search {
+  font: inherit;
+  font-family: var(--grid-font-ui);
+  padding: 3px 8px;
+  min-width: 15ch;
+  color: var(--grid-text);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-line-strong);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.grid-search:focus-visible {
+  outline: 2px solid var(--grid-accent);
+  outline-offset: 1px;
+}
+
+.grid-btn {
+  font: inherit;
+  font-size: var(--text-sm, 0.875rem);
+  padding: 3px 10px;
+  color: var(--grid-text);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-line-strong);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.grid-btn:hover { border-color: var(--grid-accent); color: var(--grid-accent); }
+.grid-btn:focus-visible { outline: 2px solid var(--grid-accent); outline-offset: 1px; }
+.grid-btn[aria-expanded="true"] { background: var(--grid-bg-alt); border-color: var(--grid-accent); }
+
+/* The column picker is a plain popover anchored to its button; it stays in the
+   DOM so the checkbox state is readable by assistive tech when collapsed. */
+.grid-picker { position: relative; }
+
+.grid-picker-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  max-height: 60vh;
+  overflow-y: auto;
+  min-width: 16rem;
+  padding: var(--sp-2, 0.5rem);
+  background: var(--grid-bg);
+  border: 1px solid var(--grid-line-strong);
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+}
+
+.grid-picker-menu[hidden] { display: none; }
+
+.grid-picker-group {
+  margin: var(--sp-2, 0.5rem) 0 2px;
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--grid-muted);
+}
+
+.grid-picker-menu label {
+  display: flex;
+  gap: var(--sp-2, 0.5rem);
+  align-items: baseline;
+  padding: 2px 4px;
+  font-size: var(--text-sm, 0.875rem);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.grid-picker-menu label:hover { background: var(--grid-bg-alt); }
+
+/* -- table body -------------------------------------------------------------
+
+   Every selector below deliberately matches the depth of the Tabulator rule it
+   is replacing. Tabulator themes at three to five classes — `.tabulator
+   .tabulator-header .tabulator-col { background: #e6e6e6 }` — so a tidy
+   `.grid .tabulator-col` loses, and the way it loses is the expensive way: the
+   text takes this stylesheet's colour while the chip keeps Tabulator's, which
+   in a dark theme is light-on-light and completely invisible. Matching depth
+   and relying on source order is the whole technique here; nothing needs
+   `!important`. */
+
+.grid .tabulator {
+  background: var(--grid-bg);
+  border: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--grid-text);
+}
+
+.grid .tabulator .tabulator-header {
+  background: var(--grid-bg);
+  border-bottom: 2px solid var(--grid-line-strong);
+  color: var(--grid-text);
+  font-weight: 600;
+}
+
+.grid .tabulator .tabulator-header .tabulator-col {
+  background: var(--grid-bg);
+  border-right: 1px solid var(--grid-line);
+  color: var(--grid-text);
+}
+
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-moving {
+  background: var(--grid-bg-alt);
+}
+
+.grid .tabulator-col-title {
+  font-size: var(--text-xs, 0.75rem);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  padding-block: 2px;
+}
+
+.grid .tabulator-col .tabulator-col-content { padding: 4px 6px; }
+
+/* Reserve the sort caret's gutter on wrapped titles. Wrapping itself is
+   Tabulator's `headerWordWrap` column default, set in grid.js; without this
+   padding the caret lands on the last letter of every two-line header. */
+.grid .tabulator-header .tabulator-col.tabulator-sortable .tabulator-col-content .tabulator-col-title {
+  padding-right: 16px;
+}
+
+/* The sort indicator has to survive the dark theme too: Tabulator hard-codes
+   it to #bbb unsorted and #666 sorted, which inverts into invisibility. */
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="none"] .tabulator-col-content .tabulator-col-sorter {
+  color: var(--grid-line-strong);
+}
+
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="ascending"] .tabulator-col-content .tabulator-col-sorter,
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-content .tabulator-col-sorter,
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+  color: var(--grid-accent);
+}
+
+.grid .tabulator .tabulator-header .tabulator-calcs-holder,
+.grid .tabulator .tabulator-header .tabulator-calcs-holder .tabulator-row {
+  background: var(--grid-bg-alt);
+  color: var(--grid-text);
+}
+
+/* A column group header is the only place the grid raises contrast: it is the
+   one label that tells a reader which model dimension a run of columns is. */
+.grid .tabulator-col-group .tabulator-col-group-cols { border-top: 1px solid var(--grid-line); }
+
+.grid .tabulator-col-group > .tabulator-col-content .tabulator-col-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--grid-muted);
+  text-align: center;
+}
+
+/* The element Tabulator mounts into. It owns its own scroll box, so a grid
+   inside an article never lends the page a horizontal scrollbar. */
+.grid-body {
+  overflow: hidden;
+}
+
+.grid .tabulator .tabulator-tableholder .tabulator-table { background: var(--grid-bg); color: var(--grid-text); }
+
+.grid .tabulator .tabulator-row {
+  background: var(--grid-bg);
+  border-bottom: 1px solid var(--grid-line);
+  min-height: var(--grid-row-h);
+  color: var(--grid-text);
+}
+
+.grid .tabulator .tabulator-row.tabulator-row-even { background: var(--grid-bg); }
+.grid .tabulator .tabulator-row.tabulator-selectable:hover { background: var(--grid-bg-alt); }
+.grid .tabulator .tabulator-row:hover { background: var(--grid-bg-alt); }
+
+/* A row held at the top for comparison, and a selected row, read the same:
+   the reader put it there, so it is marked, not decorated. */
+.grid-row-pinned,
+.grid .tabulator .tabulator-row.tabulator-selected {
+  background: color-mix(in srgb, var(--grid-accent) 12%, var(--grid-bg));
+}
+
+.grid .tabulator .tabulator-row .tabulator-cell {
+  border-right: 1px solid var(--grid-line);
+  padding: 4px 8px;
+  color: var(--grid-text);
+}
+
+.grid .tabulator .tabulator-row .tabulator-cell.tabulator-frozen {
+  background: inherit;
+  border-right: 1px solid var(--grid-line-strong);
+}
+
+.grid .tabulator .tabulator-header .tabulator-col.tabulator-frozen {
+  border-right: 1px solid var(--grid-line-strong);
+}
+
+/* -- cell formats ----------------------------------------------------------- */
+
+.grid-num {
+  display: block;
+  font-family: var(--grid-font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.grid-nil { color: var(--grid-muted); }
+
+.grid-name { font-weight: 500; }
+.grid-sub { display: block; font-size: var(--text-xs, 0.75rem); color: var(--grid-muted); }
+
+/* A bar cell keeps the number readable on top of its own magnitude: the bar is
+   a background layer at low alpha, never a replacement for the digits. Reading
+   a length is a comparison; reading a number is a fact, and the table owes the
+   reader both. */
+.grid-bar {
+  position: relative;
+  display: block;
+  font-family: var(--grid-font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 2px;
+  isolation: isolate;
+}
+
+.grid-bar::before {
+  content: "";
+  position: absolute;
+  inset-block: 2px;
+  left: 0;
+  width: var(--grid-fill, 0%);
+  background: rgb(var(--grid-seq) / 0.22);
+  border-radius: 2px;
+  z-index: -1;
+}
+
+.grid-bar[data-sign="neg"]::before { background: rgb(var(--grid-neg) / 0.22); }
+
+.grid-heat {
+  display: block;
+  margin: -4px -8px;
+  padding: 4px 8px;
+  font-family: var(--grid-font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  background: rgb(var(--grid-seq) / var(--grid-alpha, 0));
+}
+
+.grid-delta { font-family: var(--grid-font-num); font-variant-numeric: tabular-nums; text-align: right; display: block; }
+.grid-delta[data-sign="pos"] { color: rgb(var(--grid-pos)); }
+.grid-delta[data-sign="neg"] { color: rgb(var(--grid-neg)); }
+
+.grid-rank {
+  display: block;
+  font-family: var(--grid-font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Missingness is a value. A blank cell and a suppressed cell are different
+   facts, and the grid refuses to render them the same way. */
+.grid-missing { color: var(--grid-muted); font-style: italic; font-size: var(--text-xs, 0.75rem); }
+
+.grid-chip {
+  display: inline-block;
+  padding: 0 6px;
+  font-size: var(--text-xs, 0.75rem);
+  line-height: 1.5;
+  color: var(--grid-muted);
+  background: var(--grid-bg-alt);
+  border: 1px solid var(--grid-line);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* -- footer and empty state -------------------------------------------------- */
+
+.grid-note {
+  padding: var(--sp-2, 0.5rem) var(--sp-3, 0.75rem);
+  border-top: 1px solid var(--grid-line);
+  background: var(--grid-bg-alt);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--grid-muted);
+}
+
+.grid .tabulator-placeholder { color: var(--grid-muted); font-style: italic; }
+
+@media print {
+  .grid { border-color: #999; }
+  .grid-toolbar { display: none; }
+  .grid .tabulator-row:hover { background: transparent; }
+}

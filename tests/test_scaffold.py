@@ -15,6 +15,7 @@ def _deck(tmp_path, **kw):
 
 def test_presentation_is_a_valid_kind():
     assert "presentation" in manifest_mod.KINDS
+    assert set(manifest_mod.FORMS) == {"article", "explorer", "collection", "deck"}
 
 
 def test_presentation_scaffolds_a_deck_not_an_article(tmp_path):
@@ -44,6 +45,32 @@ def test_report_still_scaffolds_an_article(tmp_path):
     assert "article-masthead" in index
     assert "deck-slide" not in index
     assert [lib["name"] for lib in m.libraries] == ["artoo-kit"]
+    assert m.form == "article"
+    assert m.content_source == "content.md"
+
+
+def test_form_can_override_kind_and_scaffold_an_explorer(tmp_path):
+    m = scaffold.init_artifact(tmp_path / "x", title="Compare", kind="report", form="explorer")
+    index = (m.site_dir / "index.html").read_text()
+    assert m.effective_form == "explorer"
+    assert [lib["name"] for lib in m.libraries] == ["artoo-kit", "artoo-controls"]
+    assert "ArtooControls.create" in index
+    assert 'href="lib/artoo-kit/article.css"' in index
+    assert (m.site_dir / "data" / "items.json").is_file()
+    assert (m.site_dir / "data" / "items.js").is_file()
+
+
+def test_reference_guide_infers_collection_with_navigation(tmp_path):
+    m = scaffold.init_artifact(tmp_path / "guide", title="Guide", kind="reference-guide")
+    assert m.effective_form == "collection"
+    assert m.content_pages == "content"
+    assert m.content_order == ["index.md", "evidence.md"]
+    assert (m.site_dir / "evidence.html").is_file()
+    page = (m.site_dir / "evidence.html").read_text()
+    assert 'aria-current="page"' in page
+    assert 'rel="prev"' in page
+    assert 'class="nav-toggle"' in page
+    assert 'class="nav-links"' in page
 
 
 def test_deck_starter_declares_acts_and_notes(tmp_path):

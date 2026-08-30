@@ -1,0 +1,91 @@
+/* artoo-controls — common explorer controls. */
+
+.controls {
+  padding: var(--sp-4) 0;
+  border-block: 1px solid var(--border);
+  font-family: var(--font-ui);
+}
+
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--sp-3);
+}
+
+.controls-field {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 10rem;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+}
+
+.controls-search,
+.controls-select {
+  min-height: 2.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.controls-search { min-width: min(22rem, 80vw); }
+.controls-select[multiple] { min-height: 6rem; }
+
+.controls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.controls-actions button,
+.controls-chip {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+}
+
+.controls-actions button:hover,
+.controls-chip:hover { border-color: var(--accent); color: var(--text); }
+
+.controls-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 2rem;
+  margin-top: var(--sp-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.controls-count { font-variant-numeric: tabular-nums; }
+
+.controls-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.controls-chip { padding: var(--sp-1) var(--sp-2); font-size: var(--text-xs); }
+.controls-reset { color: var(--muted); }
+.controls-download { color: var(--accent); }
+.controls-save, .controls-load { color: var(--text-2); }
+.controls-status { color: var(--muted); font-size: var(--text-xs); }
+
+.controls-empty {
+  padding: var(--sp-8) 0;
+  color: var(--muted);
+  text-align: center;
+}

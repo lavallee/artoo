@@ -39,6 +39,43 @@ def test_ingest_skips_without_notebook(artifact, flip_stub):
     assert "no flip notebook" in result.note
 
 
+def test_neutral_evidence_projects_without_flip(artifact, monkeypatch, tmp_path):
+    monkeypatch.delenv("ARTOO_FLIP_BIN", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    source = artifact.dir / "work" / "evidence.json"
+    source.write_text(
+        json.dumps(
+            {
+                "contract": "artoo-evidence/1",
+                "sources": [{"id": "A1", "title": "Dataset"}],
+                "claims": [{"id": "C1", "text": "Supported", "sources": ["A1"]}],
+            }
+        )
+    )
+    artifact.evidence_source = "work/evidence.json"
+    result = provenance.ingest(artifact)
+    assert result.status == "written"
+    assert result.counts["sources"] == 1
+    assert json.loads(result.path.read_text())["contract"] == "artoo-evidence/1"
+
+
+def test_neutral_evidence_rejects_unknown_source_reference(artifact):
+    source = artifact.dir / "work" / "evidence.json"
+    source.write_text(
+        json.dumps(
+            {
+                "contract": "artoo-evidence/1",
+                "sources": [],
+                "claims": [{"id": "C1", "text": "Unsupported", "sources": ["A9"]}],
+            }
+        )
+    )
+    artifact.evidence_source = "work/evidence.json"
+    result = provenance.ingest(artifact)
+    assert result.status == "error"
+    assert "unknown sources" in result.note
+
+
 def test_ingest_skips_without_flip(notebook_artifact, monkeypatch, tmp_path):
     monkeypatch.delenv("ARTOO_FLIP_BIN", raising=False)
     monkeypatch.setenv("PATH", str(tmp_path))

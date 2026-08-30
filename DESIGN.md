@@ -11,10 +11,7 @@ This document records the v0.1 architecture and the reasoning behind it.
 ## Lineage
 
 artoo generalizes patterns proven in weaver, a private static-site research
-workbench by the same author, and adopts the packaging
-conventions of its public siblings [vizier](https://github.com/lavallee/vizier),
-[somm](https://github.com/lavallee/somm), and
-[flip](https://github.com/lavallee/flip). The load-bearing ideas imported:
+workbench by the same author. The load-bearing ideas imported:
 
 - **Descriptor as source of truth.** Every artifact carries a small TOML
   manifest; everything else (listings, graphs, deploy routing) is derived
@@ -25,13 +22,9 @@ conventions of its public siblings [vizier](https://github.com/lavallee/vizier),
 - **Named deploy targets, per-artifact routing.** The mechanism (rsync/ssh,
   Pages, command) is generic; the values (hosts, users, paths) are local
   config that never enters the repo.
-- **Kind-aware scaffolding.** New artifacts start from an archetype
-  (explainer, report, reference guide, …) with an appropriate skeleton and
-  a research notebook stamped in. The archetype selects the *library* as
-  well as the skeleton: a `presentation` is a deck — one frame at a time,
-  acts, speaker notes, a landscape page — and gets `artoo-deck`, where the
-  prose kinds get `artoo-kit`. A kind that only changed a kicker string
-  would not be an archetype.
+- **Kind and form are separate.** Kind describes subject semantics; form
+  selects an article, explorer, collection, or deck reading mode. This keeps
+  a useful taxonomy without forcing every report into the same skeleton.
 - **Revision snapshots.** Publishing is preceded by cheap local snapshots
   so any shipped state can be diffed and recovered.
 
@@ -65,7 +58,7 @@ my-explainer/
     style.css
     lib/            # vendored site libraries (managed, see below)
   notebook/         # research backing (flip notebook) — never deployed
-  work/             # design brief, guidance, generator files — never deployed
+  work/             # artifact brief, evidence, generator files — never deployed
 ```
 
 `site/` is committed. It must render from a file:// URL or any static
@@ -81,13 +74,23 @@ slug = "chart-forms"
 title = "Chart forms — when, how, and when not"
 description = "A guide to 43 chart-form patterns."
 kind = "reference-guide"      # explainer | report | reference-guide | presentation | ...
+form = "collection"           # article | explorer | collection | deck
 status = "live"               # draft | building | live | archived
 created = "2026-07-10"
 
 [build]
 # Optional commands that refresh generated inputs before deploy.
-commands = ["vizier patterns export -o site/data.json"]
+commands = ["make data"]
 site = "site"                 # publishable root, relative to the manifest
+
+[content]
+pages = "content"             # deterministic Markdown collection; raw HTML is the escape hatch
+order = ["index.md", "evidence.md"]
+
+[[data]]
+source = "work/items.json"
+path = "data/items.json"
+global = "ARTOO_DATA"
 
 [research]
 notebook = "notebook"         # optional flip notebook directory
@@ -126,13 +129,13 @@ the library's files into `site/lib/artoo-kit/` and records
 name/version/hash in the manifest. `artoo lib status` detects drift (local
 edits vs. upstream); `artoo lib update` re-vendors a newer version.
 
-- artoo ships one built-in library, **artoo-kit**: DES-governed design tokens
-  (light editorial default with dark as explicit opt-in), centered long-form
-  prose with wider evidence regions, margin notes, tables, and a restrained
-  component vocabulary. Offline system stacks expose separate serif prose and
-  display roles, sans-serif UI, and monospaced numerics. The kit has no
-  gradients or card/button elevation. Cards remain available for true
-  navigation, not as a default information container.
+- artoo ships **artoo-kit** as an Artoo-owned accessible foundation: editorial
+  type roles, long-form prose with wider evidence regions, margin notes,
+  tables, navigation, and provenance. It is not a visual authority. Generic
+  `.card` is deprecated; `.nav-card` names the one endorsed use.
+- **artoo-controls** owns recurring explorer mechanics. **artoo-grid** owns
+  dense declared comparisons and remains a built-in module until its release
+  cadence or consumers justify a separate distribution.
 - Libraries are snapshots, not live links. Changing Artoo's bundled kit does
   not rewrite an existing artifact's vendored bytes; `artoo lib update
   artoo-kit` is the explicit upgrade boundary.
@@ -140,6 +143,48 @@ edits vs. upstream); `artoo lib update` re-vendors a newer version.
   the `artoo.libraries` entry point, or are vendored from a URL with a
   pinned hash (`[[vendor]]`). Core artoo stays small; the ecosystem grows
   outside it.
+
+### The authoring contract
+
+An artifact is built by whoever owns its subject, from inside their repo. That
+reader has the artifact directory in front of them and nothing else — artoo's
+README, this file, and the library READMEs are all somewhere they cannot
+reach. Handed a starter page and four vendored stylesheets, the only available
+moves are to reverse-engineer the layout or to copy a previous artifact and
+inherit whatever was wrong with it. Both happen, and both are the tool's fault.
+
+So the contract is a first-class output, with one source and five renderings:
+
+| surface | written by | for |
+|---------|-----------|-----|
+| concise `AGENTS.md` | `artoo init`, `artoo lib add\|update` | automatic working context |
+| `ARTOO_REFERENCE.md` | the same commands | full vendored vocabulary, opened on demand |
+| `artoo docs [topic]` | on demand | anyone with artoo installed |
+| `SKILL.md` + `references/` | `artoo skill install` | an agent that does not yet know artoo exists |
+| `llms.txt`, `reference/*.md` | `scripts/sync-docs-site.py` | readers over HTTP |
+
+`AGENTS.md` is the vendor-neutral filename most coding agents read unprompted,
+so it stays concise. Full class tables live in `ARTOO_REFERENCE.md`, generated
+from the stylesheets the artifact actually vendored. The concise guide uses a
+marked block so regeneration never destroys notes written around it.
+
+Three properties keep this from rotting into the usual stale documentation:
+
+1. **Each library declares its vocabulary in code** (`CLASSES`, `NAMESPACES`),
+   and a test asserts it matches the stylesheets in both directions. An
+   undocumented class fails the suite; so does a documented class the CSS
+   dropped.
+2. **The published copy is drift-tested** against the package.
+3. **The contract is enforced, not merely stated.** `artoo build` reports a
+   class used inside a library's declared namespace that its vendored
+   stylesheet does not define, naming the nearest real class when the mistake
+   is a typo. An invented class renders as nothing, which reads as a styling
+   bug much later and somewhere else.
+
+Namespaces are deliberately narrow — `article-`, `provenance`, `deck-`, not
+generic component names like `card` or `stat`. An artifact's own `.card-hero`
+is a legitimate authorial choice, and a check that cries wolf gets ignored on
+the day it is right.
 
 ### Deployment
 
@@ -267,18 +312,15 @@ roundtrip bidirectional:
   the back-flow; `site/` is never touched. It refuses with an actionable message
   when no notebook is attached or flip is absent.
 
-### Design authority and local guidance
+### Artifact contract and optional recipes
 
-[DES](https://github.com/lavallee/des) governs Artoo's default public-artifact
-contract: start from a named reader decision and headline claim, record
-supported and unsupported claims, establish vintages and denominators, and use
-only valid axes of comparison. A table or figure earns its place by helping the
-reader make that comparison. A clean Artoo build proves artifact integrity; it
-does not confer visual or editorial acceptance.
+Artoo owns the durable artifact contract: start from a named reader decision
+and headline claim, record supported and unsupported claims, establish
+vintages and denominators, and use valid axes of comparison. A clean build
+proves artifact integrity; it does not confer visual or editorial acceptance.
 
-`artoo init` records that contract in the non-deployed
-`work/design-brief.md`. [Vizier](https://github.com/lavallee/vizier) is an
-optional local critique and form-selection companion:
+`artoo init` records this in non-deployed `work/artifact-brief.md`.
+`artoo vizier-guide` remains a deprecated compatibility recipe:
 
 ```
 artoo vizier-guide "the reader's data job" --context "source and constraints" \
@@ -286,13 +328,9 @@ artoo vizier-guide "the reader's data job" --context "source and constraints" \
   --no-semantic --artifact path/to/artifact
 ```
 
-Artoo invokes the installed `vizier guide` executable and atomically records
-its complete output and invocation metadata at `work/vizier-guidance.md` only
-after a successful exit. A missing or failed executable produces an actionable
-error and no partial receipt. Artoo does not import Vizier, read its private
-corpus, or make a model/API call. This keeps responsibilities bounded: DES owns
-design authority, Vizier offers optional implementation guidance, and Artoo
-owns packaging, provenance, the firewall, and deployment.
+Artoo invokes an installed executable and records its output behind the
+firewall. No new workflow should depend on it; the direct artifact brief,
+forms, controls, data packer, and verification surfaces cover the common path.
 
 ## The explainer generator
 
@@ -324,21 +362,27 @@ which commit — an explainer is a *dated snapshot*, and says so.
 ## CLI surface (v0.1)
 
 ```
-artoo init [path] --kind <kind> --title <t>   scaffold an artifact
+artoo init [path] --kind <kind> --form <form> scaffold an artifact
 artoo list [root]                             discover artifacts under a tree
 artoo status [artifact]                       manifest, firewall, lib drift, render freshness
 artoo build [artifact]                        run build commands + checks + provenance
-artoo provenance [artifact]                   project an attached flip notebook into site/data/
+artoo verify [artifact] [--browser]            static integrity and optional Chromium proof
+artoo provenance [artifact]                   project neutral evidence or a flip notebook
 artoo feedback <artifact> "<text>" [--claim C7 | --source A3] [--as-log]
                                               route feedback into the attached notebook
-artoo vizier-guide <job> [--artifact <path>]  optional private guidance receipt
+artoo vizier-guide <job> [--artifact <path>]  deprecated optional guidance recipe
 artoo deploy [artifact] [--dry-run] [--allow-doctor-errors]
                                               flip-doctor gate, firewall check, then adapter
 artoo lib add|update|status|list              manage vendored libraries
+artoo docs [topic] [--all]                    the reference: guides + per-library vocabulary
+artoo skill install [--dir|--user]            SKILL.md + references/ for a coding agent
+artoo skill show                              pipe SKILL.md to stdout
 artoo generate <generator> [opts]             run a generator plugin
   explainer        --repo <path>              multi-page repo explainer (write direction)
   notebook-report  --notebook <path>          report rendered from a flip notebook (read direction)
 artoo doctor [root]                           repo-wide coherence report
+
+`list`, `status`, `build`, and `doctor` accept `--json`.
 ```
 
 ## Non-goals (v0.1)

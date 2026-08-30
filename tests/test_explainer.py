@@ -72,7 +72,7 @@ def test_page_prompt_selects_evidence_forms_instead_of_component_composition():
         assert contract_term in prompt
     assert "a stat-row or pullnumber" not in prompt
     assert "cards for links to related pages" not in prompt
-    assert "Cards are available only for true navigation" in prompt
+    assert "Navigation cards use `.nav-card` only" in prompt
 
 
 def _no_mermaid(monkeypatch):

@@ -20,7 +20,7 @@ PAGE_SHELL = """<!doctype html>
 <body>
 <nav class="site-nav">
   <span class="brand">{site_title}</span>
-  <button class="nav-toggle" aria-label="Menu">menu</button>
+  <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false">Menu</button>
   <div class="nav-links">
 {nav_links}
   </div>
@@ -39,7 +39,7 @@ PAGE_SHELL = """<!doctype html>
 # The panel hydrates from site/data/provenance.js (offline global) or a fetch of
 # provenance.json — only emitted when a projection was actually produced.
 PROVENANCE_PANEL = (
-    '<section class="provenance article-full" data-artoo-provenance>'
+    '<section class="provenance article-breakout" data-artoo-provenance>'
     "</section>\n"
 )
 PROVENANCE_SCRIPTS = (

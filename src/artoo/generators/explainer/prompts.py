@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 
 KIT_VOCABULARY = """\
-You write light, editorial HTML fragments governed by the DES public-artifact
-contract and styled by an existing design kit. Use ONLY these classes (no
+You write accessible editorial HTML fragments using Artoo's artifact contract
+and an existing design kit. Use ONLY these classes (no
 inline styles, no external resources):
 
 - Layout: the fragment is placed inside <main class="article"> — a grid where
@@ -30,8 +30,8 @@ inline styles, no external resources):
 - Semantic notices: <div class="callout callout--warn"><span
   class="callout-title">…</span>…</div> only for a real warning, success, or
   danger state; status colors are not decoration.
-- Cards are available only for true navigation between distinct pages. Never
-  turn related facts, sources, or sections into cards.
+- Navigation cards use `.nav-card` only for links between distinct pages.
+  Never turn related facts, sources, or sections into cards.
 - Code refs: <code>path/to/file.py:123</code>. Tables, pre/code, h2/h3,
   figure/figcaption are all styled — use them plainly.
 """
@@ -158,8 +158,8 @@ from the named reader decision and headline claim: the header states the claim,
 the deck says why it matters, and the sections move through evidence, limits or
 counter-reading, and implication. Choose a table or figure because it supports
 a licit reader comparison, and state its basis and limits in the caption. Do
-not detach important numbers into a dashboard-like metric wall. Use cards only
-for true navigation, never as the default container for related items. Use
+not detach important numbers into a dashboard-like metric wall. Use
+`.nav-card` only for true navigation, never as the default container for related items. Use
 margin notes for definitions and file-level provenance. Cite real files as
 <code>path:line</code>. Every factual statement must trace to the briefs or the
 inventory stats given.

@@ -12,7 +12,7 @@ def test_kit_available():
     assert (libs["artoo-kit"].root / "tokens.css").exists()
 
 
-def test_kit_has_light_editorial_type_roles_without_decorative_effects():
+def test_kit_is_self_contained_and_exposes_accessible_type_roles():
     kit = libraries.available()["artoo-kit"]
     tokens = (kit.root / "tokens.css").read_text()
     base = (kit.root / "base.css").read_text()
@@ -28,10 +28,22 @@ def test_kit_has_light_editorial_type_roles_without_decorative_effects():
     assert "font-family: var(--font-display)" in base
     assert "font-family: var(--font-numeric)" in base
     assert "font-family: var(--font-ui)" in components
-    assert "gradient" not in all_css
-    assert "box-shadow" not in all_css
     assert "@font-face" not in all_css
     assert "url(" not in all_css
+
+
+def test_controls_available_and_self_contained():
+    controls = libraries.available()["artoo-controls"]
+    css = (controls.root / "controls.css").read_text()
+    js = (controls.root / "controls.js").read_text()
+    assert "ArtooControls" in js
+    assert "https://" not in css and "http://" not in css
+    assert "https://" not in js and "http://" not in js
+
+
+def test_kit_mobile_nav_reports_its_expanded_state():
+    js = (libraries.available()["artoo-kit"].root / "kit.js").read_text()
+    assert 'setAttribute("aria-expanded"' in js
 
 
 def test_add_vendors_and_records(artifact):

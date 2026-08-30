@@ -8,6 +8,7 @@ cleanly in git.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass, field
 from datetime import date
@@ -29,6 +30,16 @@ KINDS = [
 
 STATUSES = ["draft", "building", "live", "archived"]
 
+FORMS = ["article", "explorer", "collection", "deck"]
+
+_KIND_FORMS = {
+    "explorer": "explorer",
+    "presentation": "deck",
+    "reference-guide": "collection",
+}
+
+_JS_GLOBAL = re.compile(r"^[A-Za-z_$][\w$]*$")
+
 
 @dataclass
 class Manifest:
@@ -36,12 +47,18 @@ class Manifest:
     title: str
     description: str = ""
     kind: str = "report"
+    form: str = ""
     status: str = "draft"
     created: str = ""
     updated: str = ""
 
     build_commands: list[str] = field(default_factory=list)
     site: str = "site"
+    content_source: str = ""
+    content_pages: str = ""
+    content_order: list[str] = field(default_factory=list)
+    data_packs: list[dict] = field(default_factory=list)
+    evidence_source: str = ""
     notebook: str = ""
 
     # Research (flip) roundtrip. `include_private` is the explicit opt-in that
@@ -74,6 +91,11 @@ class Manifest:
         return self.dir / self.site
 
     @property
+    def effective_form(self) -> str:
+        """Presentation form, inferred for manifests written before forms existed."""
+        return self.form or _KIND_FORMS.get(self.kind, "article")
+
+    @property
     def notebook_dir(self) -> Path | None:
         return self.dir / self.notebook if self.notebook else None
 
@@ -87,10 +109,32 @@ class Manifest:
             problems.append("artifact.title is required")
         if self.kind not in KINDS:
             problems.append(f"artifact.kind {self.kind!r} not one of {', '.join(KINDS)}")
+        if self.form and self.form not in FORMS:
+            problems.append(f"artifact.form {self.form!r} not one of {', '.join(FORMS)}")
         if self.status not in STATUSES:
             problems.append(f"artifact.status {self.status!r} not one of {', '.join(STATUSES)}")
         if ".." in self.site or Path(self.site).is_absolute():
             problems.append("build.site must be a relative path inside the artifact")
+        if self.content_source and Path(self.content_source).is_absolute():
+            problems.append("content.source must be relative to the artifact")
+        if self.content_pages and Path(self.content_pages).is_absolute():
+            problems.append("content.pages must be relative to the artifact")
+        if self.content_source and self.content_pages:
+            problems.append("[content] may set source or pages, not both")
+        if self.content_order and not self.content_pages:
+            problems.append("content.order requires content.pages")
+        if not all(isinstance(page, str) for page in self.content_order):
+            problems.append("content.order entries must be strings")
+        else:
+            if len(self.content_order) != len(set(self.content_order)):
+                problems.append("content.order must not repeat pages")
+            if self.content_order and self.content_order[0] != "index.md":
+                problems.append("content.order must start with index.md")
+            for page in self.content_order:
+                if Path(page).name != page or not page.endswith(".md"):
+                    problems.append("content.order entries must be top-level .md filenames")
+        if self.evidence_source and Path(self.evidence_source).is_absolute():
+            problems.append("evidence.source must be relative to the artifact")
         # The notebook binding is a relative path. It may escape the artifact
         # dir with ``..``: the read-direction generator (`generate
         # notebook-report`) renders *from* a canonical flip notebook that lives
@@ -111,6 +155,25 @@ class Manifest:
             for key in ("name", "url", "path"):
                 if key not in v:
                     problems.append(f"[[vendor]] entry missing {key}")
+        for pack in self.data_packs:
+            for key in ("source", "path", "global"):
+                if key not in pack:
+                    problems.append(f"[[data]] entry missing {key}")
+            source = str(pack.get("source", ""))
+            dest = str(pack.get("path", ""))
+            script = str(pack.get("script", ""))
+            global_name = str(pack.get("global", ""))
+            if source and Path(source).is_absolute():
+                problems.append("[[data]].source must be relative to the artifact")
+            for key, value in (("path", dest), ("script", script)):
+                if value and (Path(value).is_absolute() or ".." in Path(value).parts):
+                    problems.append(f"[[data]].{key} must stay inside build.site")
+            if dest and Path(dest).suffix.lower() != ".json":
+                problems.append("[[data]].path must name a .json file")
+            if script and Path(script).suffix.lower() != ".js":
+                problems.append("[[data]].script must name a .js file")
+            if global_name and not _JS_GLOBAL.fullmatch(global_name):
+                problems.append(f"[[data]].global {global_name!r} is not a JavaScript name")
         return problems
 
     def save(self, path: Path | None = None) -> Path:
@@ -155,6 +218,8 @@ def dumps(m: Manifest) -> str:
     if m.description:
         artifact_pairs.append(("description", m.description))
     artifact_pairs.append(("kind", m.kind))
+    if m.form:
+        artifact_pairs.append(("form", m.form))
     artifact_pairs.append(("status", m.status))
     if m.created:
         artifact_pairs.append(("created", m.created))
@@ -169,6 +234,19 @@ def dumps(m: Manifest) -> str:
         build_pairs.append(("site", m.site))
     if build_pairs:
         blocks.append(_table("build", build_pairs))
+
+    content_pairs: list[tuple[str, object]] = []
+    if m.content_source:
+        content_pairs.append(("source", m.content_source))
+    if m.content_pages:
+        content_pairs.append(("pages", m.content_pages))
+    if m.content_order:
+        content_pairs.append(("order", m.content_order))
+    if content_pairs:
+        blocks.append(_table("content", content_pairs))
+
+    if m.evidence_source:
+        blocks.append(_table("evidence", [("source", m.evidence_source)]))
 
     research_pairs: list[tuple[str, object]] = []
     if m.notebook:
@@ -196,6 +274,16 @@ def dumps(m: Manifest) -> str:
         pairs = [(k, lib[k]) for k in ("name", "version", "sha256", "path") if k in lib]
         blocks.append("[[libraries]]\n" + "\n".join(f"{k} = {_toml_value(v)}" for k, v in pairs) + "\n")
 
+    for pack in m.data_packs:
+        ordered = ("source", "path", "script", "global")
+        pairs = [(k, pack[k]) for k in ordered if k in pack]
+        pairs.extend(sorted((k, value) for k, value in pack.items() if k not in ordered))
+        blocks.append(
+            "[[data]]\n"
+            + "\n".join(f"{k} = {_toml_value(value)}" for k, value in pairs)
+            + "\n"
+        )
+
     for v in m.vendor:
         pairs = [(k, v[k]) for k in ("name", "url", "sha256", "path") if k in v]
         blocks.append("[[vendor]]\n" + "\n".join(f"{k} = {_toml_value(val)}" for k, val in pairs) + "\n")
@@ -207,7 +295,9 @@ def loads(text: str) -> Manifest:
     data = tomllib.loads(text)
     artifact = data.get("artifact", {})
     build = data.get("build", {})
+    content = data.get("content", {})
     research = data.get("research", {})
+    evidence = data.get("evidence", {})
     deploy = data.get("deploy", {})
     target = deploy.get("target", "")
     deploy_config = deploy.get(target, {}) if target else {}
@@ -217,11 +307,17 @@ def loads(text: str) -> Manifest:
         title=artifact.get("title", ""),
         description=artifact.get("description", ""),
         kind=artifact.get("kind", "report"),
+        form=artifact.get("form", ""),
         status=artifact.get("status", "draft"),
         created=str(artifact.get("created", "")),
         updated=str(artifact.get("updated", "")),
         build_commands=list(build.get("commands", [])),
         site=build.get("site", "site"),
+        content_source=content.get("source", ""),
+        content_pages=content.get("pages", ""),
+        content_order=list(content.get("order", [])),
+        data_packs=[dict(x) for x in data.get("data", [])],
+        evidence_source=evidence.get("source", ""),
         notebook=research.get("notebook", ""),
         research_include_private=bool(research.get("include_private", False)),
         rendered_uid=str(research.get("rendered_uid", "")),
@@ -245,12 +341,19 @@ def load(path: Path) -> Manifest:
     return m
 
 
-def new(slug: str, title: str, kind: str = "report", description: str = "") -> Manifest:
+def new(
+    slug: str,
+    title: str,
+    kind: str = "report",
+    description: str = "",
+    form: str = "",
+) -> Manifest:
     return Manifest(
         slug=slug,
         title=title,
         description=description,
         kind=kind,
+        form=form,
         status="draft",
         created=date.today().isoformat(),
     )

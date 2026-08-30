@@ -4,6 +4,126 @@ All notable changes to artoo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [0.5.0] — 2026-08-30
+
+### Added
+
+- **Presentation forms independent of artifact kinds.** New manifests record
+  `form = article | explorer | collection | deck`; older manifests infer the
+  same behavior from kind. Articles and collections can render conservative
+  Markdown into deterministic shells, while deleting `[content]` preserves raw
+  HTML as the escape hatch.
+- **`artoo-controls` and `[[data]]` packing.** Explorers now start with search,
+  declared filters, chips, result counts, reset, URL state, CSV, accessible
+  empty state, and optional saved configurations. One canonical private JSON
+  source produces both publishable JSON and a `file://`-safe JavaScript global.
+- **Provider-neutral evidence and stronger verification.** `artoo-evidence/1`
+  projects through the existing provenance panel with Flip as an optional
+  adapter. Static builds check assets, internal links and anchors, duplicate
+  IDs, and remote runtime dependencies; `artoo verify --browser` adds optional
+  console, overflow, and screenshot proof through a soft Playwright import.
+- **Split agent context.** Generated `AGENTS.md` is now a concise working
+  contract; the full vendored class vocabulary moves to the generated,
+  on-demand `ARTOO_REFERENCE.md`.
+
+- **`artoo-grid`, a third built-in site library.** Dense comparison tables —
+  a few hundred entities across a few dozen measures — declared rather than
+  assembled, over a vendored Tabulator 6.3.1 build: sorting, frozen identity
+  columns, column groups, a column picker, in-cell bars and percentile heat,
+  free-text filtering, and CSV export. The editorial rules live in the column
+  formats, which is the reason to have formats rather than a callback per
+  column. Two of them are not configurable, because both failures are silent
+  and expensive: **missing is never zero** (`null`, `NaN` and `""` render as
+  an em dash in every format; a row carrying `<field>_state === "suppressed"`
+  says *suppressed*, because a value a publisher withheld and a value nobody
+  collected are different facts), and **blanks sort to the bottom in both
+  directions** (a district with no measurement has not scored zero and must
+  never top a ranking by ascending sort). Bar and heat domains recompute on
+  every `setData`, so a table that reranks on a slider rescales honestly
+  instead of comparing today's numbers against yesterday's maximum.
+- **`artoo serve`, and durable state for explorers.** A page whose value is
+  the configuration a reader arrived at is only useful the second time if that
+  configuration survives. `artoo serve` runs the artifact on loopback with a
+  small JSON store under `/_artoo/state`, writing named documents into the
+  artifact's own `state/` directory — real files, next to the work, committed
+  with it, readable in a diff. `state/` is a sibling of `site/`, so the
+  firewall can never publish one. Every request is checked against the same
+  firewall rule a deploy applies, so it shows exactly what a deploy would — a
+  withheld file is absent, not merely unlinked, and a page that only works
+  because it reached a private working file fails locally instead of after
+  publication — while files are read live, so an edit appears on reload
+  without a restart. A withheld path answers 404 whether or not the file
+  exists, so the refusal is not an oracle for what is hidden. Document names
+  are slug-validated before they become path segments; writes go through a
+  temp file and a rename.
+- **`ArtooStore` in artoo-kit.** The client for that store, with the honest
+  fallback: from `file://` or a plain static host there is nothing to write
+  to, so it uses `localStorage` and reports `durable === false`. Print
+  `store.describe()` rather than let a reader believe a save reached disk.
+  `artoo lib update artoo-kit` picks up the new asset.
+- **`artoo docs serve`.** The new topic, covering the state API and where
+  saved documents land.
+
+### Changed
+
+- Artoo now owns its artifact brief and accessible foundation directly.
+  `work/artifact-brief.md` replaces the DES-shaped design brief, the DES badge
+  is gone, and `vizier-guide` remains only as a deprecated compatibility recipe.
+- artoo-kit 0.5.0 adds `.nav-card`, deprecates generic `.card`, and adds the
+  collection pager. Visual effects are no longer rejected as a proxy for taste.
+- A site library may now declare `vendored` file globs. Classes defined in a
+  third-party dist file belong to the upstream project, not to the library's
+  contract, so they are excluded from the vocabulary the library is asked to
+  document — while still shipping, and still not being flagged when an artifact
+  uses one. Without this, vendoring an engine's stylesheet would force a
+  library to document several hundred classes it does not own, and the class
+  table exists precisely so the next author does not have to read those.
+
+- **The contract travels with the artifact.** `artoo init` now writes an
+  `AGENTS.md` into the artifact it creates: the golden path, the firewall
+  rule, and a table of every class the vendored site library defines, with
+  its role. `artoo lib add` and `artoo lib update` regenerate it, so it can
+  never advertise a version the artifact is not carrying. The tables are
+  generated from the vendored stylesheets; anything written outside the
+  managed block is preserved.
+- **`artoo docs`.** The reference — quickstart, manifest, firewall,
+  provenance, generators, and one topic per site library — answers to a
+  command instead of living in an installed wheel. `artoo docs --all` prints
+  the lot in one read.
+- **`artoo skill install`.** Writes `SKILL.md` plus an offline `references/`
+  set for a coding agent, into `./.claude/skills/artoo` or (`--user`) the
+  home equivalent. `artoo skill show` pipes it to stdout.
+- **A build-time check on invented classes.** `artoo build`, `artoo status`,
+  and `artoo doctor` report any class used inside a site library's declared
+  namespace that its vendored stylesheet does not define, and name the
+  nearest real class when the mistake is a typo. An invented class renders
+  as nothing at all, which reads as a styling bug and is not one.
+- **Machine-readable output.** `--json` on `status`, `build`, and `doctor`,
+  matching `list --json`. `build --json` still exits non-zero on failure
+  while emitting a parseable report.
+- **A published reference.** `docs/llms.txt`, `docs/llms-full.txt`, and
+  `docs/reference/*.md` on the Pages site, for readers who cannot run the
+  CLI. Generated by `scripts/sync-docs-site.py`; a test fails if they drift.
+
+### Notes
+
+The problem was never that artoo's conventions were undocumented — the kit
+README already covered the class vocabulary, the SVG token gotcha, and the
+chart palette. It was that all of it lived inside the installed wheel, and
+the person authoring an artifact is standing in a different repo entirely.
+Given a starter page and four vendored stylesheets, the only available moves
+were to reverse-engineer the layout or to copy a previous artifact and
+inherit whatever was wrong with it.
+
+So the reference now has one source, `artoo.docs`, rendered onto four
+surfaces: the CLI, each artifact's `AGENTS.md`, the installable skill, and
+the Pages site. Two tests hold it together — one asserting each library's
+documented vocabulary matches its stylesheets in both directions, one
+asserting the published copy is not stale — because a reference that drifts
+from the tool is worse than none.
+
 ## [0.4.0] — 2026-08-11
 
 ### Added

@@ -1,6 +1,6 @@
 # artoo-kit
 
-The built-in site library: DES-governed, self-contained styling for public
+The built-in site library: an Artoo-owned, self-contained foundation for public
 artifacts. Vendored into an artifact at `site/lib/artoo-kit/` with a pinned
 hash — changing the kit here does not rewrite already-vendored bytes; `artoo
 lib update artoo-kit` is the explicit upgrade boundary.
@@ -29,18 +29,18 @@ Every page should carry a favicon; without one the browser requests
 
 ## Provenance panel
 
-The panel renders a flip notebook's lineage — sources with grades and
+The panel renders an artifact's lineage — sources with grades and
 independence, claims with status and verification-method badges, counts, and
-the notebook vintage — from `site/data/provenance.json` (the `flip-render/1`
-projection that `artoo build` / `artoo provenance` writes from an attached
-notebook).
+an optional notebook vintage — from `site/data/provenance.json`. `artoo build`
+and `artoo provenance` write it from provider-neutral `artoo-evidence/1` or
+adapt an attached Flip notebook's `flip-render/1` projection.
 
 It is **progressive**: with no projection present the panel hides itself and
 the page reads exactly as authored. To add it to a hand-authored page:
 
 ```html
 <!-- where the panel should appear -->
-<section class="provenance article-full" data-artoo-provenance></section>
+<section class="provenance article-breakout" data-artoo-provenance></section>
 
 <!-- before </body>: the offline data global, then the hydrator -->
 <script src="data/provenance.js"></script>
@@ -51,8 +51,8 @@ the page reads exactly as authored. To add it to a hand-authored page:
 from a `file://` URL with no server (a bare `fetch()` of a sibling JSON is
 blocked under `file://`; a `<script>` assignment is not). If you omit it, the
 hydrator falls back to `fetch("data/provenance.json")`, which works over HTTP.
-Both files are written by `artoo provenance`; if there is no attached notebook
-they do not exist, so only wire the panel on artifacts that have one.
+Both files are written by `artoo provenance`; the deterministic article and
+collection renderers wire the panel automatically when a projection exists.
 
 ### Claim anchors
 
@@ -104,4 +104,4 @@ no runtime) or as a Mermaid diagram. Guidance:
   role sets it) so figures align.
 - **Honesty.** A figure earns its place by helping the reader make a valid
   comparison — include vintages, denominators, and a source note in the
-  `<figcaption>`, per the DES contract.
+  `<figcaption>`, so the comparison can be interpreted honestly.
