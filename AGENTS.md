@@ -24,9 +24,11 @@ CI runs the last two on 3.12 and 3.13. Both must pass before a PR lands.
 | `src/artoo/manifest.py` | `artifact.toml` — load, validate, deterministic write |
 | `src/artoo/firewall.py` | deny-by-default publish rules |
 | `src/artoo/build.py` | run build commands, verify, stamp `updated` |
+| `src/artoo/content.py`, `data.py` | deterministic Markdown render + offline data packs |
+| `src/artoo/verify.py` | static and optional browser verification |
 | `src/artoo/markup.py` | CSS vocabulary parser + the invented-class check |
 | `src/artoo/docs.py` | `artoo docs`; the single source for all reference text |
-| `src/artoo/agent_guide.py` | the `AGENTS.md` written into each artifact |
+| `src/artoo/agent_guide.py` | concise `AGENTS.md` + on-demand `ARTOO_REFERENCE.md` |
 | `src/artoo/skill.py` | `artoo skill install` |
 | `src/artoo/reference/*.md` | authored reference topics |
 | `src/artoo/libraries/*/` | site libraries: assets, README, class vocabulary |
@@ -35,12 +37,13 @@ CI runs the last two on 3.12 and 3.13. Both must pass before a PR lands.
 
 ## The reference has one source
 
-`artoo.docs` renders onto four surfaces, and they must not drift apart:
+`artoo.docs` renders onto five surfaces, and they must not drift apart:
 
 1. `artoo docs <topic>` in a shell
-2. `AGENTS.md` inside every artifact `artoo init` creates
-3. `SKILL.md` + `references/` from `artoo skill install`
-4. `docs/llms.txt`, `docs/llms-full.txt`, `docs/reference/*.md` on the site
+2. concise `AGENTS.md` inside every artifact `artoo init` creates
+3. full `ARTOO_REFERENCE.md` beside it, opened on demand
+4. `SKILL.md` + `references/` from `artoo skill install`
+5. `docs/llms.txt`, `docs/llms-full.txt`, `docs/reference/*.md` on the site
 
 Change a reference topic or a library's class vocabulary, then run:
 

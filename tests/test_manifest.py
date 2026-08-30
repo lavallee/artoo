@@ -18,10 +18,22 @@ def make():
 
 def test_roundtrip():
     man = make()
+    man.form = "collection"
+    man.content_pages = "content"
+    man.content_order = ["index.md", "evidence.md"]
+    man.data_packs = [
+        {"source": "work/items.json", "path": "data/items.json", "global": "ARTOO_DATA"}
+    ]
+    man.evidence_source = "work/evidence.json"
     text = m.dumps(man)
     back = m.loads(text)
     assert back.slug == "chart-forms"
     assert back.kind == "reference-guide"
+    assert back.form == "collection"
+    assert back.content_pages == "content"
+    assert back.content_order == ["index.md", "evidence.md"]
+    assert back.data_packs[0]["global"] == "ARTOO_DATA"
+    assert back.evidence_source == "work/evidence.json"
     assert back.build_commands == ["echo hi"]
     assert back.deploy_target == "github-pages"
     assert back.deploy_config == {"subpath": "reader", "mode": "docs"}
@@ -90,3 +102,18 @@ def test_research_roundtrip():
 def test_research_table_only_when_set():
     man = make()  # no notebook, no research fields
     assert "[research]" not in m.dumps(man)
+
+
+def test_old_manifests_infer_form_from_kind():
+    assert m.loads('[artifact]\nslug="x"\ntitle="X"\nkind="presentation"').effective_form == "deck"
+    assert m.loads('[artifact]\nslug="x"\ntitle="X"\nkind="report"').effective_form == "article"
+
+
+def test_data_destinations_must_stay_inside_site():
+    man = make()
+    man.data_packs = [
+        {"source": "items.json", "path": "../items.json", "global": "bad-name"}
+    ]
+    problems = man.validate()
+    assert any("stay inside" in problem for problem in problems)
+    assert any("JavaScript name" in problem for problem in problems)

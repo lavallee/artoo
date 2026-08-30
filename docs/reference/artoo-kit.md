@@ -1,8 +1,8 @@
-# artoo-kit 0.4.0
+# artoo-kit 0.5.0
 
 Long-form article layout, evidence regions, and the provenance panel.
 
-The built-in site library: DES-governed, self-contained styling for public
+The built-in site library: an Artoo-owned, self-contained foundation for public
 artifacts. Vendored into an artifact at `site/lib/artoo-kit/` with a pinned
 hash — changing the kit here does not rewrite already-vendored bytes; `artoo
 lib update artoo-kit` is the explicit upgrade boundary.
@@ -31,18 +31,18 @@ Every page should carry a favicon; without one the browser requests
 
 ## Provenance panel
 
-The panel renders a flip notebook's lineage — sources with grades and
+The panel renders an artifact's lineage — sources with grades and
 independence, claims with status and verification-method badges, counts, and
-the notebook vintage — from `site/data/provenance.json` (the `flip-render/1`
-projection that `artoo build` / `artoo provenance` writes from an attached
-notebook).
+an optional notebook vintage — from `site/data/provenance.json`. `artoo build`
+and `artoo provenance` write it from provider-neutral `artoo-evidence/1` or
+adapt an attached Flip notebook's `flip-render/1` projection.
 
 It is **progressive**: with no projection present the panel hides itself and
 the page reads exactly as authored. To add it to a hand-authored page:
 
 ```html
 <!-- where the panel should appear -->
-<section class="provenance article-full" data-artoo-provenance></section>
+<section class="provenance article-breakout" data-artoo-provenance></section>
 
 <!-- before </body>: the offline data global, then the hydrator -->
 <script src="data/provenance.js"></script>
@@ -53,8 +53,8 @@ the page reads exactly as authored. To add it to a hand-authored page:
 from a `file://` URL with no server (a bare `fetch()` of a sibling JSON is
 blocked under `file://`; a `<script>` assignment is not). If you omit it, the
 hydrator falls back to `fetch("data/provenance.json")`, which works over HTTP.
-Both files are written by `artoo provenance`; if there is no attached notebook
-they do not exist, so only wire the panel on artifacts that have one.
+Both files are written by `artoo provenance`; the deterministic article and
+collection renderers wire the panel automatically when a projection exists.
 
 ### Claim anchors
 
@@ -106,7 +106,7 @@ no runtime) or as a Mermaid diagram. Guidance:
   role sets it) so figures align.
 - **Honesty.** A figure earns its place by helping the reader make a valid
   comparison — include vintages, denominators, and a source note in the
-  `<figcaption>`, per the DES contract.
+  `<figcaption>`, so the comparison can be interpreted honestly.
 
 ## Class vocabulary
 
@@ -128,10 +128,11 @@ no runtime) or as a Mermaid diagram. Guidance:
 | `article-pullquote` | breakout-width quote; attribute it with `<cite>` |
 | `article-pullnumber` | breakout-width figure; `.num` is the value, `.label` its caption |
 | `article-colophon` | how-it-was-made block closing the piece |
-| `site-nav` | multi-page nav bar; `.brand`, `a[aria-current="page"]`, `.nav-toggle` (wired by kit.js) |
+| `site-nav` | multi-page nav; `.brand`, `.nav-toggle` + `.nav-links`, and current-page links (wired by kit.js) |
 | `page` | container for a non-article page; `--narrow` tightens it |
-| `card-grid` | responsive grid of cards |
-| `card` | one card; `h3` heading, `p` body |
+| `card-grid` | responsive grid of navigation cards |
+| `nav-card` | navigation card; use on links to destinations, not as a generic container |
+| `card` | deprecated compatibility alias for nav-card; prefer nav-card in new work |
 | `callout` | boxed aside with a `.callout-title`; `--warn`, `--danger`, `--success` variants |
 | `badge` | inline label; `--accent`, `--success`, `--warn` variants |
 | `stat-row` | row of figures |
@@ -139,6 +140,7 @@ no runtime) or as a Mermaid diagram. Guidance:
 | `toc` | table of contents, as an ordered list |
 | `diagram` | wrapper for an inline SVG or a mermaid block |
 | `colophon` | build and provenance footer |
+| `collection-pager` | previous and next navigation at the foot of a collection page |
 | `numeric` | tabular figures, so columns of numbers align |
 | `no-print` | hide this element when the page is printed |
 | `provenance` | the provenance panel root; mark it `data-artoo-provenance` and provenance.js fills it from data/provenance.json |

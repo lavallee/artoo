@@ -28,7 +28,10 @@
     var navToggle = event.target.closest(".nav-toggle");
     if (navToggle) {
       var links = document.querySelector(".site-nav .nav-links");
-      if (links) links.classList.toggle("open");
+      if (links) {
+        var open = links.classList.toggle("open");
+        navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      }
     }
   });
 

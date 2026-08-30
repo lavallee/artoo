@@ -8,10 +8,10 @@ and the manifest records name, version, and a content hash. From the hash,
 ``update`` re-vendors deliberately.
 
 Libraries resolve from the ``artoo.libraries`` entry-point group; external
-libraries live in their own repos/packages. artoo ships two built-ins:
-``artoo-kit`` for articles, ``artoo-deck`` for presentations, and
-``artoo-grid`` for dense comparison tables. One-off assets (a JS runtime like mermaid) are vendored from
-a URL and recorded under ``[[vendor]]`` with a pinned hash.
+libraries live in their own repos/packages. Artoo ships four built-ins:
+``artoo-kit`` for the accessible foundation, ``artoo-controls`` for explorers,
+``artoo-deck`` for presentations, and ``artoo-grid`` for dense comparisons.
+One-off assets are vendored from a URL and recorded with a pinned hash.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ class Library:
     """A vendorable set of site assets, plus the contract for using them.
 
     ``namespaces`` and ``classes`` are not documentation ornamentation: they
-    are what lets an artifact carry its own usage contract (``AGENTS.md``),
+    are what lets an artifact carry its own detailed usage contract,
     answer ``artoo docs <name>``, and fail a build on an invented class. A
     library that declares neither still vendors fine — it just cannot teach.
     """
@@ -73,11 +73,12 @@ class Library:
 
 
 def _builtin() -> dict[str, Library]:
+    from .controls import library as controls
     from .deck import library as deck
     from .grid import library as grid
     from .kit import library as kit
 
-    return {kit.name: kit, deck.name: deck, grid.name: grid}
+    return {kit.name: kit, controls.name: controls, deck.name: deck, grid.name: grid}
 
 
 def available() -> dict[str, Library]:

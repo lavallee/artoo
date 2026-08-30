@@ -59,7 +59,8 @@
   margin: var(--sp-6) 0;
 }
 
-.card {
+.card,
+.nav-card {
   display: block;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -69,17 +70,20 @@
   transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
-a.card:hover {
+a.card:hover,
+a.nav-card:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
 }
 
-.card h3 {
+.card h3,
+.nav-card h3 {
   margin: 0 0 var(--sp-2);
   font-size: var(--text-lg);
 }
 
-.card p {
+.card p,
+.nav-card p {
   color: var(--text-2);
   font-size: var(--text-sm);
   margin: 0 0 var(--sp-2);
@@ -204,6 +208,15 @@ a.card:hover {
 }
 
 .colophon a { color: var(--muted); text-decoration: underline; }
+
+.collection-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  border-top: 1px solid var(--border);
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-4);
+}
 
 /* -- provenance panel ------------------------------------------------------- */
 /* Data-driven from site/data/provenance.json via provenance.js. Empty when no

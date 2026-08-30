@@ -6,7 +6,27 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-30
+
 ### Added
+
+- **Presentation forms independent of artifact kinds.** New manifests record
+  `form = article | explorer | collection | deck`; older manifests infer the
+  same behavior from kind. Articles and collections can render conservative
+  Markdown into deterministic shells, while deleting `[content]` preserves raw
+  HTML as the escape hatch.
+- **`artoo-controls` and `[[data]]` packing.** Explorers now start with search,
+  declared filters, chips, result counts, reset, URL state, CSV, accessible
+  empty state, and optional saved configurations. One canonical private JSON
+  source produces both publishable JSON and a `file://`-safe JavaScript global.
+- **Provider-neutral evidence and stronger verification.** `artoo-evidence/1`
+  projects through the existing provenance panel with Flip as an optional
+  adapter. Static builds check assets, internal links and anchors, duplicate
+  IDs, and remote runtime dependencies; `artoo verify --browser` adds optional
+  console, overflow, and screenshot proof through a soft Playwright import.
+- **Split agent context.** Generated `AGENTS.md` is now a concise working
+  contract; the full vendored class vocabulary moves to the generated,
+  on-demand `ARTOO_REFERENCE.md`.
 
 - **`artoo-grid`, a third built-in site library.** Dense comparison tables —
   a few hundred entities across a few dozen measures — declared rather than
@@ -41,13 +61,18 @@ All notable changes to artoo are documented here. The format follows
 - **`ArtooStore` in artoo-kit.** The client for that store, with the honest
   fallback: from `file://` or a plain static host there is nothing to write
   to, so it uses `localStorage` and reports `durable === false`. Print
-  `store.describe()` rather than let a reader believe a save reached disk. artoo-kit
-  moves to 0.4.0 for the new asset; `artoo lib update artoo-kit` picks it up.
+  `store.describe()` rather than let a reader believe a save reached disk.
+  `artoo lib update artoo-kit` picks up the new asset.
 - **`artoo docs serve`.** The new topic, covering the state API and where
   saved documents land.
 
 ### Changed
 
+- Artoo now owns its artifact brief and accessible foundation directly.
+  `work/artifact-brief.md` replaces the DES-shaped design brief, the DES badge
+  is gone, and `vizier-guide` remains only as a deprecated compatibility recipe.
+- artoo-kit 0.5.0 adds `.nav-card`, deprecates generic `.card`, and adds the
+  collection pager. Visual effects are no longer rejected as a proxy for taste.
 - A site library may now declare `vendored` file globs. Classes defined in a
   third-party dist file belong to the upstream project, not to the library's
   contract, so they are excluded from the vocabulary the library is asked to

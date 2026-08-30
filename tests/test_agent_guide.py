@@ -15,9 +15,8 @@ def test_init_writes_the_guide(artifact):
     assert "artoo build" in text
 
 
-def test_the_guide_carries_the_vocabulary_so_it_need_not_be_inferred(artifact):
-    """The whole point: the class list is *here*, not in an installed wheel."""
-    text = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+def test_the_on_demand_reference_carries_the_vocabulary(artifact):
+    text = (artifact.dir / agent_guide.REFERENCE_NAME).read_text()
     kit = libraries.available()["artoo-kit"]
     for cls, role in kit.classes.items():
         assert f"`{cls}`" in text
@@ -25,14 +24,16 @@ def test_the_guide_carries_the_vocabulary_so_it_need_not_be_inferred(artifact):
 
 
 def test_the_guide_names_the_namespaces_a_build_will_enforce(artifact):
-    text = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+    guide = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+    text = (artifact.dir / agent_guide.REFERENCE_NAME).read_text()
+    assert agent_guide.REFERENCE_NAME in guide
     assert "`article-`" in text
     assert "artoo docs artoo-kit" in text
 
 
 def test_a_deck_gets_the_deck_vocabulary_and_not_the_kit_one(tmp_path):
     m = scaffold.init_artifact(tmp_path / "talk", title="Talk", kind="presentation")
-    text = (m.dir / agent_guide.GUIDE_NAME).read_text()
+    text = (m.dir / agent_guide.REFERENCE_NAME).read_text()
     assert "`deck-slide`" in text
     assert "`article-full`" not in text
 
@@ -40,7 +41,7 @@ def test_a_deck_gets_the_deck_vocabulary_and_not_the_kit_one(tmp_path):
 def test_the_guide_describes_only_what_is_vendored(artifact):
     """An artifact renders from the bytes it carries; a table describing some
     other version would be worse than none."""
-    text = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+    text = (artifact.dir / agent_guide.REFERENCE_NAME).read_text()
     assert "artoo-deck" not in text
 
 
@@ -77,7 +78,7 @@ def test_lib_update_refreshes_the_guide(artifact):
         main, ["lib", "update", "artoo-kit", "--artifact", str(artifact.dir)]
     )
     assert result.exit_code == 0, result.output
-    assert "`article-full`" in guide.read_text()
+    assert "`article-full`" in (artifact.dir / agent_guide.REFERENCE_NAME).read_text()
 
 
 def test_adding_a_library_adds_its_vocabulary(artifact):
@@ -85,7 +86,7 @@ def test_adding_a_library_adds_its_vocabulary(artifact):
         main, ["lib", "add", "artoo-deck", "--artifact", str(artifact.dir)]
     )
     assert result.exit_code == 0, result.output
-    text = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+    text = (artifact.dir / agent_guide.REFERENCE_NAME).read_text()
     assert "`deck-slide`" in text
     assert "`article-full`" in text
 
@@ -97,3 +98,9 @@ def test_the_guide_is_never_published(artifact):
 
     staged = firewall.stage(artifact, artifact.dir / "_staged")
     assert not any(p.name == agent_guide.GUIDE_NAME for p in staged)
+    assert not any(p.name == agent_guide.REFERENCE_NAME for p in staged)
+
+
+def test_automatic_guide_stays_compact(artifact):
+    text = (artifact.dir / agent_guide.GUIDE_NAME).read_text()
+    assert len(text.split()) < 350

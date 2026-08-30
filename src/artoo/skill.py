@@ -10,9 +10,9 @@ the body is only read when a task matches. The layout here is the common one:
 ``SKILL.md`` with YAML frontmatter, and a ``references/`` directory the agent
 opens on demand rather than up front.
 
-Everything is generated from :mod:`artoo.docs`, so the skill, ``artoo docs``,
-and the ``AGENTS.md`` written into each artifact are three renderings of one
-source. A skill that drifts from the tool it describes is worse than none.
+The skill's references are generated from :mod:`artoo.docs`, the same source
+as ``artoo docs`` and the artifact's on-demand reference. A skill that drifts
+from the tool it describes is worse than none.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ SKILL_NAME = "artoo"
 # when they want an artifact without knowing artoo is what makes one.
 DESCRIPTION = (
     "Build a self-contained HTML artifact with artoo — a report, explainer, "
-    "research review, walkthrough, or presentation deck that renders from a "
+    "research review, explorer, collection, or presentation deck that renders from a "
     "file:// URL with vendored styling and optional research provenance. Use "
     "when asked to produce a report, explainer, deck, one-off site, or "
     "publishable write-up inside a repo, when a directory holds an "
@@ -45,10 +45,9 @@ presentation with the research behind it. An artifact is a directory holding an
 `artifact.toml`, living inside whatever repo owns its subject.
 
 Reach for it whenever the deliverable is a page rather than a markdown file: a
-report, an explainer, a research review, a walkthrough, a slide deck. Do not
-hand-roll the HTML and CSS, and do not copy a previous artifact — the styling
-is a vendored library with a documented vocabulary, and the build checks your
-markup against it.
+report, an explainer, a research review, a walkthrough, an explorer, a
+collection, or a slide deck. Start from a declared Artoo form rather than
+copying a previous artifact; raw HTML remains available when the form needs it.
 
 ## Check it is there
 
@@ -62,18 +61,19 @@ it by hand. (`uv tool install artoo-artifacts`, if installing is wanted.)
 ## The path
 
 ```bash
-artoo init docs/spending-report --title "Where the money went"
+artoo init docs/spending-report --kind report --form article --title "Where the money went"
 ```
 
-That writes the manifest, a starter page, vendored styling, a private design
-brief, and an **`AGENTS.md` inside the new artifact**. Read that file first: it
-carries the class vocabulary generated from the stylesheets *this* artifact
-actually vendored, so it cannot advertise a class that is not there.
+That writes the manifest, Markdown source, vendored styling, a private artifact
+brief, concise `AGENTS.md`, and an on-demand `ARTOO_REFERENCE.md`. Read the
+short guide first. Open the reference only when the full class vocabulary or
+firewall detail is useful.
 
-Then author `site/index.html`, and:
+Then author the `[content]` source named by `artifact.toml`, and:
 
 ```bash
 artoo build  docs/spending-report    # verify, refresh inputs, stamp `updated`
+artoo verify docs/spending-report    # links, assets, anchors, offline runtime
 artoo deploy docs/spending-report    # firewall-staged publish
 ```
 
@@ -82,19 +82,25 @@ library's namespace that the library does not define, and names the nearest
 real class. If it fails that way, fix the class — do not add CSS to make the
 invented name work.
 
-For a deck rather than an article:
+Kind describes the subject; form describes the reading mode:
 
 ```bash
 artoo init talks/q3 --kind presentation --title "Q3 review"
+artoo init data/places --kind report --form explorer --title "Compare places"
 ```
 
 Kinds: `explainer`, `report`, `reference-guide`, `research-review`,
 `walkthrough`, `presentation`, `case-study`, `explorer`, `note`.
 
+Forms: `article`, `explorer`, `collection`, `deck`. Articles and collections
+render deterministic Markdown. Explorers arrive with common controls and
+offline JSON packing. Delete `[content]` only when taking ownership of raw
+`site/` HTML deliberately.
+
 ## Rules that are not negotiable
 
-1. **Use the vendored vocabulary.** `artoo docs artoo-kit` (articles) or
-   `artoo docs artoo-deck` (slides) lists every class with its role. An
+1. **Use the vendored vocabulary.** `ARTOO_REFERENCE.md` and
+   `artoo docs artoo-kit` list every class with its role. An
    invented class renders as nothing and reads as a styling bug.
 2. **Nothing loads from the network.** The page must render from `file://` —
    no CDN scripts, no remote fonts, no external stylesheets. Vendor a runtime

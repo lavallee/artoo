@@ -25,7 +25,7 @@
 </nav>
 <main class="article">
   <header class="article-header">
-    <div class="article-kicker">artifact generator &amp; manager <span class="badge badge--accent">v0.4.0 alpha</span></div>
+    <div class="article-kicker">artifact generator &amp; manager <span class="badge badge--accent">v0.5.0 alpha</span></div>
     <h1 class="article-title">Explanations as real pages, not markdown dumps.</h1>
     <p class="article-dek">artoo generates and manages <em>artifacts</em>:
     self-contained HTML mini-sites that pair presentation with the research
@@ -68,6 +68,11 @@ artoo deploy site/my-report</code></pre>
       <p>Shared components are vendored into each artifact with
       name + version + hash recorded in the manifest: self-contained
       forever, upgraded deliberately with <code>artoo lib update</code>.</p></div>
+    <div class="card"><h3>Form follows the evidence</h3>
+      <p>Choose an article, explorer, collection, or deck independently of
+      what the artifact is about. Markdown collections gain deterministic
+      navigation; explorers gain declared search, filters, URL state, and
+      downloads without rebuilding the same controls.</p></div>
     <div class="card"><h3>Decks, not styled articles</h3>
       <p><code>--kind presentation</code> stamps a working deck on the
       built-in <code>artoo-deck</code> library: acts, speaker notes,
@@ -83,9 +88,10 @@ artoo deploy site/my-report</code></pre>
       <code>codex</code> for analysis fan-out, <code>claude</code> for
       synthesis. artoo core makes no model calls and holds no keys.</p></div>
     <div class="card"><h3>Research stays with the piece</h3>
-      <p>Generator runs are recorded as reporter's-notebook sources and
-      claims (via <a href="https://github.com/lavallee/flip">flip</a>) or
-      plain markdown logs — behind the firewall either way.</p></div>
+      <p>A provider-neutral evidence projection carries source and claim
+      custody into the page. <a href="https://github.com/lavallee/flip">Flip</a>
+      remains an optional adapter; private working material stays behind the
+      publish firewall either way.</p></div>
     <div class="card"><h3>Plugins</h3>
       <p>Generators, deploy adapters, and site libraries are entry-point
       plugins. The ecosystem grows in separate repos; the core stays

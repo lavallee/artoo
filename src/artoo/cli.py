@@ -9,13 +9,15 @@ from pathlib import Path
 
 import click
 
-from . import __version__, build as build_mod, deploy as deploy_mod
+from . import __version__, build as build_mod, content as content_mod
+from . import data as data_mod, deploy as deploy_mod
 from . import agent_guide, discover, docs as docs_mod, firewall, flip_read, generators
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
 from . import provenance as provenance_mod
 from . import scaffold, serve as serve_mod, skill as skill_mod, vizier as vizier_mod
-from .manifest import KINDS, Manifest
+from . import verify as verify_mod
+from .manifest import FORMS, KINDS, Manifest
 
 
 def _resolve(path: str | None) -> Manifest:
@@ -35,6 +37,13 @@ def _refresh_guide(m: Manifest) -> None:
     """
     path = agent_guide.write(m)
     click.echo(f"refreshed {path.name} for the new vendored set")
+
+
+def _declared_source_problems(m: Manifest) -> list[str]:
+    problems = content_mod.render(m, dry_run=True).problems
+    problems.extend(data_mod.pack(m, dry_run=True).problems)
+    problems.extend(provenance_mod.evidence_source_problems(m))
+    return problems
 
 
 def _deploy_doctor_gate(m: Manifest, allow_errors: bool) -> None:
@@ -76,8 +85,8 @@ def main():
 
     New here? `artoo docs quickstart` is the golden path, and `artoo docs`
     lists every topic including the layout vocabulary each site library
-    defines. `artoo init` writes an AGENTS.md into the artifact it creates,
-    so the contract travels with the work.
+    defines. `artoo init` writes concise working rules plus an on-demand full
+    reference into the artifact, so the contract travels with the work.
     """
 
 
@@ -86,13 +95,27 @@ def main():
 @click.option("--slug", default="", help="Artifact slug (default: directory name).")
 @click.option("--title", default="", help="Human title.")
 @click.option("--kind", default="report", type=click.Choice(KINDS), show_default=True)
+@click.option(
+    "--form",
+    default=None,
+    type=click.Choice(FORMS),
+    help="Presentation form (inferred from --kind when omitted).",
+)
 @click.option("--description", default="")
 @click.option("--notebook", is_flag=True, help="Also create a research notebook.")
-def init(path: Path, slug: str, title: str, kind: str, description: str, notebook: bool):
+def init(
+    path: Path,
+    slug: str,
+    title: str,
+    kind: str,
+    form: str | None,
+    description: str,
+    notebook: bool,
+):
     """Scaffold a new artifact at PATH."""
     try:
         m = scaffold.init_artifact(
-            path, slug=slug, title=title, kind=kind,
+            path, slug=slug, title=title, kind=kind, form=form or "",
             description=description, with_notebook=notebook,
         )
     except FileExistsError as exc:
@@ -100,8 +123,9 @@ def init(path: Path, slug: str, title: str, kind: str, description: str, noteboo
     click.echo(f"created {m.dir}")
     click.echo(f"  manifest  {m.path.relative_to(Path.cwd()) if m.path.is_relative_to(Path.cwd()) else m.path}")
     click.echo(f"  site      {m.site}/index.html")
-    click.echo("  design    work/design-brief.md (private)")
-    click.echo(f"  contract  {agent_guide.GUIDE_NAME} — layout vocabulary and rules")
+    click.echo("  brief     work/artifact-brief.md (private)")
+    click.echo(f"  contract  {agent_guide.GUIDE_NAME} — concise working rules")
+    click.echo(f"  reference {agent_guide.REFERENCE_NAME} — full vocabulary, on demand")
     if notebook:
         click.echo("  notebook  notebook/")
     click.echo(f"\nRead {m.dir / agent_guide.GUIDE_NAME} before authoring; "
@@ -136,6 +160,11 @@ def vizier_guide(
     artifact: Path | None,
 ):
     """Record optional local Vizier implementation guidance for an artifact."""
+    click.secho(
+        "deprecated: Vizier is an optional recipe, not part of Artoo's authoring contract",
+        fg="yellow",
+        err=True,
+    )
     m = _resolve(str(artifact) if artifact else None)
     try:
         receipt = vizier_mod.run_guide(
@@ -180,6 +209,7 @@ def list_cmd(root: Path, as_json: bool):
                     "title": m.title,
                     "description": m.description,
                     "kind": m.kind,
+                    "form": m.effective_form,
                     "status": m.status,
                     "created": m.created,
                     "updated": m.updated,
@@ -211,9 +241,15 @@ def status(path: Path | None, as_json: bool):
     """Manifest health, firewall report, and library drift for an artifact."""
     m = _resolve(str(path) if path else None)
     findings = libraries_mod.markup_check(m)
+    verification = verify_mod.static(m) if m.site_dir.is_dir() else verify_mod.VerificationResult()
 
     if as_json:
-        problems = m.validate() + firewall.check(m)
+        problems = (
+            m.validate()
+            + _declared_source_problems(m)
+            + firewall.check(m)
+            + verification.problems
+        )
         if m.site_dir.is_dir():
             problems += provenance_mod.data_json_problems(m.site_dir)
         report = {
@@ -221,10 +257,12 @@ def status(path: Path | None, as_json: bool):
             "slug": m.slug,
             "title": m.title,
             "kind": m.kind,
+            "form": m.effective_form,
             "status": m.status,
             "deploy_target": m.deploy_target,
             "site_dir": str(m.site_dir),
             "problems": problems,
+            "warnings": verification.warnings,
             "withheld": [str(r) for r in firewall.withheld(m.site_dir)]
             if m.site_dir.is_dir()
             else [],
@@ -249,9 +287,17 @@ def status(path: Path | None, as_json: bool):
         return
 
     click.echo(f"{m.slug} — {m.title}")
-    click.echo(f"  kind {m.kind} · status {m.status} · deploy {m.deploy_target or '(unset)'}")
+    click.echo(
+        f"  kind {m.kind} · form {m.effective_form} · status {m.status} · "
+        f"deploy {m.deploy_target or '(unset)'}"
+    )
 
-    problems = m.validate() + firewall.check(m)
+    problems = (
+        m.validate()
+        + _declared_source_problems(m)
+        + firewall.check(m)
+        + verification.problems
+    )
     if m.site_dir.is_dir():
         problems += provenance_mod.data_json_problems(m.site_dir)
     for problem in problems:
@@ -282,8 +328,11 @@ def status(path: Path | None, as_json: bool):
     for finding in findings:
         click.secho(f"  ✗ {finding.message()}", fg="red")
 
+    for warning in verification.warnings:
+        click.secho(f"  ! {warning}", fg="yellow")
+
     if not problems and not findings:
-        click.secho("  ✓ manifest, firewall, and markup clean", fg="green")
+        click.secho("  ✓ manifest, firewall, markup, and static verification clean", fg="green")
 
 
 @main.command(name="build")
@@ -305,7 +354,9 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
                     "site_dir": str(m.site_dir),
                     "dry_run": dry_run,
                     "ran": result.ran,
+                    "generated": result.generated,
                     "problems": result.problems,
+                    "warnings": result.warnings,
                     "withheld": result.withheld,
                     "stamped": result.stamped,
                     "provenance": result.provenance,
@@ -317,10 +368,14 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
 
     for command in result.ran:
         click.echo(f"{'would run' if dry_run else 'ran'}: {command}")
+    if result.generated:
+        click.echo(f"generated {len(result.generated)} file(s)")
     if result.provenance:
         click.echo(result.provenance)
     for problem in result.problems:
         click.secho(f"✗ {problem}", fg="red")
+    for warning in result.warnings:
+        click.secho(f"! {warning}", fg="yellow")
     if result.ok:
         if result.stamped:
             click.echo(f"stamped updated = {result.stamped}")
@@ -329,20 +384,80 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
         raise SystemExit(1)
 
 
+@main.command(name="verify")
+@click.argument("path", type=click.Path(path_type=Path), required=False)
+@click.option("--browser", "use_browser", is_flag=True, help="Also run optional Chromium checks.")
+@click.option(
+    "--screenshots",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write phone and desktop screenshots (requires --browser).",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
+def verify_cmd(
+    path: Path | None,
+    use_browser: bool,
+    screenshots: Path | None,
+    as_json: bool,
+):
+    """Check links, assets, markup, offline behavior, and optionally Chromium."""
+    m = _resolve(str(path) if path else None)
+    if screenshots is not None and not use_browser:
+        raise click.ClickException("--screenshots requires --browser")
+    screenshot_dir = None
+    if screenshots is not None:
+        screenshot_dir = screenshots if screenshots.is_absolute() else m.dir / screenshots
+    result = verify_mod.run(m, use_browser=use_browser, screenshots=screenshot_dir)
+    if as_json:
+        click.echo(
+            json.dumps(
+                {
+                    "ok": result.ok,
+                    "problems": result.problems,
+                    "warnings": result.warnings,
+                    "screenshots": [str(path) for path in result.screenshots],
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(0 if result.ok else 1)
+    for problem in result.problems:
+        click.secho(f"✗ {problem}", fg="red")
+    for warning in result.warnings:
+        click.secho(f"! {warning}", fg="yellow")
+    for image in result.screenshots:
+        click.echo(f"screenshot {image}")
+    if result.ok:
+        click.secho("✓ static verification clean" + ("; browser clean" if use_browser else ""), fg="green")
+    else:
+        raise SystemExit(1)
+
+
 @main.command(name="provenance")
 @click.argument("path", type=click.Path(path_type=Path), required=False)
 def provenance_cmd(path: Path | None):
-    """Project the attached flip notebook into site/data/provenance.json."""
+    """Project declared evidence or a flip notebook into site/data/provenance.json."""
     m = _resolve(str(path) if path else None)
     result = provenance_mod.ingest(m)
     if result.status == "written":
         c = result.counts
         grades = " / ".join(f"{n} {g}" for g, n in sorted(c["grades"].items())) or "none graded"
         click.echo(f"wrote {result.path.relative_to(m.dir)}")
-        click.echo(f"  notebook  {result.vintage.get('uid') or '?'} · updated {result.vintage.get('updated') or '?'}")
+        if m.evidence_source:
+            click.echo(f"  evidence  {m.evidence_source} · artoo-evidence/1")
+        else:
+            click.echo(
+                f"  notebook  {result.vintage.get('uid') or '?'} · "
+                f"updated {result.vintage.get('updated') or '?'}"
+            )
         click.echo(f"  sources   {c['sources']} ({grades})")
         click.echo(f"  claims    {c['claims']} · {c['load_bearing']} load-bearing")
-        click.secho("  ✓ render vintage recorded in artifact.toml", fg="green")
+        note = (
+            "  ✓ neutral evidence projected"
+            if m.evidence_source
+            else "  ✓ render vintage recorded in artifact.toml"
+        )
+        click.secho(note, fg="green")
     elif result.status == "skipped":
         click.echo(f"skipped: {result.note}")
     else:
@@ -631,7 +746,17 @@ def doctor(root: Path, as_json: bool):
         except Exception as exc:
             reports.append({"path": str(p), "error": str(exc), "ok": False})
             continue
-        problems = m.validate() + firewall.check(m)
+        verification = (
+            verify_mod.static(m) if m.site_dir.is_dir() else verify_mod.VerificationResult()
+        )
+        problems = (
+            m.validate()
+            + _declared_source_problems(m)
+            + firewall.check(m)
+            + verification.problems
+        )
+        if m.site_dir.is_dir():
+            problems += provenance_mod.data_json_problems(m.site_dir)
         drifted = [r for r in libraries_mod.status(m) if r["state"] != "intact"]
         markup_notes = [f.message() for f in libraries_mod.markup_check(m)]
         reports.append(
@@ -641,6 +766,7 @@ def doctor(root: Path, as_json: bool):
                 "problems": problems,
                 "drifted": drifted,
                 "markup": markup_notes,
+                "warnings": verification.warnings,
                 "ok": not problems and not drifted and not markup_notes,
             }
         )
@@ -666,13 +792,15 @@ def doctor(root: Path, as_json: bool):
         if report.get("error"):
             click.secho(f"✗ {report['path']}: unreadable manifest ({report['error']})", fg="red")
             continue
-        if report["ok"]:
+        if report["ok"] and not report["warnings"]:
             continue
         click.echo(f"{report['slug']} ({report['path']})")
         for problem in report["problems"]:
             click.secho(f"  ✗ {problem}", fg="red")
         for note in report["markup"]:
             click.secho(f"  ✗ {note}", fg="red")
+        for warning in report["warnings"]:
+            click.secho(f"  ! {warning}", fg="yellow")
         for row in report["drifted"]:
             click.secho(f"  ! lib {row['name']}: {row['state']}", fg="yellow")
     clean = sum(1 for r in reports if r["ok"])

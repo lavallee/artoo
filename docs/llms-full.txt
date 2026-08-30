@@ -18,49 +18,54 @@ repo can hold many.
 
 ```bash
 artoo init docs/spending-report --title "Where the money went"
-# …author site/index.html…
+# …author content.md; use raw site/index.html when the form needs it…
 artoo status docs/spending-report     # manifest health, firewall, library drift
-artoo build  docs/spending-report     # refresh inputs, verify, stamp `updated`
+artoo build  docs/spending-report     # render, pack data, verify, stamp `updated`
+artoo verify docs/spending-report     # links, assets, anchors, offline dependencies
 artoo deploy docs/spending-report     # firewall-stage, then publish
 ```
 
-`artoo init` writes an `AGENTS.md` into the new artifact carrying the layout
-contract for whatever library it vendored. Read that file before writing
-markup; it is generated from the stylesheets actually vendored into *that*
-artifact, so it cannot describe a class that is not there.
+`artoo init` writes a concise `AGENTS.md` for automatic context and an
+`ARTOO_REFERENCE.md` carrying the complete layout vocabulary generated from
+the libraries that artifact actually vendored. Open the latter only when the
+work needs the deeper contract.
 
 ## What init creates
 
 ```
 docs/spending-report/
   artifact.toml           the manifest — source of truth
-  AGENTS.md               the usage contract (generated; safe to extend)
+  AGENTS.md               concise working rules (generated; safe to extend)
+  ARTOO_REFERENCE.md      full vendored vocabulary, on demand
+  content.md              article source (omit [content] to own raw site/ HTML)
   site/
     index.html            the starter page
     lib/artoo-kit/        vendored, hash-pinned styling
   work/
-    design-brief.md       private: reader decision, headline claim, limits
+    artifact-brief.md     private: reader decision, claim, limits, intent
 ```
 
 Only `site/` is publishable. See `artoo docs firewall`.
 
-## Choosing a kind
+## Choosing a kind and form
 
-`--kind` is not cosmetic. `presentation` scaffolds a deck — slides, acts,
-speaker notes, landscape print — and vendors `artoo-deck` instead of
-`artoo-kit`. Everything else scaffolds a long-form article page.
+`kind` describes the subject; `form` describes how a reader works with it.
+Artoo infers a useful default, and `--form` overrides it independently.
 
 ```bash
 artoo init talks/q3 --kind presentation --title "Q3 review"
+artoo init data/places --kind report --form explorer --title "Compare places"
 ```
 
 Kinds: `explainer`, `report`, `reference-guide`, `research-review`,
 `walkthrough`, `presentation`, `case-study`, `explorer`, `note`.
 
+Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
+
 ## Authoring rules that matter
 
-1. **Use the vocabulary the artifact vendored.** `artoo docs artoo-kit` (or
-   `artoo-deck`) lists every class, with its role. `artoo build` fails on a
+1. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
+   `artoo docs artoo-kit` list every class, with its role. `artoo build` fails on a
    class invented inside a library's namespace, and names the nearest real
    one.
 2. **Never reach for a CDN.** An artifact must render from a `file://` URL.
@@ -81,6 +86,55 @@ artoo doctor .           # repo-wide coherence: manifests, firewall, drift
 
 ---
 
+# Kinds and presentation forms
+
+*On its own: `artoo docs forms`*
+
+Artoo keeps two decisions separate:
+
+- `kind` says what the artifact is about: report, explainer, research review,
+  reference guide, walkthrough, case study, explorer, presentation, or note.
+- `form` says how a reader uses it: article, explorer, collection, or deck.
+
+This keeps taxonomy useful without turning it into a template gate. A report
+can be an article, an interactive explorer, or a deck. `artoo init` infers the
+common form from kind; `--form` overrides it.
+
+## Article
+
+`[content] source = "content.md"` renders a deterministic shell, title and
+update metadata, TOC, section anchors, optional evidence panel, and colophon
+around conservative Markdown. Delete the `[content]` table when the artifact
+needs hand-authored HTML; Artoo then leaves `site/` alone.
+
+## Explorer
+
+The starter includes `artoo-controls`: search, declared filters, active chips,
+result counts, reset, URL state, CSV, an accessible empty state, and optional
+saved views. It also declares a `[[data]]` pack so the same JSON works over HTTP
+and `file://`. Add `artoo-grid` when the evidence is a dense comparison table;
+controls and grid remain separate because many explorers render maps, lists,
+or custom figures instead.
+
+## Collection
+
+`[content] pages = "content"` renders each top-level Markdown file as a page;
+`order = ["index.md", "evidence.md"]` is its page manifest. `index.md` is
+required. Navigation, current-page state, breadcrumbs, and previous/next links
+derive from that order. Missing or unlisted pages fail the build rather than
+silently disappearing from navigation. Older declarations without `order`
+fall back to index-first alphabetical order. Artoo records the HTML files it
+generated in `work/artoo-content.json`, so a renamed page removes its stale
+generated output without touching hand-authored files in `site/`.
+
+## Deck
+
+The deck scaffold owns one-frame-at-a-time reading, acts, speaker notes,
+overview, keyboard and touch navigation, and landscape print. It remains raw
+HTML because slide composition is intentionally spatial.
+
+---
+
 # artifact.toml
 
 *On its own: `artoo docs manifest`*
@@ -96,6 +150,7 @@ slug = "spending-report"          # [a-zA-Z0-9-_], required
 title = "Where the money went"    # required
 description = "…"
 kind = "report"                   # see the kinds list below
+form = "article"                  # article | explorer | collection | deck
 status = "draft"                  # draft | building | live | archived
 created = "2026-08-18"
 updated = "2026-08-18"            # stamped by a successful `artoo build`
@@ -103,6 +158,20 @@ updated = "2026-08-18"            # stamped by a successful `artoo build`
 [build]
 site = "site"                     # the publishable root, relative, inside the artifact
 commands = ["make data"]          # refresh generated inputs; run with the artifact dir as cwd
+
+[content]
+source = "content.md"             # article Markdown rendered deterministically
+# pages = "content"               # or a flat collection containing index.md
+# order = ["index.md", "evidence.md"]  # collection navigation and page order
+
+[[data]]
+source = "work/items.json"        # canonical JSON, outside the publish root
+path = "data/items.json"          # generated under build.site
+script = "data/items.js"          # optional; defaults to path with .js
+global = "ARTOO_DATA"             # offline window global
+
+[evidence]
+source = "work/evidence.json"     # provider-neutral artoo-evidence/1 projection
 
 [research]
 notebook = "notebook"             # relative path to a flip notebook; may escape with ../
@@ -132,9 +201,18 @@ path = "site/lib/vendor/mermaid.min.js"
 **Kinds**: `explainer`, `report`, `reference-guide`, `research-review`,
 `walkthrough`, `presentation`, `case-study`, `explorer`, `note`.
 
+**Forms**: `article`, `explorer`, `collection`, `deck`. Older manifests without
+`form` are inferred: presentation → deck, explorer → explorer,
+reference-guide → collection, everything else → article.
+
 ## Rules the validator enforces
 
 - `slug` and `title` are required; `kind` and `status` must be known values.
+- `form`, when present, must be one of the four known presentation forms.
+- `[content]` declares either `source` or `pages`, never both. Collection
+  `order` entries are top-level `.md` files and must match the directory.
+- `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
+  files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
@@ -145,6 +223,75 @@ path = "site/lib/vendor/mermaid.min.js"
 
 Check any artifact with `artoo status <path>`, or a whole repo with
 `artoo doctor .`.
+
+---
+
+# Deterministic data packing
+
+*On its own: `artoo docs data`*
+
+Explorers repeatedly need one canonical JSON file plus a JavaScript global that
+works from `file://`, where fetching a sibling file is blocked. Declare that
+join once:
+
+```toml
+[[data]]
+source = "work/items.json"
+path = "data/items.json"
+script = "data/items.js"
+global = "ARTOO_DATA"
+```
+
+`artoo build` validates the source, writes pretty canonical JSON under `site/`,
+and writes the sibling loader as `window.ARTOO_DATA = …`. The source can stay
+behind the firewall; both generated outputs are deterministic. Omit `script`
+to derive it from `path` by replacing the suffix with `.js`.
+
+Every destination must remain under `build.site`, and the global must be a
+plain JavaScript identifier. Multiple `[[data]]` entries are allowed.
+
+Use `artoo-controls` for recurring search/filter/download behavior and
+`artoo-grid` for dense analytical tables. Neither owns the data preparation;
+build commands can refresh `work/items.json` first, then the packer publishes
+the exact result.
+
+---
+
+# Verification
+
+*On its own: `artoo docs verify`*
+
+`artoo build` runs static verification after rendering content, packing data,
+and projecting evidence. `artoo verify` runs it without changing the artifact.
+
+Hard failures cover:
+
+- missing HTML or CSS assets and internal pages;
+- broken fragment anchors and duplicate IDs;
+- references that escape `build.site` or target a firewall-withheld path;
+- root-relative paths that fail from `file://`;
+- remote scripts, styles, fonts, images, and other runtime dependencies;
+- literal remote CSS imports or JavaScript fetch/import calls.
+
+Warnings identify images without `alt`, tables without headings or with uneven
+row widths, and empty or nowhere-pointing controls. They are review prompts,
+not taste scores, and do not fail a build.
+
+## Optional browser proof
+
+```bash
+artoo verify path/to/artifact --browser
+artoo verify path/to/artifact --browser --screenshots work/verification
+```
+
+Browser verification is a soft Playwright integration. When requested, it
+firewall-stages the site, opens every publishable page in Chromium at phone and
+desktop widths, reports page and console errors, checks horizontal overflow,
+and optionally records full-page screenshots. Core Artoo does not depend on Playwright; if it is absent the
+command names the install needed or lets you omit `--browser`.
+
+A clean check proves structural and runtime integrity. It does not promote an
+artifact's status or establish factual, editorial, visual, or human acceptance.
 
 ---
 
@@ -278,15 +425,41 @@ reached disk when it did not.
 
 ---
 
-# Provenance and the research roundtrip
+# Evidence and the research roundtrip
 
 *On its own: `artoo docs provenance`*
 
-An artifact can attach a [flip](https://github.com/lavallee/flip) notebook —
-the research corpus behind the piece — and artoo will read it back out at build
-time so the published page carries its own lineage.
+An artifact can project provider-neutral evidence directly, or attach a
+[flip](https://github.com/lavallee/flip) notebook and use Flip as an adapter.
+Either route lands the same browser-facing provenance files, so presentation
+does not depend on a particular research system.
 
-All of this no-ops cleanly with no flip installed. artoo core has no hard
+## Provider-neutral evidence
+
+```toml
+[evidence]
+source = "work/evidence.json"
+```
+
+The source uses `artoo-evidence/1`:
+
+```json
+{
+  "contract": "artoo-evidence/1",
+  "sources": [{"id": "A1", "title": "Primary dataset", "grade": "A"}],
+  "claims": [{"id": "C1", "text": "The supported claim", "sources": ["A1"]}]
+}
+```
+
+Source ids and titles, claim ids and text, and claim-to-source references are
+validated. A declared source that is missing or invalid fails the build.
+
+## Flip adapter
+
+When `[evidence]` is absent, an artifact can attach a Flip notebook. Artoo reads
+it back out at build time so the published page carries its own lineage.
+
+The Flip route no-ops cleanly with no Flip installed. Artoo core has no hard
 dependency on it; the integration is a soft import, discovered on `PATH` or
 pinned with `ARTOO_FLIP_BIN`.
 
@@ -308,20 +481,20 @@ artoo provenance <artifact>   # flip export json → site/data/provenance.json
 artoo status     <artifact>   # …and reports whether the render is stale
 ```
 
-`artoo build` refreshes the projection automatically and records the notebook
+`artoo build` refreshes either projection automatically and records a Flip notebook
 `uid` + `updated` in the manifest as the render vintage. flip does the
 policy filtering; artoo passes `--include-private` only when the manifest sets
 `[research] include_private = true`.
 
-A refusal here is never a build failure — no flip, no notebook, or a
+A Flip refusal here is never a build failure — no Flip, no notebook, or a
 visibility policy that declines all read as a note.
 
 ## Rendering the panel
 
-The kit ships the panel; wiring it is three lines:
+The kit ships the panel; both evidence routes use the same three lines:
 
 ```html
-<section class="provenance article-full" data-artoo-provenance></section>
+<section class="provenance article-breakout" data-artoo-provenance></section>
 
 <script src="data/provenance.js"></script>
 <script src="lib/artoo-kit/provenance.js"></script>
@@ -420,6 +593,70 @@ my-generator = "mypkg.gen:generate"
 Generators that write into `site/` should use the vendored library vocabulary —
 `artoo docs artoo-kit` — so their output passes the same markup check as
 hand-authored pages.
+
+---
+
+# artoo-controls 0.1.0
+
+*On its own: `artoo docs artoo-controls`*
+
+Search, filter groups, active chips, result counts, URL state, CSV downloads, and optional saved explorer configurations.
+
+The recurring interaction shell for an explorer: search, declared filters,
+active chips, a live result count, reset, URL state, CSV download, and optional
+named configurations. It works with ordinary arrays and renders from
+`file://`; the explorer remains responsible for presenting the filtered rows.
+
+```html
+<div id="controls"></div>
+<script src="data/items.js"></script>
+<script src="lib/artoo-controls/controls.js"></script>
+<script>
+const controls = ArtooControls.create("#controls", {
+  data: window.ARTOO_DATA,
+  search: { fields: ["name", "description"], label: "Search" },
+  filters: [{ field: "type", label: "Type" }],
+  url: true,
+  download: "items.csv",
+  onChange(rows, state) { render(rows); },
+});
+</script>
+```
+
+Filter options are inferred from the rows unless an `options` array is
+declared. Set `multiple: true` for a multiple select. `controls.state()` returns
+the current `{q, filters}` value and `controls.setState(value)` restores one.
+
+Set `presets: "collection-name"` to show Save and Load buttons. When
+`ArtooStore` is loaded, saves go through `artoo serve` into reviewable
+`state/` files; otherwise controls say that presets are unavailable rather
+than implying durability they do not have.
+
+URL state uses `history.replaceState`; it never reloads the page. CSV is built
+from the filtered rows. Pass `downloadFields` to control its columns.
+
+## Class vocabulary
+
+| class | role |
+|---|---|
+| `controls` | root enhanced by ArtooControls.create() |
+| `controls-bar` | responsive row containing search, filters, and actions |
+| `controls-field` | label and input pair |
+| `controls-search` | free-text search input |
+| `controls-select` | single- or multiple-value filter |
+| `controls-actions` | reset, download, and optional preset actions |
+| `controls-summary` | live result summary and active filters |
+| `controls-count` | aria-live result count |
+| `controls-chips` | active-filter list |
+| `controls-chip` | button that removes one active filter |
+| `controls-reset` | clear-all button |
+| `controls-download` | CSV download button |
+| `controls-save` | save-current-configuration button |
+| `controls-load` | restore-saved-configuration button |
+| `controls-status` | preset durability and result feedback |
+| `controls-empty` | accessible empty-result message authored by the explorer |
+
+artoo-controls owns `controls-`. A class starting with one of those that the vendored stylesheet does not define is a guess, and `artoo build` reports it with the nearest real class. Your own classes belong outside those prefixes.
 
 ---
 
@@ -694,13 +931,13 @@ artoo-grid owns `grid-`. A class starting with one of those that the vendored st
 
 ---
 
-# artoo-kit 0.4.0
+# artoo-kit 0.5.0
 
 *On its own: `artoo docs artoo-kit`*
 
 Long-form article layout, evidence regions, and the provenance panel.
 
-The built-in site library: DES-governed, self-contained styling for public
+The built-in site library: an Artoo-owned, self-contained foundation for public
 artifacts. Vendored into an artifact at `site/lib/artoo-kit/` with a pinned
 hash — changing the kit here does not rewrite already-vendored bytes; `artoo
 lib update artoo-kit` is the explicit upgrade boundary.
@@ -729,18 +966,18 @@ Every page should carry a favicon; without one the browser requests
 
 ## Provenance panel
 
-The panel renders a flip notebook's lineage — sources with grades and
+The panel renders an artifact's lineage — sources with grades and
 independence, claims with status and verification-method badges, counts, and
-the notebook vintage — from `site/data/provenance.json` (the `flip-render/1`
-projection that `artoo build` / `artoo provenance` writes from an attached
-notebook).
+an optional notebook vintage — from `site/data/provenance.json`. `artoo build`
+and `artoo provenance` write it from provider-neutral `artoo-evidence/1` or
+adapt an attached Flip notebook's `flip-render/1` projection.
 
 It is **progressive**: with no projection present the panel hides itself and
 the page reads exactly as authored. To add it to a hand-authored page:
 
 ```html
 <!-- where the panel should appear -->
-<section class="provenance article-full" data-artoo-provenance></section>
+<section class="provenance article-breakout" data-artoo-provenance></section>
 
 <!-- before </body>: the offline data global, then the hydrator -->
 <script src="data/provenance.js"></script>
@@ -751,8 +988,8 @@ the page reads exactly as authored. To add it to a hand-authored page:
 from a `file://` URL with no server (a bare `fetch()` of a sibling JSON is
 blocked under `file://`; a `<script>` assignment is not). If you omit it, the
 hydrator falls back to `fetch("data/provenance.json")`, which works over HTTP.
-Both files are written by `artoo provenance`; if there is no attached notebook
-they do not exist, so only wire the panel on artifacts that have one.
+Both files are written by `artoo provenance`; the deterministic article and
+collection renderers wire the panel automatically when a projection exists.
 
 ### Claim anchors
 
@@ -804,7 +1041,7 @@ no runtime) or as a Mermaid diagram. Guidance:
   role sets it) so figures align.
 - **Honesty.** A figure earns its place by helping the reader make a valid
   comparison — include vintages, denominators, and a source note in the
-  `<figcaption>`, per the DES contract.
+  `<figcaption>`, so the comparison can be interpreted honestly.
 
 ## Class vocabulary
 
@@ -826,10 +1063,11 @@ no runtime) or as a Mermaid diagram. Guidance:
 | `article-pullquote` | breakout-width quote; attribute it with `<cite>` |
 | `article-pullnumber` | breakout-width figure; `.num` is the value, `.label` its caption |
 | `article-colophon` | how-it-was-made block closing the piece |
-| `site-nav` | multi-page nav bar; `.brand`, `a[aria-current="page"]`, `.nav-toggle` (wired by kit.js) |
+| `site-nav` | multi-page nav; `.brand`, `.nav-toggle` + `.nav-links`, and current-page links (wired by kit.js) |
 | `page` | container for a non-article page; `--narrow` tightens it |
-| `card-grid` | responsive grid of cards |
-| `card` | one card; `h3` heading, `p` body |
+| `card-grid` | responsive grid of navigation cards |
+| `nav-card` | navigation card; use on links to destinations, not as a generic container |
+| `card` | deprecated compatibility alias for nav-card; prefer nav-card in new work |
 | `callout` | boxed aside with a `.callout-title`; `--warn`, `--danger`, `--success` variants |
 | `badge` | inline label; `--accent`, `--success`, `--warn` variants |
 | `stat-row` | row of figures |
@@ -837,6 +1075,7 @@ no runtime) or as a Mermaid diagram. Guidance:
 | `toc` | table of contents, as an ordered list |
 | `diagram` | wrapper for an inline SVG or a mermaid block |
 | `colophon` | build and provenance footer |
+| `collection-pager` | previous and next navigation at the foot of a collection page |
 | `numeric` | tabular figures, so columns of numbers align |
 | `no-print` | hide this element when the page is printed |
 | `provenance` | the provenance panel root; mark it `data-artoo-provenance` and provenance.js fills it from data/provenance.json |

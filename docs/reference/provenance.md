@@ -1,10 +1,36 @@
-# Provenance and the research roundtrip
+# Evidence and the research roundtrip
 
-An artifact can attach a [flip](https://github.com/lavallee/flip) notebook —
-the research corpus behind the piece — and artoo will read it back out at build
-time so the published page carries its own lineage.
+An artifact can project provider-neutral evidence directly, or attach a
+[flip](https://github.com/lavallee/flip) notebook and use Flip as an adapter.
+Either route lands the same browser-facing provenance files, so presentation
+does not depend on a particular research system.
 
-All of this no-ops cleanly with no flip installed. artoo core has no hard
+## Provider-neutral evidence
+
+```toml
+[evidence]
+source = "work/evidence.json"
+```
+
+The source uses `artoo-evidence/1`:
+
+```json
+{
+  "contract": "artoo-evidence/1",
+  "sources": [{"id": "A1", "title": "Primary dataset", "grade": "A"}],
+  "claims": [{"id": "C1", "text": "The supported claim", "sources": ["A1"]}]
+}
+```
+
+Source ids and titles, claim ids and text, and claim-to-source references are
+validated. A declared source that is missing or invalid fails the build.
+
+## Flip adapter
+
+When `[evidence]` is absent, an artifact can attach a Flip notebook. Artoo reads
+it back out at build time so the published page carries its own lineage.
+
+The Flip route no-ops cleanly with no Flip installed. Artoo core has no hard
 dependency on it; the integration is a soft import, discovered on `PATH` or
 pinned with `ARTOO_FLIP_BIN`.
 
@@ -26,20 +52,20 @@ artoo provenance <artifact>   # flip export json → site/data/provenance.json
 artoo status     <artifact>   # …and reports whether the render is stale
 ```
 
-`artoo build` refreshes the projection automatically and records the notebook
+`artoo build` refreshes either projection automatically and records a Flip notebook
 `uid` + `updated` in the manifest as the render vintage. flip does the
 policy filtering; artoo passes `--include-private` only when the manifest sets
 `[research] include_private = true`.
 
-A refusal here is never a build failure — no flip, no notebook, or a
+A Flip refusal here is never a build failure — no Flip, no notebook, or a
 visibility policy that declines all read as a note.
 
 ## Rendering the panel
 
-The kit ships the panel; wiring it is three lines:
+The kit ships the panel; both evidence routes use the same three lines:
 
 ```html
-<section class="provenance article-full" data-artoo-provenance></section>
+<section class="provenance article-breakout" data-artoo-provenance></section>
 
 <script src="data/provenance.js"></script>
 <script src="lib/artoo-kit/provenance.js"></script>

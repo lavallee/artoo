@@ -25,13 +25,12 @@ tool layer for that practice:
   explainer) delegate to agent CLIs you already have — `claude`, `codex` —
   with cheap tiers for fan-out analysis and strong tiers for synthesis.
   artoo core makes no model calls and holds no keys.
-- **DES governs the public-artifact default.** New work starts as a light,
-  long-form editorial argument with an explicit reader decision, evidence
-  limits, and valid comparisons. Artoo remains responsible for packaging,
-  provenance, the private-file firewall, and deployment.
-- **The contract travels with the work.** `artoo init` writes an `AGENTS.md`
-  into the artifact carrying the class vocabulary its vendored library
-  defines, `artoo docs` answers the same questions from a shell, and
+- **Artoo owns its artifact contract.** New work starts with an explicit reader
+  decision, evidence limits, valid comparisons, and a chosen presentation form.
+  Its accessible kit is a foundation, not a visual authority.
+- **The contract travels with the work.** `artoo init` writes a concise
+  `AGENTS.md` and an on-demand `ARTOO_REFERENCE.md` carrying the class vocabulary
+  its vendored library defines, `artoo docs` answers the same questions, and
   `artoo build` reports a class that vocabulary does not contain. Authoring
   an artifact should never mean reverse-engineering one.
 
@@ -52,13 +51,14 @@ read half (below). artoo discovers flip on `PATH`; pin a specific build with
 
 ```bash
 # Scaffold an artifact inside any repo
-artoo init site/my-report --kind report --title "Q3 systems report"
+artoo init site/my-report --kind report --form article --title "Q3 systems report"
 
 # See every artifact in the repo
 artoo list
 
-# Check health: manifest, firewall, markup, library drift
+# Check health: manifest, firewall, markup, links, assets, library drift
 artoo status site/my-report
+artoo verify site/my-report --browser
 
 # Read the contract: topics, or one library's full class vocabulary
 artoo docs
@@ -68,9 +68,9 @@ artoo docs artoo-kit
 artoo deploy site/my-report
 ```
 
-`artoo init` also creates `work/design-brief.md`, a private authoring contract
+`artoo init` also creates `work/artifact-brief.md`, a private authoring contract
 for the reader decision, headline claim, evidence boundaries, data vintages,
-licit comparisons, forms, DES references, and proof required. It never enters
+licit comparisons, presentation intent, and proof required. It never enters
 the deployable `site/` tree.
 
 ## Authoring without guesswork
@@ -81,14 +81,15 @@ artifact directory and nothing else, so the contract ships with it:
 
 ```bash
 artoo init docs/spending --title "Where the money went"
-#   contract  AGENTS.md — layout vocabulary and rules
+#   contract  AGENTS.md — concise working rules
+#   reference ARTOO_REFERENCE.md — full vocabulary, on demand
 ```
 
-`AGENTS.md` carries the golden path, the firewall rule, and a table of every
-class the vendored library defines with its role — generated from the
-stylesheets *that artifact* is carrying, so it cannot describe a version it
-does not have. `artoo lib add` and `artoo lib update` regenerate it; anything
-you write outside the managed block is kept.
+`AGENTS.md` keeps automatic context small. `ARTOO_REFERENCE.md` carries the
+full table of every class the vendored libraries define with its role,
+generated from the stylesheets *that artifact* is carrying. `artoo lib add`
+and `artoo lib update` regenerate both; notes outside the managed `AGENTS.md`
+block are kept.
 
 The same reference answers from a shell, and offline:
 
@@ -115,6 +116,14 @@ declares it owns. `status`, `build`, and `doctor` all take `--json`.
 The reference is also published for readers who cannot run the CLI:
 [llms.txt](https://lavallee.github.io/artoo/llms.txt) and
 [llms-full.txt](https://lavallee.github.io/artoo/llms-full.txt).
+
+## Forms
+
+`kind` describes the subject; `form` describes how a reader uses it. The four
+forms are `article`, `explorer`, `collection`, and `deck`. Articles and
+collections can render conservative Markdown deterministically. Explorers get
+common controls and offline data packing. Raw HTML remains the escape hatch.
+See `artoo docs forms`.
 
 ## Decks
 
@@ -161,6 +170,10 @@ ArtooGrid.create("#table", {
 });
 ```
 
+It remains a built-in module for now: it shares Artoo's vendoring, tokens,
+verification, and release cadence. The entry-point boundary is already there
+if independent consumers or releases eventually justify a separate package.
+
 Sorting, frozen identity columns, column groups, a column picker, in-cell bars
 and percentile heat, and CSV export come with it. Two rules are not negotiable,
 because both failures are expensive and silent: **missing is never zero** —
@@ -170,6 +183,12 @@ both directions**, since a district with no measurement has not scored zero and
 must never top a ranking. Bar and heat domains recompute on every `setData`, so
 a table that reranks on a slider rescales honestly instead of comparing today's
 numbers against yesterday's maximum.
+
+Not every explorer is a grid. New explorer forms vendor **`artoo-controls`**:
+search, declared filters, chips, result counts, reset, URL state, CSV, an
+accessible empty state, and optional named configurations. Manifest `[[data]]`
+entries turn one canonical JSON source into publishable JSON plus a
+`file://`-safe JavaScript global, replacing repeated one-off packer scripts.
 
 An explorer is only useful the second time if the configuration that made it
 useful the first time survives. `artoo serve` puts a small JSON store behind
@@ -191,7 +210,18 @@ a withheld file is absent rather than merely unlinked. With nothing serving,
 `ArtooStore` falls back to `localStorage` and reports `durable === false`, so
 the page can say so instead of implying a save that did not happen.
 
-## Provenance roundtrip
+## Evidence and provenance roundtrip
+
+Provider-neutral evidence can be declared directly:
+
+```toml
+[evidence]
+source = "work/evidence.json"  # artoo-evidence/1
+```
+
+Artoo validates source and claim joins and projects them into the kit's
+provenance panel. Flip is one optional adapter to the same browser-facing
+contract, not the only route.
 
 When an artifact declares an attached notebook (`[research] notebook = "…"`),
 artoo reads it back out at build time:
@@ -237,12 +267,11 @@ and any cited id. A cited `--claim`/`--source` id is verified against the notebo
 and refused if unknown (typo protection); a private breadcrumb is recorded in
 `work/feedback.jsonl`.
 
-## Optional Vizier guidance
+## Deprecated optional Vizier recipe
 
-[Vizier](https://github.com/lavallee/vizier) is an optional local companion for
-implementation critique and form selection. If its keyless `vizier` CLI is
-installed, Artoo can run `vizier guide` and retain the full invocation and
-output behind the artifact firewall:
+`artoo vizier-guide` remains as a deprecated compatibility recipe for artifacts
+that already use [Vizier](https://github.com/lavallee/vizier). It is not part
+of Artoo's authoring contract or required workflow:
 
 ```bash
 artoo vizier-guide \
@@ -255,12 +284,11 @@ artoo vizier-guide \
 
 The receipt is `work/vizier-guidance.md`. Artoo shells out to the installed CLI;
 Vizier is not an Artoo dependency, and this path makes no direct model or API
-call. Vizier advises on visual form and implementation. DES remains the design
-authority, while Artoo owns artifact packaging, provenance, and deployment.
+call.
 
 A clean `artoo build` proves build-command and artifact/firewall integrity. It
-does not prove visual or editorial acceptance; review the rendered artifact
-against its design brief and DES reference before publishing.
+does not prove factual, visual, editorial, or human acceptance; review the
+rendered artifact against its artifact brief before publishing.
 
 ## Generate a repo explainer
 
@@ -279,7 +307,7 @@ exactly how it was made.
 
 ## Status
 
-v0.4.0 — alpha. The manifest format, CLI surface, and plugin entry points
+v0.5.0 — alpha. The manifest format, CLI surface, and plugin entry points
 are young and may change before 1.0. See [DESIGN.md](DESIGN.md) for the
 architecture and [CHANGELOG.md](CHANGELOG.md) for history.
 

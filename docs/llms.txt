@@ -2,12 +2,15 @@
 
 > Generate and manage artifacts: self-contained HTML mini-sites that pair presentation with the research backing it. An artifact is a directory with an artifact.toml, renders from a file:// URL, and keeps its research beside the presentation behind a deny-by-default deploy firewall.
 
-With artoo installed, the same reference is available offline as `artoo docs <topic>`, and `artoo init` writes the layout contract into each artifact it creates as AGENTS.md.
+With artoo installed, the same reference is available offline as `artoo docs <topic>`, and `artoo init` writes the layout contract into each artifact as a concise AGENTS.md plus an on-demand ARTOO_REFERENCE.md.
 
 ## Guides
 
 - [quickstart](https://lavallee.github.io/artoo/reference/quickstart.md): Install, the golden path, and the authoring rules that matter.
+- [forms](https://lavallee.github.io/artoo/reference/forms.md): Separate subject kind from article, explorer, collection, and deck form.
 - [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
+- [data](https://lavallee.github.io/artoo/reference/data.md): Pack JSON once for both HTTP and offline file viewing.
+- [verify](https://lavallee.github.io/artoo/reference/verify.md): Static integrity checks and optional browser proof.
 - [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
 - [serve](https://lavallee.github.io/artoo/reference/serve.md): Running an artifact locally, and the state store that makes saves durable.
 - [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
@@ -15,6 +18,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 
 ## Site libraries
 
+- [artoo-controls](https://lavallee.github.io/artoo/reference/artoo-controls.md): Search, filter groups, active chips, result counts, URL state, CSV downloads, and optional saved explorer configurations.
 - [artoo-deck](https://lavallee.github.io/artoo/reference/artoo-deck.md): Slides: acts, speaker notes, overview, keyboard/touch nav, landscape print.
 - [artoo-grid](https://lavallee.github.io/artoo/reference/artoo-grid.md): Declarative dense data tables: sorting, frozen identity columns, in-cell bars and heat, column picker, CSV export, and an honest missing-value convention.
 - [artoo-kit](https://lavallee.github.io/artoo/reference/artoo-kit.md): Long-form article layout, evidence regions, and the provenance panel.

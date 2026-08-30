@@ -12,10 +12,10 @@ So the contract travels with the artifact. ``AGENTS.md`` is the vendor-neutral
 filename most coding agents already read unprompted, which is why it is the
 carrier rather than something artoo-specific.
 
-Two properties make it trustworthy. It is generated from the stylesheets
-*this* artifact actually vendored, so it cannot advertise a class that is not
-there. And it is generated into a marked block, so regenerating it on
-``artoo lib update`` never destroys notes someone wrote around it.
+Automatic context stays concise. The complete class contract lives beside it
+in ``ARTOO_REFERENCE.md`` and is generated from the stylesheets this artifact
+actually vendored, so it cannot advertise a class that is not there. The short
+guide uses a marked block, so regeneration never destroys surrounding notes.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from . import libraries as libraries_mod
 from .manifest import Manifest
 
 GUIDE_NAME = "AGENTS.md"
+REFERENCE_NAME = "ARTOO_REFERENCE.md"
 
 BEGIN = "<!-- artoo:begin -->"
 END = "<!-- artoo:end -->"
@@ -44,16 +45,17 @@ _TAIL = """## Notes for this artifact
 
 
 def _commands(m: Manifest) -> str:
-    return f"""## Commands
+    return """## Commands
 
 Every command takes an artifact path, or resolves upward from the working
 directory if you omit it.
 
 | goal | command |
 |------|---------|
-| manifest health, firewall report, library drift | `artoo status {m.slug}` |
-| refresh inputs, verify, stamp `updated` | `artoo build {m.slug}` |
-| publish (firewall-staged) | `artoo deploy {m.slug}` |
+| manifest health, firewall report, library drift | `artoo status .` |
+| refresh inputs, verify, stamp `updated` | `artoo build .` |
+| static and optional browser checks | `artoo verify .` |
+| publish (firewall-staged) | `artoo deploy .` |
 | the layout vocabulary, in full | `artoo docs <library>` |
 | everything artoo knows | `artoo docs --all` |
 
@@ -75,7 +77,7 @@ That is deny-by-default and structural: `{m.site}/_draft/v2.html` is visible to
 you and invisible to the world with no configuration. Put working material in
 `work/`, and drafts under a `_`-prefixed path.
 
-`artoo status {m.slug}` lists exactly what is being withheld."""
+`artoo status .` lists exactly what is being withheld."""
 
 
 def _vocabulary(m: Manifest) -> str:
@@ -131,7 +133,7 @@ def _rules(m: Manifest) -> str:
     if m.notebook:
         research = (
             f"\n5. **Research goes in `{m.notebook}/`, corrections go through artoo.** "
-            f"Edit the notebook with flip or with `artoo feedback {m.slug} \"…\"`; "
+            "Edit the notebook with flip or with `artoo feedback . \"…\"`; "
             f"the projection under `{m.site}/data/` is generated and will be "
             f"overwritten on the next build."
         )
@@ -153,28 +155,73 @@ def _rules(m: Manifest) -> str:
 
 
 def render(m: Manifest) -> str:
-    """The managed block for this artifact, markers included."""
+    """A compact managed block; deep reference stays out of automatic context."""
+    source = ""
+    if m.content_source:
+        source = f" Edit `{m.content_source}`; `artoo build` renders it into `{m.site}/`."
+    elif m.content_pages:
+        source = f" Edit Markdown under `{m.content_pages}/`; `artoo build` renders the collection."
+    brief = (
+        "work/artifact-brief.md"
+        if (m.dir / "work" / "artifact-brief.md").is_file()
+        else "work/design-brief.md"
+    )
+    namespaces = []
+    for entry in m.libraries:
+        try:
+            namespaces.extend(libraries_mod.get(entry.get("name", "")).namespaces)
+        except KeyError:
+            continue
+    owned = ", ".join(f"`{namespace}`" for namespace in namespaces) or "declared library prefixes"
     parts = [
         _PREAMBLE.format(version=__version__),
         f"# {m.title}",
-        f"This directory is an **artoo artifact**: a self-contained HTML mini-site "
-        f"(`{m.site}/`) paired with the research behind it. `artifact.toml` is its "
-        f"source of truth — kind `{m.kind}`, slug `{m.slug}`.",
-        _commands(m),
-        _firewall(m),
-        _vocabulary(m),
-        _rules(m),
-        "## More\n\n"
-        "`artoo docs` lists every topic — the manifest format, the firewall, the "
-        "provenance roundtrip, the generators. `artoo docs --all` prints the lot "
-        "in one read.",
+        f"This is an **Artoo artifact**: kind `{m.kind}`, form `{m.effective_form}`, "
+        f"slug `{m.slug}`. `artifact.toml` is the source of truth; only `{m.site}/` "
+        f"can publish.{source}",
+        "## Work here\n\n"
+        f"1. Read `{brief}` before changing the presentation.\n"
+        "2. Keep research and intermediate files outside `site/`.\n"
+        "3. Keep runtime assets local: no CDN scripts, fonts, or stylesheets.\n"
+        f"4. Use declared library classes; do not guess inside {owned}.\n"
+        "5. Keep source vintages, denominators, and limits beside the claims they qualify.",
+        "## Check it\n\n"
+        "Run `artoo build .` after edits. It refreshes generated content and "
+        "data, applies the publish firewall, and checks local links, assets, markup, "
+        "and evidence. Run `artoo verify . --browser` for console, overflow, and "
+        "screenshot checks when Playwright is installed.\n\n"
+        f"Open `{REFERENCE_NAME}` only when you need the full vendored class vocabulary, "
+        "firewall detail, or command reference. `artoo docs` has the complete tool reference.",
         END,
     ]
     return "\n\n".join(part for part in parts if part).rstrip() + "\n"
 
 
+def render_reference(m: Manifest) -> str:
+    """The detailed contract available on demand, generated from vendored bytes."""
+    parts = [
+        f"# Artoo reference — {m.title}",
+        "This file is generated. It is deliberately separate from `AGENTS.md` so the "
+        "full class vocabulary enters context only when it is useful.",
+        _commands(m),
+        _firewall(m),
+        _vocabulary(m),
+        _rules(m),
+        "## More\n\n`artoo docs` lists the manifest, forms, data, evidence, firewall, "
+        "serving, generators, and every installed site library.",
+    ]
+    return "\n\n".join(part for part in parts if part).rstrip() + "\n"
+
+
+def write_reference(m: Manifest) -> Path:
+    path = m.dir / REFERENCE_NAME
+    path.write_text(render_reference(m), encoding="utf-8")
+    return path
+
+
 def write(m: Manifest) -> Path:
     """Write or refresh ``AGENTS.md``, preserving anything outside the block."""
+    write_reference(m)
     path = m.dir / GUIDE_NAME
     block = render(m)
 

@@ -40,10 +40,10 @@ def test_init_and_status(tmp_path):
     assert result.exit_code == 0, result.output
     result = invoke("status", str(tmp_path / "art"))
     assert result.exit_code == 0
-    assert "manifest, firewall, and markup clean" in result.output
+    assert "manifest, firewall, markup, and static verification clean" in result.output
 
 
-def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path):
+def test_init_creates_article_source_and_private_artifact_brief(tmp_path):
     artifact = tmp_path / "art"
     result = invoke(
         "init",
@@ -54,7 +54,7 @@ def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path)
         "Evidence for a reader decision.",
     )
     assert result.exit_code == 0, result.output
-    assert "work/design-brief.md (private)" in result.output
+    assert "work/artifact-brief.md (private)" in result.output
 
     page = (artifact / "site" / "index.html").read_text()
     assert '<html lang="en" data-theme="light">' in page
@@ -64,15 +64,14 @@ def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path)
         "article-title",
         "article-dek",
         "article-byline",
-        "article-figure",
-        "<table>",
     ):
         assert editorial_surface in page
     for dashboard_default in ("data-theme-toggle", "stat-row", "card-grid"):
         assert dashboard_default not in page
 
-    brief = (artifact / "work" / "design-brief.md").read_text()
-    assert not (artifact / "site" / "work" / "design-brief.md").exists()
+    assert (artifact / "content.md").is_file()
+    brief = (artifact / "work" / "artifact-brief.md").read_text()
+    assert not (artifact / "site" / "work" / "artifact-brief.md").exists()
     for field in (
         "## Reader decision",
         "## Headline claim",
@@ -81,7 +80,7 @@ def test_init_creates_light_editorial_starter_and_private_design_brief(tmp_path)
         "## Data vintages and denominators",
         "## Licit comparisons",
         "## Selected forms",
-        "## Closest DES reference",
+        "## Presentation intent",
         "## Anti-reference",
         "## Proof required",
     ):
@@ -239,6 +238,8 @@ def test_build_json_exits_nonzero_while_still_emitting_the_report(artifact):
     """A failing build has to stay parseable; a caller that cannot read the
     problems has to fall back to scraping stderr."""
     index = artifact.site_dir / "index.html"
+    artifact.content_source = ""
+    artifact.save()
     index.write_text(index.read_text().replace("</main>", '<p class="article-wide"></p></main>'))
 
     result = CliRunner().invoke(main, ["build", str(artifact.dir), "--json"])

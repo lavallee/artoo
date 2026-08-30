@@ -5,11 +5,11 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from . import agent_guide, libraries
+from . import agent_guide, content as content_mod, data as data_mod, libraries
 from . import manifest as manifest_mod
 from .manifest import Manifest
 
-STARTER_PAGE = """<!doctype html>
+EXPLORER_PAGE = """<!doctype html>
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -21,46 +21,98 @@ STARTER_PAGE = """<!doctype html>
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
 <link rel="stylesheet" href="lib/artoo-kit/components.css">
+<link rel="stylesheet" href="lib/artoo-controls/controls.css">
+<style>
+  .explorer-results {{ list-style: none; padding: 0; }}
+  .explorer-result {{ padding: 1rem 0; border-bottom: 1px solid var(--border); }}
+  .explorer-result h2 {{ margin-bottom: .25rem; }}
+</style>
 </head>
 <body>
 <header class="article-masthead">
   <a class="article-masthead__name" href="index.html">{title}</a>
-  <span class="article-masthead__label">DES public artifact</span>
+  <span class="article-masthead__label">Artoo explorer</span>
 </header>
-<main class="article">
-  <header class="article-header">
-    <div class="article-kicker">{kind}</div>
-    <h1 class="article-title">{title}</h1>
+<main class="page">
+  <header>
+    <p class="article-kicker">{kind}</p>
+    <h1>{title}</h1>
     <p class="article-dek">{description}</p>
-    <p class="article-byline">Published <time datetime="{created}">{created}</time></p>
   </header>
-  <p class="article-lede">Begin with the decision this artifact helps a named
-  reader make. State the headline claim, then show the evidence and its limits
-  in a narrative sequence.</p>
-  <h2>What the evidence shows</h2>
-  <p>Develop the argument in centered prose. Keep definitions and source
-  provenance close to the claims they support.</p>
-  <figure class="article-figure">
-    <table>
-      <thead>
-        <tr><th>Comparison</th><th>Evidence</th><th>Limit</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Name the valid axis</td><td>Report the supported finding</td><td>Record the counter-reading</td></tr>
-      </tbody>
-    </table>
-    <figcaption>Use a wider table or figure only when it helps the reader make
-    a valid comparison. Include vintages, denominators, and a source note.</figcaption>
-  </figure>
-  <h2>What this means for the reader</h2>
-  <p>Return to the reader's decision and distinguish what the evidence supports
-  from what it cannot establish.</p>
-  <footer class="colophon">
-    Built with <a href="https://github.com/lavallee/artoo">artoo</a>.
-  </footer>
+  <div id="explorer-controls"></div>
+  <ul class="explorer-results" id="explorer-results"></ul>
+  <p class="controls-empty" id="explorer-empty" hidden>No results match this view. Reset a filter and try again.</p>
 </main>
+<script src="data/items.js"></script>
+<script src="lib/artoo-controls/controls.js"></script>
+<script>
+(function () {{
+  "use strict";
+  var list = document.getElementById("explorer-results");
+  var empty = document.getElementById("explorer-empty");
+  function render(rows) {{
+    list.textContent = "";
+    empty.hidden = rows.length !== 0;
+    rows.forEach(function (row) {{
+      var item = document.createElement("li");
+      item.className = "explorer-result";
+      var heading = document.createElement("h2");
+      heading.textContent = row.name;
+      var detail = document.createElement("p");
+      detail.textContent = row.description;
+      item.appendChild(heading);
+      item.appendChild(detail);
+      list.appendChild(item);
+    }});
+  }}
+  ArtooControls.create("#explorer-controls", {{
+    data: window.ARTOO_DATA,
+    search: {{ fields: ["name", "description"], label: "Search" }},
+    filters: [{{ field: "type", label: "Type" }}],
+    url: true,
+    download: "{slug}.csv",
+    onChange: render,
+  }});
+}}());
+</script>
 </body>
 </html>
+"""
+
+ARTICLE_CONTENT = """# {title}
+
+{description}
+
+## What the evidence shows
+
+State the supported finding. Keep definitions, vintages, denominators, and
+source notes close to the claims they support.
+
+## What this means for the reader
+
+Return to the reader's decision. Distinguish what the evidence supports from
+what it cannot establish.
+"""
+
+COLLECTION_INDEX = """# {title}
+
+{description}
+
+## Start here
+
+Explain what this collection contains, who it is for, and the most useful
+route through it.
+"""
+
+COLLECTION_EVIDENCE = """# Evidence and limits
+
+## Sources
+
+Name the sources, their vintages, and the claims each can carry.
+
+## Limits
+
+Record what the collection cannot establish and the strongest counter-reading.
 """
 
 DECK_PAGE = """<!doctype html>
@@ -174,7 +226,7 @@ DECK_PAGE = """<!doctype html>
 </html>
 """
 
-DESIGN_BRIEF = """# Design brief
+ARTIFACT_BRIEF = """# Artifact brief
 
 Private working document. Artoo keeps this file outside `site/`; it is not deployed.
 
@@ -206,11 +258,13 @@ What is the single claim the evidence can carry?
 
 ## Selected forms
 
+- Presentation form / reader task served / reason this form helps:
 - Table or figure / comparison served / reason this form helps:
 
-## Closest DES reference
+## Presentation intent
 
-- Reference / relevant principle:
+- Desired reading experience:
+- Existing artifact or publication worth learning from:
 
 ## Anti-reference
 
@@ -230,6 +284,7 @@ def init_artifact(
     slug: str = "",
     title: str = "",
     kind: str = "report",
+    form: str = "",
     description: str = "",
     with_notebook: bool = False,
 ) -> Manifest:
@@ -243,33 +298,72 @@ def init_artifact(
         "State why the headline matters, the evidence it rests on, and its principal limit."
     )
 
-    m = manifest_mod.new(slug, title, kind=kind, description=description)
+    m = manifest_mod.new(slug, title, kind=kind, description=description, form=form)
+    m.form = m.effective_form
+    if m.form == "article":
+        m.content_source = "content.md"
+    elif m.form == "collection":
+        m.content_pages = "content"
+        m.content_order = ["index.md", "evidence.md"]
+    elif m.form == "explorer":
+        m.data_packs = [
+            {
+                "source": "work/items.json",
+                "path": "data/items.json",
+                "script": "data/items.js",
+                "global": "ARTOO_DATA",
+            }
+        ]
     path.mkdir(parents=True, exist_ok=True)
     m.save(path)
 
     site = path / m.site
     site.mkdir(exist_ok=True)
-    index = site / "index.html"
-    # Kind-aware scaffolding. A presentation is a different reading mode, not a
-    # styled article: one frame at a time, an act structure, a landscape page.
-    # It gets the deck skeleton and the deck library.
-    starter, lib = (DECK_PAGE, "artoo-deck") if kind == "presentation" else (STARTER_PAGE, "artoo-kit")
-    if not index.exists():
-        index.write_text(
-            starter.format(
-                title=html.escape(title),
-                description=html.escape(deck),
-                kind=html.escape(kind),
-                created=m.created,
-                initial=html.escape(title[:1].upper() or "A"),
-            ),
-            encoding="utf-8",
-        )
-    libraries.add(m, lib)
-
     work = path / "work"
     work.mkdir(exist_ok=True)
-    (work / "design-brief.md").write_text(DESIGN_BRIEF, encoding="utf-8")
+    (work / "artifact-brief.md").write_text(ARTIFACT_BRIEF, encoding="utf-8")
+
+    index = site / "index.html"
+    values = {
+        "title": html.escape(title),
+        "description": html.escape(deck),
+        "kind": html.escape(kind),
+        "created": m.created,
+        "initial": html.escape(title[:1].upper() or "A"),
+        "slug": html.escape(slug),
+    }
+    if m.form == "deck":
+        index.write_text(DECK_PAGE.format(**values), encoding="utf-8")
+        libraries.add(m, "artoo-deck")
+    elif m.form == "explorer":
+        index.write_text(EXPLORER_PAGE.format(**values), encoding="utf-8")
+        libraries.add(m, "artoo-kit")
+        libraries.add(m, "artoo-controls")
+        (work / "items.json").write_text(
+            "[\n"
+            '  {"name": "First item", "type": "Example", '
+            '"description": "Replace work/items.json with the rows readers explore."},\n'
+            '  {"name": "Second item", "type": "Reference", '
+            '"description": "Search, filter, URL state, counts, reset, and CSV are wired."}\n'
+            "]\n",
+            encoding="utf-8",
+        )
+        data_mod.pack(m)
+    elif m.form == "collection":
+        libraries.add(m, "artoo-kit")
+        pages = path / "content"
+        pages.mkdir(exist_ok=True)
+        (pages / "index.md").write_text(
+            COLLECTION_INDEX.format(title=title, description=deck), encoding="utf-8"
+        )
+        (pages / "evidence.md").write_text(COLLECTION_EVIDENCE, encoding="utf-8")
+        content_mod.render(m)
+    else:
+        libraries.add(m, "artoo-kit")
+        (path / "content.md").write_text(
+            ARTICLE_CONTENT.format(title=title, description=deck), encoding="utf-8"
+        )
+        content_mod.render(m)
 
     if with_notebook:
         _init_notebook(m)

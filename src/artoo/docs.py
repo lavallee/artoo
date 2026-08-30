@@ -6,7 +6,7 @@ library READMEs inside the installed wheel, and DESIGN.md in the artoo repo.
 The predictable result was reverse-engineering: read four stylesheets, or copy
 a previous artifact and hope its layout was right.
 
-So the contract ships with the tool and answers to one command. Authored
+So the detailed contract ships with the tool and answers to one command. Authored
 guides live under ``reference/``; each site library contributes a topic of its
 own, assembled from its prose contract plus a class table generated from
 ``Library.classes``. The generated half is why this can be trusted — a test
@@ -26,7 +26,10 @@ REFERENCE_DIR = Path(__file__).parent / "reference"
 # Ordered: reading them top to bottom is a coherent introduction.
 AUTHORED = {
     "quickstart": "Install, the golden path, and the authoring rules that matter.",
+    "forms": "Separate subject kind from article, explorer, collection, and deck form.",
     "manifest": "Every artifact.toml key, and what the validator enforces.",
+    "data": "Pack JSON once for both HTTP and offline file viewing.",
+    "verify": "Static integrity checks and optional browser proof.",
     "firewall": "What publishes, what is withheld, and why it is structural.",
     "serve": "Running an artifact locally, and the state store that makes saves durable.",
     "provenance": "Attaching a flip notebook, the projection, and the roundtrip verbs.",
@@ -175,7 +178,7 @@ def llms_txt(base_url: str = SITE_URL) -> str:
         "",
         "With artoo installed, the same reference is available offline as "
         "`artoo docs <topic>`, and `artoo init` writes the layout contract into "
-        "each artifact it creates as AGENTS.md.",
+        "each artifact as a concise AGENTS.md plus an on-demand ARTOO_REFERENCE.md.",
         "",
         "## Guides",
         "",
