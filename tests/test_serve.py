@@ -19,6 +19,7 @@ from artoo import serve as serve_mod
 @pytest.fixture
 def server(artifact):
     """A running server for a scaffolded artifact, on an OS-assigned port."""
+    artifact.state_collections = ["presets"]
     httpd, publishable, state_dir = serve_mod.serve(artifact, port=0, quiet=True)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -37,6 +38,8 @@ def server(artifact):
 
 
 def request(url, method="GET", payload=None):
+    if method == "PUT" and isinstance(payload, dict):
+        payload = {"expected_revision": None, **payload}
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method=method)
     if data:
@@ -132,7 +135,8 @@ def test_roundtrip_list_load_and_delete(server):
     _, doc = request(base + "/a")
     assert doc["document"] == [1, 2, 3]
 
-    status, _ = request(base + "/a", method="DELETE")
+    status, _ = request(base + "/a", method="DELETE",
+                        payload={"expected_revision": doc["revision"]})
     assert status == 204
     _, listing = request(base)
     assert [e["name"] for e in listing["entries"]] == ["b"]
@@ -179,9 +183,67 @@ def test_loading_a_document_that_was_never_saved_is_a_404(server):
 
 def test_a_save_replaces_rather_than_appends(server):
     base = server["url"] + "/_artoo/state/presets/v"
-    request(base, method="PUT", payload={"document": {"n": 1}})
-    request(base, method="PUT", payload={"document": {"n": 2}})
+    _, first = request(base, method="PUT", payload={"document": {"n": 1}})
+    request(base, method="PUT", payload={"document": {"n": 2},
+                                         "expected_revision": first["revision"]})
     _, doc = request(base)
     assert doc["document"] == {"n": 2}
-    files = list((server["state_dir"] / "presets").iterdir())
+    files = list((server["state_dir"] / "presets").glob("*.json"))
     assert [f.name for f in files] == ["v.json"], "the atomic write left a temp file behind"
+
+
+@pytest.mark.parametrize("headers", [
+    {"Host": "evil.example"}, {"Origin": "https://evil.example"},
+    {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"},
+])
+def test_state_rejects_untrusted_request(server, headers):
+    req = urllib.request.Request(server["url"] + "/_artoo/state/presets", headers=headers)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req)
+    assert exc.value.code == 403
+
+
+def test_protocol_and_preconditions(server):
+    base = server["url"] + "/_artoo/state/presets"
+    _, probe = request(base)
+    assert probe["protocol"] == 2
+    req = urllib.request.Request(base + "/v", data=b'{"document":{}}', method="PUT",
+                                 headers={"Content-Type": "application/json"})
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req)
+    assert exc.value.code == 428
+    request(base + "/v", method="PUT", payload={"document": {}})
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        request(base + "/v", method="PUT", payload={"document": {"changed": True}})
+    assert exc.value.code == 409
+
+
+def test_disabled_collection(server):
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        request(server["url"] + "/_artoo/state/unlisted")
+    assert exc.value.code == 403
+
+
+@pytest.mark.parametrize('method', ['GET', 'HEAD'])
+def test_static_symlink_cannot_expose_private_state(server, method):
+    secret = server['artifact'].dir / 'secret.json'
+    secret.write_text('{"private":true}')
+    (server['artifact'].site_dir / 'innocent.json').symlink_to(secret)
+    req = urllib.request.Request(server['url'] + '/innocent.json', method=method)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req)
+    assert exc.value.code == 404
+
+
+@pytest.mark.parametrize('route', ['/', '/folder/'])
+def test_directory_index_symlink_cannot_expose_private_state(server, route):
+    secret = server['artifact'].dir / 'secret.html'
+    secret.write_text('private state')
+    folder = server['artifact'].site_dir / route.strip('/')
+    folder.mkdir(exist_ok=True)
+    index = folder / 'index.html'
+    index.unlink(missing_ok=True)
+    index.symlink_to(secret)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(server['url'] + route)
+    assert exc.value.code == 404

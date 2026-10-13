@@ -475,34 +475,31 @@ def provenance_cmd(path: Path | None):
 @click.option("--open", "open_browser", is_flag=True, help="Open the artifact in a browser.")
 @click.option("--quiet", is_flag=True, help="Suppress the per-request log.")
 def serve_cmd(path: Path | None, port: int, host: str, open_browser: bool, quiet: bool):
-    """Serve the artifact locally, with a JSON store behind it.
+    """Serve the artifact locally with optional repository-owned JSON state.
 
-    Most artifacts read fine from `file://`. An explorer does not: a page whose
-    value is the configuration a reader arrived at needs somewhere durable to
-    put it. This serves exactly what a deploy would ship — the firewall-staged
-    site, so a private working file is absent rather than merely unlinked — and
-    adds one small API under `/_artoo/state` that reads and writes named JSON
-    documents into the artifact's own `state/` directory.
+    Enable named collections with [state] collections = ["feedback"] in
+    artifact.toml. On POSIX hosts the API saves to private state/, with revision
+    checks preventing stale overwrites. Saving never stages, commits or pushes
+    Git files. Without the opt-in the site is read-only.
 
-    Those are real files, next to the work and committed with it. `state/` is a
-    sibling of `site/`, so nothing saved here can reach a publish. The page
-    talks to it through `ArtooStore` from artoo-kit, which falls back to browser
-    storage — and says so — when nothing is serving.
-
-    Loopback only, no authentication. This is a working surface, not a host.
+    ArtooStore reports network failures and retains a pending recovery copy;
+    browser-only storage requires explicit opt-in. This unauthenticated local
+    working surface is not a deployment target.
     """
     m = _resolve(str(path) if path else None)
     try:
         httpd, publishable, state_dir = serve_mod.serve(m, host=host, port=port, quiet=quiet)
-    except OSError as exc:
-        raise click.ClickException(f"could not bind {host}:{port} — {exc}") from exc
+    except (OSError, ValueError) as exc:
+        raise click.ClickException(f"could not serve {host}:{port} — {exc}") from exc
 
     url = f"http://{host}:{port}/"
     click.echo(f"serving {m.slug} at {url}")
     click.echo(f"  site      {len(publishable)} publishable file(s) in {m.site}/, read live (firewall applied per request)")
-    collections = sorted(p.name for p in state_dir.glob("*") if p.is_dir()) if state_dir.is_dir() else []
-    held = f"{', '.join(collections)}" if collections else "empty"
-    click.echo(f"  state     {state_dir.relative_to(m.dir)}/ — {held}")
+    if m.state_collections:
+        held = ", ".join(m.state_collections)
+        click.echo(f"  state     {state_dir.relative_to(m.dir)}/ — {held}; saves are not Git commits")
+    else:
+        click.echo("  state     disabled; enable [state] collections in artifact.toml")
     click.echo("  stop      ctrl-c")
     if open_browser:
         import webbrowser

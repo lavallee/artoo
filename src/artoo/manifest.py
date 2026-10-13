@@ -54,6 +54,7 @@ class Manifest:
 
     build_commands: list[str] = field(default_factory=list)
     site: str = "site"
+    state_collections: list[str] = field(default_factory=list)
     content_source: str = ""
     content_pages: str = ""
     content_order: list[str] = field(default_factory=list)
@@ -115,6 +116,14 @@ class Manifest:
             problems.append(f"artifact.status {self.status!r} not one of {', '.join(STATUSES)}")
         if ".." in self.site or Path(self.site).is_absolute():
             problems.append("build.site must be a relative path inside the artifact")
+        from .state import StateStore
+        if not isinstance(self.state_collections, list) or not StateStore.valid(*self.state_collections):
+            problems.append("state.collections must be a list of slug names")
+        if self.state_collections:
+            site = Path(self.site)
+            state = Path("state")
+            if site == state or site in state.parents or state in site.parents:
+                problems.append("state/ must not overlap build.site")
         if self.content_source and Path(self.content_source).is_absolute():
             problems.append("content.source must be relative to the artifact")
         if self.content_pages and Path(self.content_pages).is_absolute():
@@ -235,6 +244,9 @@ def dumps(m: Manifest) -> str:
     if build_pairs:
         blocks.append(_table("build", build_pairs))
 
+    if m.state_collections:
+        blocks.append(_table("state", [("collections", m.state_collections)]))
+
     content_pairs: list[tuple[str, object]] = []
     if m.content_source:
         content_pairs.append(("source", m.content_source))
@@ -313,6 +325,7 @@ def loads(text: str) -> Manifest:
         updated=str(artifact.get("updated", "")),
         build_commands=list(build.get("commands", [])),
         site=build.get("site", "site"),
+        state_collections=data.get("state", {}).get("collections", []),
         content_source=content.get("source", ""),
         content_pages=content.get("pages", ""),
         content_order=list(content.get("order", [])),
