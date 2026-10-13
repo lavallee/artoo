@@ -13,7 +13,9 @@ artoo init docs/spending-report --title "Where the money went"
 artoo status docs/spending-report     # manifest health, firewall, library drift
 artoo build  docs/spending-report     # render, pack data, verify, stamp `updated`
 artoo verify docs/spending-report     # links, assets, anchors, offline dependencies
-artoo deploy docs/spending-report     # firewall-stage, then publish
+artoo review docs/spending-report "A concrete design finding" --page index.html
+# commit the artifact and review receipt in the subject's repo; use its private reader
+artoo deploy docs/spending-report     # separate, authorized publication step
 ```
 
 `artoo init` writes a concise `AGENTS.md` for automatic context and an
@@ -37,6 +39,8 @@ docs/spending-report/
 ```
 
 Only `site/` is publishable. See `artoo docs firewall`.
+For source-owned revisions, Dirk discovery, and feedback that attaches to the
+exact render, see `artoo docs review`.
 
 ## Choosing a kind and form
 

@@ -55,6 +55,7 @@ directory if you omit it.
 | manifest health, firewall report, library drift | `artoo status .` |
 | refresh inputs, verify, stamp `updated` | `artoo build .` |
 | static and optional browser checks | `artoo verify .` |
+| private finding or resolution tied to this render | `artoo review . "…" --page index.html` |
 | build or interrogate a repository graph | `artoo map --help` |
 | publish (firewall-staged) | `artoo deploy .` |
 | the layout vocabulary, in full | `artoo docs <library>` |
@@ -192,6 +193,13 @@ def render(m: Manifest) -> str:
         "Load before editing; explicitly compare browser imports; preserve pending edits. "
         "Disk saves do not commit Git. Test second-session persistence, conflicts, and "
         "interrupted saves. Keep state private; deployment/auth changes require separate review.",
+        "## Review and ownership\n\n"
+        "Keep this artifact and its evolution in the repository that owns its subject. "
+        "Use `artoo review . \"finding\" --page index.html` for a private, revision-bound "
+        "design or task-flow finding; resolve it with `--resolves <id>` after the new "
+        "render is checked. The receipt stays in `work/reviews.jsonl`. Where Dirk "
+        "indexes this repo, use its existing private reader route for review; "
+        "a route or green check is not publication approval. See `artoo docs review`.",
         "## Check it\n\n"
         "Run `artoo build .` after edits. It refreshes generated content and "
         "data, applies the publish firewall, and checks local links, assets, markup, "

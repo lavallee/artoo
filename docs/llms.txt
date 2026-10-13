@@ -11,6 +11,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 - [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
 - [data](https://lavallee.github.io/artoo/reference/data.md): Pack JSON once for both HTTP and offline file viewing.
 - [verify](https://lavallee.github.io/artoo/reference/verify.md): Static integrity checks and optional browser proof.
+- [review](https://lavallee.github.io/artoo/reference/review.md): Source-owned revisions, Dirk discovery, and private review receipts.
 - [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
 - [serve](https://lavallee.github.io/artoo/reference/serve.md): Running an artifact locally, and the state store that makes saves durable.
 - [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
