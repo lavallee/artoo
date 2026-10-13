@@ -186,6 +186,12 @@ def render(m: Manifest) -> str:
         "3. Keep runtime assets local: no CDN scripts, fonts, or stylesheets.\n"
         f"4. Use declared library classes; do not guess inside {owned}.\n"
         "5. Keep source vintages, denominators, and limits beside the claims they qualify.",
+        "## Shared saved data\n\n"
+        "Read `artoo docs serve`: opt in with `[state]` "
+        "`collections = [\"feedback\"]` and use artifact-relative ArtooStore. "
+        "Load before editing; explicitly compare browser imports; preserve pending edits. "
+        "Disk saves do not commit Git. Test second-session persistence, conflicts, and "
+        "interrupted saves. Keep state private; deployment/auth changes require separate review.",
         "## Check it\n\n"
         "Run `artoo build .` after edits. It refreshes generated content and "
         "data, applies the publish firewall, and checks local links, assets, markup, "

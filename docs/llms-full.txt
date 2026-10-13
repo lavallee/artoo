@@ -179,6 +179,9 @@ include_private = false           # opt in to projecting a non-public notebook
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
 
+[state]                         # optional shared saved-data opt-in
+collections = ["feedback"]      # bounded JSON namespaces under artifact/state/
+
 [deploy]
 target = "github-pages"           # github-pages | rsync | command
 # adapter-specific keys live here too
@@ -214,6 +217,10 @@ reference-guide → collection, everything else → article.
 - `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
   files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
+- `state.collections` is a list of slug names. Only declared collections can be
+  served by the shared-state API; no declaration means no state access. `state/`
+  must not overlap `build.site`. Disk writes do not commit or push Git; see
+  `artoo docs serve` for revision checks, browser import, and recovery.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
   is the source of truth. It must never overlap `build.site`.
@@ -352,76 +359,114 @@ the panel shows before deploying.
 
 *On its own: `artoo docs serve`*
 
-Most artifacts are finished the moment they render, and `file://` is the right
-way to read them. Explorers are the exception. A page whose value is the
-configuration a reader arrived at — a set of weights, a chosen comparison, a
-saved view — is only useful the second time if that configuration survives.
+`artoo serve path/to/artifact --open` serves the artifact's `site/` through
+its publication firewall, on loopback by default. It is a working surface,
+not an authenticated public host. Private files outside `site/` remain private.
 
-```bash
-artoo serve site/my-explorer          # http://127.0.0.1:8765/
-artoo serve site/my-explorer --open --port 9000
-```
+## The shared state contract
 
-## What it serves
+The protocol-2 API stores named JSON documents under the owning artifact's
+`state/` directory, outside `site/`. A compatible reader such as Dirk can mount
+the same API below the artifact URL. Enable only specifically declared state
+collections with `[state]` and `collections = ["feedback"]` in `artifact.toml`; never accept
+a filesystem path from page JavaScript. Hosting or authentication changes are
+separate deployment decisions, not implicit consequences of authoring a page.
 
-Files read live from `site/`, with **every request checked against the same
-firewall rule a deploy applies**. So the server shows exactly what a deploy
-would show — a withheld file is *absent*, not merely unlinked, and a page that
-only works because it reached a private working file fails here rather than
-after publication — while an edit still appears on reload without a restart.
+Artifacts on the same origin retain that origin's existing trust boundary.
+Collection opt-in bounds filesystem writes; it does not sandbox mutually
+untrusted pages on one origin. Serve only trusted artifacts within the existing
+authenticated access boundary, and do not expand access to enable saves.
 
-A withheld path answers 404 whether or not the file exists, so the refusal is
-not an oracle for what the artifact is hiding.
+| Request below the artifact root | Effect |
+|---|---|
+| `GET _artoo/state/<collection>` | capability response `protocol: 2`, `durable: true`, entries |
+| `GET _artoo/state/<collection>/<name>` | document envelope including `revision`; 404 if absent |
+| `PUT _artoo/state/<collection>/<name>` | JSON `{document, expected_revision}` |
+| `DELETE _artoo/state/<collection>/<name>` | JSON `{expected_revision}` |
 
-Loopback only, no authentication. This is a working surface, not a host.
+A new document uses `expected_revision: null`; an update uses the exact revision
+last read. A stale revision returns conflict (409), never last-writer-wins.
+Hosts may deliberately deny DELETE; surface that refusal without fallback.
+Collection/document names match `[A-Za-z0-9][A-Za-z0-9._-]{0,63}` and the service
+bounds request size. Atomic replacement prevents partial documents; revision
+checks protect concurrent edits. A successful save confirms a disk write.
+**It does not commit or push Git.** Review and commit only the intended artifact
+state JSON files separately. Ignore `state/**/.lock` and `state/**/.pending-*`
+(the latter can remain after an interrupted process); never stage the whole repository to capture feedback.
 
-## The state store
+## Authoring with ArtooStore
 
-One API lives under `/_artoo/state`, and it reads and writes named JSON
-documents into the artifact's own `state/` directory:
-
-| request | effect |
-|---------|--------|
-| `GET /_artoo/state/<collection>` | list documents: name, updated, bytes |
-| `GET /_artoo/state/<collection>/<name>` | read one document |
-| `PUT /_artoo/state/<collection>/<name>` | write it, body `{"document": …}` |
-| `DELETE /_artoo/state/<collection>/<name>` | remove it |
-
-`state/presets/means-heavy.json` is a real file next to the work, committed
-with it and readable in a diff. Browser storage is the cheap alternative and
-the wrong one: per-browser, invisible to the repo, lost on a profile reset,
-and impossible for a second person to read.
-
-**`state/` is a sibling of `site/`.** That is the whole point of putting it
-there — the firewall only ever ships from the site root, so nothing a reader
-saves can reach a publish by accident.
-
-Writes are atomic (temp file, then rename), so a crashed or concurrent save
-cannot leave a half-parsed preset the page will then refuse to load.
-
-## Two rules on the write path
-
-Collection and document names must match `[A-Za-z0-9][A-Za-z0-9._-]{0,63}`.
-The path is built from a validated name and never from raw request text, so
-`..` and absolute paths cannot appear. Bodies are capped at 4 MB; a saved view
-is small, and anything larger is a mistake worth surfacing.
-
-## From the page
-
-`ArtooStore` in artoo-kit is the client:
+Upgrade the pinned kit explicitly with `artoo lib update`; existing vendored
+copies are not silently rewritten. Load the kit's `store.js` normally from
+`lib/artoo-kit/store.js`. It derives the artifact root from that script URL,
+including when the current page is nested. An explicit same-origin `base` option
+or `<meta name="artoo-state-base" content="…">` overrides the endpoint.
 
 ```js
-const presets = ArtooStore.open("presets");
-await presets.save("means-heavy", weights);   // → state/presets/means-heavy.json
-await presets.list();                          // [{name, updated, bytes}, …]
-await presets.load("means-heavy");
-await presets.remove("means-heavy");
+const store = ArtooStore.open("feedback");
+// Keep editing disabled until the shared document has been read.
+let document = await store.load("review"); // document or null; remembers revision
+// Render the shared document and any pending/browser copy for comparison.
+const browserCopy = store.inspectLocal("review");
+const pending = store.inspectPending("review");
+// Enable editing only when unresolved pending data has been handled.
+await store.save("review", editedDocument);
+status.textContent = store.describe();
 ```
 
-Opened from `file://` or a plain static host there is no server to write to, so
-the store falls back to `localStorage` and reports `durable === false`. Print
-`presets.describe()` in the interface rather than let a reader believe a save
-reached disk when it did not.
+Serialize saves and catch every failure. Display a saving state before awaiting,
+then display `describe()` or equivalent only after the response. Disable edits
+until load finishes, preserve the visible edit on errors, and provide a retry or
+comparison action. `store.status` distinguishes `unloaded`, `loaded`, `saving`,
+`saved`, `conflict`, `unsaved`, `unavailable`, and `browser-only`. `durable` means
+the protocol was discovered, not that the latest edit succeeded.
+
+HTTP service errors never silently switch to browser-only saves. Explicit
+`ArtooStore.open("feedback", {localOnly: true})` or a `file://` page uses the
+legacy browser store, and must visibly say **browser only**. A protocol-1 server
+must be upgraded; its successful response cannot establish conflict safety.
+
+## Browser import and interrupted saves
+
+The legacy `artoo:state:<collection>:<name>` browser key is preserved. Inspect it
+with `inspectLocal(name)`, show its content alongside a fresh `load(name)`, and
+ask the reader to choose/merge differences. Only after that explicit choice:
+
+```js
+await store.importLocal("review", {confirm: true, document: reviewedMergedDocument});
+```
+
+This saves against the revision remembered by `load` and leaves the original
+browser copy intact. Never automatically replace shared feedback with an old
+browser copy. Different browsers may contain different legacy copies.
+
+Before a network write, the client retains a separate browser pending envelope
+containing the payload and its original expected revision. Each operation has
+its own journal ID, so one browser tab cannot clear another tab's failed save. If browser storage
+refuses that recovery copy, the write is refused. `inspectPending(name)` exposes
+it after a reload; `listPending(name)` returns all outstanding operations.
+Pass a `pending_id` to `inspectPending(name, id)`, `recoverPending(name, id)`,
+or `discardPending(name, id)` when choosing among several.
+`resolvePending` accepts the selected `pending_id` in its options.
+`recoverPending(name)` retries that exact revision, after
+loading shared state, so recovery cannot overwrite a newer edit. A lost response
+may mean the disk write already succeeded: compare the pending and shared copies
+before acting. Recovery may correctly conflict in this case.
+
+A pending edit blocks a new save until the reader has recovered or explicitly
+resolved it. For a manual merge, retain both copies in the UI, load shared state,
+and call `resolvePending(name, {confirm: true, document: reviewedMergedDocument})`
+after the reader approves. It writes a separate recovery envelope before the network request, retaining
+the original until the merge is acknowledged, avoiding a discard-then-save crash gap.
+`discardPending(name)` is available only for an explicit decision to abandon an
+edit; never use it automatically on load or on a failed save. Neither action
+removes the legacy browser source.
+
+Test a fresh second browser context, reload, concurrent edits, offline failure,
+interrupted acknowledgement, and the import comparison flow. A same-session
+localStorage read does not demonstrate shared persistence. Keep tests and
+captures inside the artifact's private working area, and never put saved reader
+feedback into the public `site/` tree.
 
 ---
 
@@ -1073,7 +1118,7 @@ artoo-grid owns `grid-`. A class starting with one of those that the vendored st
 
 ---
 
-# artoo-kit 0.5.0
+# artoo-kit 0.6.0
 
 *On its own: `artoo docs artoo-kit`*
 
@@ -1184,6 +1229,16 @@ no runtime) or as a Mermaid diagram. Guidance:
 - **Honesty.** A figure earns its place by helping the reader make a valid
   comparison — include vintages, denominators, and a source note in the
   `<figcaption>`, so the comparison can be interpreted honestly.
+
+### Shared document saves
+
+`store.js` implements protocol-2 ArtooStore. Await `load(name)` before editing;
+`save(name, document)` uses its revision for conflict protection. Surface errors
+and save status: durable disk writes do not commit or push Git. HTTP failures
+never silently become browser-only saves. Inspect and explicitly compare legacy
+browser data with `inspectLocal` / `importLocal`; inspect failed writes with
+`inspectPending` / `recoverPending`. See `artoo docs serve` for the complete
+authoring, migration, and recovery contract.
 
 ## Class vocabulary
 
