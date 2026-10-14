@@ -111,6 +111,25 @@ offline JSON packing. Delete `[content]` only when taking ownership of raw
 4. **Research never lands in `site/`.** Put it in `work/` or an attached
    notebook. Publishing is deny-by-default; see the firewall reference.
 
+## Shared feedback and saved data
+
+For interactive artifacts shared through a private reader, use ArtooStore's
+protocol-2 disk persistence rather than silently depending on one browser.
+Declare the allowed collections in `artifact.toml` as
+`[state]` with `collections = ["feedback"]`. Keep state outside `site/`.
+Use the artifact-relative endpoint on its existing authenticated reader route;
+a root-relative URL can accidentally address a different artifact. Do not
+change hosting, authentication, or service permissions as part of authoring.
+
+Read `references/serve.md` before implementing saves. Await the initial shared
+load before enabling edits, preserve failed writes, and compare legacy browser
+copies before explicit import. Show saving, conflict, and unsaved states honestly.
+A disk save is not a Git commit or push: review and stage only intended artifact
+files separately. Verify reload, a second browser session, competing edits,
+interrupted saves, and explicit migration before calling shared feedback ready.
+An offline page still renders; shared saving requires its configured service.
+Installed skill/runtime upgrades and deployment remain separate release gates.
+
 ## Finding your way
 
 ```bash

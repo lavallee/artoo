@@ -40,6 +40,9 @@ include_private = false           # opt in to projecting a non-public notebook
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
 
+[state]                         # optional shared saved-data opt-in
+collections = ["feedback"]      # bounded JSON namespaces under artifact/state/
+
 [deploy]
 target = "github-pages"           # github-pages | rsync | command
 # adapter-specific keys live here too
@@ -75,6 +78,10 @@ reference-guide → collection, everything else → article.
 - `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
   files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
+- `state.collections` is a list of slug names. Only declared collections can be
+  served by the shared-state API; no declaration means no state access. `state/`
+  must not overlap `build.site`. Disk writes do not commit or push Git; see
+  `artoo docs serve` for revision checks, browser import, and recovery.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
   is the source of truth. It must never overlap `build.site`.

@@ -1,4 +1,4 @@
-# artoo-kit 0.5.0
+# artoo-kit 0.6.0
 
 Long-form article layout, evidence regions, and the provenance panel.
 
@@ -107,6 +107,16 @@ no runtime) or as a Mermaid diagram. Guidance:
 - **Honesty.** A figure earns its place by helping the reader make a valid
   comparison — include vintages, denominators, and a source note in the
   `<figcaption>`, so the comparison can be interpreted honestly.
+
+### Shared document saves
+
+`store.js` implements protocol-2 ArtooStore. Await `load(name)` before editing;
+`save(name, document)` uses its revision for conflict protection. Surface errors
+and save status: durable disk writes do not commit or push Git. HTTP failures
+never silently become browser-only saves. Inspect and explicitly compare legacy
+browser data with `inspectLocal` / `importLocal`; inspect failed writes with
+`inspectPending` / `recoverPending`. See `artoo docs serve` for the complete
+authoring, migration, and recovery contract.
 
 ## Class vocabulary
 

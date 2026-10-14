@@ -21,7 +21,7 @@ from pathlib import Path
 
 from .. import Library
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 # Class prefixes the kit owns outright. A class starting with one of these
 # that the stylesheet does not define is a guess, not an authorial choice, so

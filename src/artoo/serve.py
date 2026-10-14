@@ -36,8 +36,6 @@ same guarantee against the current bytes.
 from __future__ import annotations
 
 import json
-import re
-from datetime import datetime, timezone
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -47,80 +45,9 @@ from urllib.parse import unquote, urlparse
 from . import firewall
 from .manifest import Manifest
 
-STATE_DIR = "state"
+from .state import MAX_BODY, STATE_DIR, STATE_PROTOCOL, StateError, StateStore, strict_json
+
 API_ROOT = "/_artoo/state"
-MAX_BODY = 4 * 1024 * 1024  # a saved view is small; anything larger is a mistake
-
-# Slug rule for both the collection and the document name. Deliberately tight:
-# these become path segments, and the cheapest way to be sure a request cannot
-# escape the state directory is to refuse anything that is not obviously a name.
-_SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-
-
-class StateStore:
-    """Named JSON documents under ``<artifact>/state/<collection>/<name>.json``."""
-
-    def __init__(self, root: Path):
-        self.root = root
-
-    def _dir(self, collection: str) -> Path:
-        return self.root / collection
-
-    def _path(self, collection: str, name: str) -> Path:
-        return self._dir(collection) / f"{name}.json"
-
-    @staticmethod
-    def valid(*names: str) -> bool:
-        return all(bool(_SLUG.match(n)) for n in names)
-
-    def list(self, collection: str) -> list[dict]:
-        directory = self._dir(collection)
-        if not directory.is_dir():
-            return []
-        entries = []
-        for path in sorted(directory.glob("*.json")):
-            stat = path.stat()
-            entries.append(
-                {
-                    "name": path.stem,
-                    "updated": datetime.fromtimestamp(stat.st_mtime, timezone.utc)
-                    .isoformat()
-                    .replace("+00:00", "Z"),
-                    "bytes": stat.st_size,
-                    "durable": True,
-                }
-            )
-        return entries
-
-    def read(self, collection: str, name: str):
-        path = self._path(collection, name)
-        if not path.is_file():
-            return None
-        return json.loads(path.read_text(encoding="utf-8"))
-
-    def write(self, collection: str, name: str, document) -> dict:
-        directory = self._dir(collection)
-        directory.mkdir(parents=True, exist_ok=True)
-        path = self._path(collection, name)
-        payload = {
-            "name": name,
-            "updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "document": document,
-        }
-        # Written whole, through a temporary file in the same directory, so a
-        # crashed or concurrent save can never leave a half-parsed preset that
-        # the page will then refuse to load.
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        tmp.replace(path)
-        return {"name": name, "updated": payload["updated"], "durable": True, "path": str(path)}
-
-    def delete(self, collection: str, name: str) -> bool:
-        path = self._path(collection, name)
-        if not path.is_file():
-            return False
-        path.unlink()
-        return True
 
 
 class _Handler(SimpleHTTPRequestHandler):
@@ -163,12 +90,71 @@ class _Handler(SimpleHTTPRequestHandler):
         return [unquote(p) for p in rest.split("/")] if rest else []
 
     def _body(self):
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise ValueError(f"body of {length} bytes exceeds the {MAX_BODY}-byte limit")
-        if not length:
-            return None
-        return json.loads(self.rfile.read(length).decode("utf-8"))
+        if self.headers.get("Transfer-Encoding"):
+            raise StateError("Transfer-Encoding is not supported")
+        if self.headers.get_content_type() != "application/json":
+            raise StateError("writes require application/json", 415, "content_type")
+        lengths = self.headers.get_all("Content-Length", [])
+        if len(lengths) != 1 or not lengths[0].isdigit():
+            raise StateError("one positive Content-Length is required")
+        length = int(lengths[0])
+        if not 0 < length <= MAX_BODY:
+            raise StateError("request body exceeds size limit", 413, "too_large")
+        raw = self.rfile.read(length)
+        if len(raw) != length:
+            raise StateError("incomplete request body")
+        try:
+            return strict_json(raw)
+        except (ValueError, UnicodeError, RecursionError) as exc:
+            raise StateError("invalid JSON body") from exc
+
+    def _trusted_request(self):
+        host = self.headers.get("Host", "")
+        port = self.server.server_address[1]
+        allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        bound = self.server.server_address[0]
+        if bound not in ("0.0.0.0", "::"):
+            allowed.add(f"{bound}:{port}")
+        origin = self.headers.get("Origin")
+        if (host not in allowed or (origin and origin != "http://" + host)
+                or self.headers.get("Sec-Fetch-Site") == "cross-site"):
+            raise StateError("state API requires a same-origin local request", 403, "origin")
+
+    def _state_request(self, method):
+        try:
+            self._trusted_request()
+            route = self._route()
+            if route is None or len(route) not in (1, 2):
+                raise StateError("unknown state route", 404, "not_found")
+            collection = route[0]
+            if method == "GET" and len(route) == 1:
+                return self._json(200, {"collection": collection, "protocol": STATE_PROTOCOL,
+                                        "durable": True, "entries": self.store.list(collection)})
+            if len(route) != 2:
+                raise StateError("document name required", 404, "not_found")
+            name = route[1]
+            if method == "GET":
+                doc = self.store.read(collection, name)
+                if doc is None:
+                    raise StateError("document not found", 404, "not_found")
+                return self._json(200, doc)
+            payload = self._body()
+            if not isinstance(payload, dict) or "expected_revision" not in payload:
+                raise StateError("expected_revision is required (null to create)", 428, "precondition")
+            if method == "PUT":
+                if "document" not in payload:
+                    raise StateError("document is required")
+                result = self.store.write(collection, name, payload["document"],
+                                          expected_revision=payload["expected_revision"])
+                return self._json(200, result)
+            deleted = self.store.delete(collection, name,
+                                        expected_revision=payload["expected_revision"])
+            if not deleted:
+                raise StateError("document not found", 404, "not_found")
+            self.send_response(204)
+            self.end_headers()
+        except StateError as exc:
+            return self._json(exc.status, exc.as_dict())
 
     # -- methods ------------------------------------------------------------
 
@@ -181,10 +167,20 @@ class _Handler(SimpleHTTPRequestHandler):
         into an oracle for what the artifact is hiding.
         """
         path = unquote(urlparse(self.path).path).lstrip("/")
-        if not path:
-            return False
         try:
-            return not firewall.is_publishable(Path(path))
+            site = Path(self.directory).resolve()
+            target = (site / path).resolve()
+            if target != site and site not in target.parents:
+                return True
+            if target.is_dir():
+                for index in ("index.html", "index.htm"):
+                    candidate = target / index
+                    if candidate.exists():
+                        resolved = candidate.resolve()
+                        if resolved != site and site not in resolved.parents:
+                            return True
+                        break
+            return bool(path) and not firewall.is_publishable(Path(path))
         except (ValueError, OSError):
             return True
 
@@ -212,20 +208,7 @@ class _Handler(SimpleHTTPRequestHandler):
                 self.send_error(HTTPStatus.NOT_FOUND, "File not found")
                 return None
             return super().do_GET()
-        if len(route) == 1:
-            collection = route[0]
-            if not self.store.valid(collection):
-                return self._error(HTTPStatus.BAD_REQUEST, f"bad collection name {collection!r}")
-            return self._json(HTTPStatus.OK, {"collection": collection, "entries": self.store.list(collection)})
-        if len(route) == 2:
-            collection, name = route
-            if not self.store.valid(collection, name):
-                return self._error(HTTPStatus.BAD_REQUEST, "bad collection or document name")
-            document = self.store.read(collection, name)
-            if document is None:
-                return self._error(HTTPStatus.NOT_FOUND, f"no document {name!r} in {collection!r}")
-            return self._json(HTTPStatus.OK, document)
-        return self._error(HTTPStatus.NOT_FOUND, "unknown state route")
+        return self._state_request("GET")
 
     def do_HEAD(self):  # noqa: N802 - stdlib hook
         if self._route() is None and self._withheld():
@@ -234,36 +217,10 @@ class _Handler(SimpleHTTPRequestHandler):
         return super().do_HEAD()
 
     def do_PUT(self):  # noqa: N802 - stdlib hook
-        route = self._route()
-        if route is None:
-            return self._error(HTTPStatus.METHOD_NOT_ALLOWED, "PUT is only served under /_artoo/state")
-        if len(route) != 2:
-            return self._error(HTTPStatus.NOT_FOUND, "PUT /_artoo/state/<collection>/<name>")
-        collection, name = route
-        if not self.store.valid(collection, name):
-            return self._error(HTTPStatus.BAD_REQUEST, "bad collection or document name")
-        try:
-            payload = self._body()
-        except (ValueError, json.JSONDecodeError) as exc:
-            return self._error(HTTPStatus.BAD_REQUEST, str(exc))
-        if not isinstance(payload, dict) or "document" not in payload:
-            return self._error(HTTPStatus.BAD_REQUEST, "body must be {\"document\": …}")
-        result = self.store.write(collection, name, payload["document"])
-        if not self.quiet:
-            self.log_message("saved %s", result["path"])
-        return self._json(HTTPStatus.OK, result)
+        return self._state_request("PUT")
 
     def do_DELETE(self):  # noqa: N802 - stdlib hook
-        route = self._route()
-        if route is None or len(route) != 2:
-            return self._error(HTTPStatus.NOT_FOUND, "DELETE /_artoo/state/<collection>/<name>")
-        collection, name = route
-        if not self.store.valid(collection, name):
-            return self._error(HTTPStatus.BAD_REQUEST, "bad collection or document name")
-        if not self.store.delete(collection, name):
-            return self._error(HTTPStatus.NOT_FOUND, f"no document {name!r} in {collection!r}")
-        self.send_response(HTTPStatus.NO_CONTENT)
-        self.end_headers()
+        return self._state_request("DELETE")
 
 
 def serve(m: Manifest, host: str = "127.0.0.1", port: int = 8765, quiet: bool = False):
@@ -280,7 +237,7 @@ def serve(m: Manifest, host: str = "127.0.0.1", port: int = 8765, quiet: bool = 
     handler = partial(
         _Handler,
         directory=str(m.site_dir),
-        store=StateStore(state_dir),
+        store=StateStore.for_artifact(m.dir, m.site_dir, m.state_collections),
         quiet=quiet,
     )
     httpd = ThreadingHTTPServer((host, port), handler)
