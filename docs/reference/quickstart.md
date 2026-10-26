@@ -69,6 +69,10 @@ Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
 3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block.
+   Draw structure as Mermaid instead: a ` ```mermaid ` fence in Markdown
+   content, or `<pre class="mermaid">` with the built-in `artoo-diagrams`
+   library. Give nodes roles (`:::accent`), not colors; see
+   `artoo docs artoo-diagrams`.
 4. **Put research in `work/` or `notebook/`.** Both sit beside the
    presentation and neither can ship.
 

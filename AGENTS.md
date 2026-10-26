@@ -32,6 +32,8 @@ CI runs the last two on 3.12 and 3.13. Both must pass before a PR lands.
 | `src/artoo/skill.py` | `artoo skill install` |
 | `src/artoo/reference/*.md` | authored reference topics |
 | `src/artoo/libraries/*/` | site libraries: assets, README, class vocabulary |
+| `scripts/update-pele.py` | refreshes the Pele bundle `artoo-diagrams` vendors |
+| `site/landing/` | the artifact that publishes `docs/index.html` and examples |
 | `src/artoo/deploy/`, `generators/` | entry-point plugins |
 | `docs/` | the GitHub Pages site — **generated**, see below |
 
@@ -76,6 +78,26 @@ check that cries wolf gets ignored on the day it is right.
 Bump the library's `VERSION` when its assets change. Vendored copies are
 hash-pinned and never rewritten in place; `artoo lib update` is the explicit
 upgrade boundary.
+
+## Refreshing Pele
+
+`artoo-diagrams` vendors Pele's browser bundle, and Pele releases every few
+days. Never hand-copy it:
+
+```bash
+uv run python scripts/update-pele.py          # or an exact version
+uv run python scripts/sync-docs-site.py
+uv run pytest -q
+```
+
+The script takes a release only when the tarball matches npm's integrity hash
+and npm's SLSA provenance names a build of `obsidianmd/pele` at that release's
+tag; it writes `libraries/diagrams/pele.json`, which the tests hold the bundle
+to. The library version follows as `<pele>+artoo.<REVISION>`; bump `REVISION`
+only when `diagrams.js` or `diagrams.css` change. Before merging a refresh, open
+`site/landing/site/diagrams.html` in light and dark at phone and desktop width:
+Pele's layout still moves between minor releases, and that page is the visual
+check. `.github/workflows/pele.yml` runs the script weekly and opens a PR.
 
 ## Conventions
 

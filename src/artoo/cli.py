@@ -579,8 +579,10 @@ def lib():
 @lib.command(name="list")
 def lib_list():
     """Libraries available to vendor."""
-    for name, library in sorted(libraries_mod.available().items()):
-        click.echo(f"{name:20} {library.version:10} {library.root}")
+    available = sorted(libraries_mod.available().items())
+    width = max(10, *(len(library.version) for _, library in available))
+    for name, library in available:
+        click.echo(f"{name:20} {library.version:{width}} {library.root}")
 
 
 @lib.command(name="add")
@@ -606,8 +608,9 @@ def lib_status(artifact: Path | None):
     if not rows:
         click.echo("no libraries recorded in the manifest")
         return
+    width = max(10, *(len(row["version"]) for row in rows))
     for row in rows:
-        click.echo(f"{row['name']:20} {row['version']:10} {row['state']}")
+        click.echo(f"{row['name']:20} {row['version']:{width}} {row['state']}")
 
 
 @lib.command(name="update")

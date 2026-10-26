@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagrams — artoo</title>
+<meta name="description" content="Mermaid-syntax diagrams in artoo artifacts, rendered offline by Pele and themed by the artoo-kit tokens.">
+<link rel="icon" href="lib/artoo-kit/favicon.svg">
+<link rel="stylesheet" href="lib/artoo-kit/tokens.css">
+<link rel="stylesheet" href="lib/artoo-kit/base.css">
+<link rel="stylesheet" href="lib/artoo-kit/article.css">
+<link rel="stylesheet" href="lib/artoo-kit/components.css">
+<link rel="stylesheet" href="lib/artoo-diagrams/diagrams.css">
+</head>
+<body>
+<nav class="site-nav">
+  <a class="brand" href="index.html">artoo</a>
+  <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false">Menu</button>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="diagrams.html">Diagrams</a>
+    <a href="https://github.com/lavallee/artoo">GitHub</a>
+    <a href="https://lavallee.github.io/artoo/llms.txt">Reference</a>
+  </div>
+  <button data-theme-toggle class="nav-toggle" type="button" style="display:block;margin-left:auto" aria-label="Toggle theme">theme</button>
+</nav>
+<main class="article">
+  <header class="article-header">
+    <div class="article-kicker">examples</div>
+    <h1 class="article-title">Diagrams that ship with the artifact</h1>
+    <p class="article-dek">Write Mermaid. The built-in <code>artoo-diagrams</code> library renders it
+    offline with <a href="https://pele.run">Pele</a>, in the page's own type and colors.</p>
+  </header>
+
+  <p>Each diagram below is a <code>&lt;pre class="mermaid"&gt;</code> block in this page's HTML,
+  rendered in the browser by a vendored, hash-pinned copy of Pele. Nothing loads from a CDN, and with
+  JavaScript off the source is still there to read. Use the <strong>theme</strong> button: the
+  diagrams recolor without being redrawn, because Pele reads its colors from the kit's CSS tokens.
+  On a narrow screen, wide flowcharts turn vertical, and diagrams that had to shrink can be zoomed.</p>
+
+  <pre><code>artoo lib add artoo-diagrams   # Markdown content vendors it on its own
+artoo docs artoo-diagrams      # the authoring contract</code></pre>
+
+  <nav class="toc" aria-label="Examples"><ol>
+      <li><a href="#flowchart">Flowchart</a></li>
+      <li><a href="#sequence">Sequence</a></li>
+      <li><a href="#state">State</a></li>
+      <li><a href="#er">Entity relationship</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+  </ol></nav>
+
+  <h2 id="flowchart">Flowchart: what <code>artoo build</code> does</h2>
+  <p>The most common diagram: a process with gates in it. The gates are tagged <code>:::accent</code>, a role artoo-diagrams colors from the kit's tokens, so they recolor with the theme.</p>
+  <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  accTitle: What artoo build does
+  accDescr: Build validates the manifest, refreshes inputs, renders content, then gates the site through the firewall and static verification before stamping the updated date.
+  manifest[Validate artifact.toml] --&gt; commands[Run build commands]
+  commands --&gt; data[Pack data]
+  data --&gt; content[Render Markdown content]
+  content --&gt; firewall{{Publish firewall}}:::accent
+  firewall --&gt; verify{{Static verification}}:::accent
+  verify --&gt;|ok| stamp[Stamp updated]
+  verify --&gt;|problems| fix[Report the fix]:::warn</pre>
+    <figcaption>The firewall and verification are gates: a problem at either stops the build and names the fix.</figcaption>
+  </figure>
+  <details>
+    <summary>Mermaid source</summary>
+<pre><code>flowchart LR
+  accTitle: What artoo build does
+  accDescr: Build validates the manifest, refreshes inputs, renders content, then gates the site through the firewall and static verification before stamping the updated date.
+  manifest[Validate artifact.toml] --&gt; commands[Run build commands]
+  commands --&gt; data[Pack data]
+  data --&gt; content[Render Markdown content]
+  content --&gt; firewall{{Publish firewall}}:::accent
+  firewall --&gt; verify{{Static verification}}:::accent
+  verify --&gt;|ok| stamp[Stamp updated]
+  verify --&gt;|problems| fix[Report the fix]:::warn</code></pre>
+  </details>
+
+  <h2 id="sequence">Sequence: a deploy to GitHub Pages</h2>
+  <p>Who talks to whom, in order. Activation bars and notes are supported.</p>
+  <figure class="diagram">
+<pre class="mermaid">sequenceDiagram
+  accTitle: Deploying an artifact to GitHub Pages
+  accDescr: The author runs artoo deploy; artoo stages only publishable files, the deployer copies them into the Pages tree, and git records the change.
+  actor Author
+  participant artoo
+  participant Firewall
+  participant Pages as GitHub Pages deployer
+  Author-&gt;&gt;artoo: artoo deploy site/report
+  artoo-&gt;&gt;Firewall: stage(site/)
+  Firewall--&gt;&gt;artoo: publishable files only
+  Note right of Firewall: work/, notebooks, and _private paths never ship
+  artoo-&gt;&gt;Pages: copy staged site into docs/
+  Pages--&gt;&gt;Author: committed (never pushed unless asked)</pre>
+    <figcaption>Deploys are deny-by-default: the deployer only ever sees what the firewall staged.</figcaption>
+  </figure>
+  <details>
+    <summary>Mermaid source</summary>
+<pre><code>sequenceDiagram
+  accTitle: Deploying an artifact to GitHub Pages
+  accDescr: The author runs artoo deploy; artoo stages only publishable files, the deployer copies them into the Pages tree, and git records the change.
+  actor Author
+  participant artoo
+  participant Firewall
+  participant Pages as GitHub Pages deployer
+  Author-&gt;&gt;artoo: artoo deploy site/report
+  artoo-&gt;&gt;Firewall: stage(site/)
+  Firewall--&gt;&gt;artoo: publishable files only
+  Note right of Firewall: work/, notebooks, and _private paths never ship
+  artoo-&gt;&gt;Pages: copy staged site into docs/
+  Pages--&gt;&gt;Author: committed (never pushed unless asked)</code></pre>
+  </details>
+
+  <h2 id="state">State: a vendored library</h2>
+  <p>Lifecycles and status machines. These are the states <code>artoo lib status</code> reports. This one is wide, so its figure adds <code>article-breakout</code> to leave the prose column.</p>
+  <figure class="diagram article-breakout">
+<pre class="mermaid">stateDiagram-v2
+  accTitle: States of a vendored site library
+  accDescr: A library is intact after artoo lib add. Editing its files makes it modified, deleting them makes it missing, and a newer installed version makes it outdated. artoo lib update returns it to intact.
+  [*] --&gt; intact: artoo lib add
+  intact --&gt; modified: files edited
+  intact --&gt; missing: files deleted
+  intact --&gt; outdated: newer artoo installed
+  modified --&gt; intact: artoo lib update
+  missing --&gt; intact: artoo lib update
+  outdated --&gt; intact: artoo lib update</pre>
+    <figcaption>Vendored copies are hash-pinned; <code>artoo lib update</code> is the only way back to intact.</figcaption>
+  </figure>
+  <details>
+    <summary>Mermaid source</summary>
+<pre><code>stateDiagram-v2
+  accTitle: States of a vendored site library
+  accDescr: A library is intact after artoo lib add. Editing its files makes it modified, deleting them makes it missing, and a newer installed version makes it outdated. artoo lib update returns it to intact.
+  [*] --&gt; intact: artoo lib add
+  intact --&gt; modified: files edited
+  intact --&gt; missing: files deleted
+  intact --&gt; outdated: newer artoo installed
+  modified --&gt; intact: artoo lib update
+  missing --&gt; intact: artoo lib update
+  outdated --&gt; intact: artoo lib update</code></pre>
+  </details>
+
+  <h2 id="er">Entity relationship: what a manifest records</h2>
+  <p>Schemas and data models, with typed attributes and cardinality.</p>
+  <figure class="diagram">
+<pre class="mermaid">erDiagram
+  accTitle: What artifact.toml records
+  accDescr: An artifact vendors zero or more libraries, packs zero or more data sources, and has at most one deploy target.
+  ARTIFACT ||--o{ LIBRARY : vendors
+  ARTIFACT ||--o{ DATA : packs
+  ARTIFACT ||--o| DEPLOY : "publishes to"
+  ARTIFACT {
+    string slug
+    string kind
+    string form
+    date updated
+  }
+  LIBRARY {
+    string name
+    string version
+    string sha256
+  }
+  DATA {
+    string source
+    string output
+  }
+  DEPLOY {
+    string target
+  }</pre>
+    <figcaption>Every vendored library carries its version and a content hash.</figcaption>
+  </figure>
+  <details>
+    <summary>Mermaid source</summary>
+<pre><code>erDiagram
+  accTitle: What artifact.toml records
+  accDescr: An artifact vendors zero or more libraries, packs zero or more data sources, and has at most one deploy target.
+  ARTIFACT ||--o{ LIBRARY : vendors
+  ARTIFACT ||--o{ DATA : packs
+  ARTIFACT ||--o| DEPLOY : "publishes to"
+  ARTIFACT {
+    string slug
+    string kind
+    string form
+    date updated
+  }
+  LIBRARY {
+    string name
+    string version
+    string sha256
+  }
+  DATA {
+    string source
+    string output
+  }
+  DEPLOY {
+    string target
+  }</code></pre>
+  </details>
+
+  <h2 id="timeline">Timeline: artoo releases</h2>
+  <p>Dated sequences. Pele colors timeline sections from the kit's chart palette.</p>
+  <figure class="diagram">
+<pre class="mermaid">timeline
+  accTitle: artoo releases
+  accDescr: artoo releases from 0.1.0 in July 2026 through 0.7.0 in October 2026.
+  title artoo releases
+  section July 2026
+    0.1.0 : artifacts, firewall, deploy
+    0.2.0 : site libraries
+    0.3.0 : explainer generator
+  section August 2026
+    0.4.0 : agent reference
+    0.5.0 : forms and verification
+    0.6.0 : code maps
+  section October 2026
+    0.7.0 : diagrams with Pele</pre>
+    <figcaption>Dates from the changelog.</figcaption>
+  </figure>
+  <details>
+    <summary>Mermaid source</summary>
+<pre><code>timeline
+  accTitle: artoo releases
+  accDescr: artoo releases from 0.1.0 in July 2026 through 0.7.0 in October 2026.
+  title artoo releases
+  section July 2026
+    0.1.0 : artifacts, firewall, deploy
+    0.2.0 : site libraries
+    0.3.0 : explainer generator
+  section August 2026
+    0.4.0 : agent reference
+    0.5.0 : forms and verification
+    0.6.0 : code maps
+  section October 2026
+    0.7.0 : diagrams with Pele</code></pre>
+  </details>
+
+  <h2 id="writing">Writing diagrams that hold up</h2>
+  <ul>
+    <li><strong>Start with <code>accTitle:</code> and <code>accDescr:</code>.</strong> They become the
+    SVG's accessible name and description; the <code>figcaption</code> carries the takeaway.</li>
+    <li><strong>Name a role, not a color.</strong> <code>gate{{Firewall}}:::accent</code> follows the
+    theme; <code>style gate stroke:#3e63b4</code> is fixed in both. The roles are
+    <code>accent</code>, <code>warn</code>, and <code>muted</code>.</li>
+    <li><strong>Escape <code>&lt;</code>, <code>&gt;</code>, and <code>&amp;</code></strong> inside a
+    hand-written HTML block. In Markdown, a <code>```mermaid</code> fence needs no escaping.</li>
+    <li><strong>Diagrams for structure, SVG for numbers.</strong> A chart that carries a quantitative
+    claim belongs in inline SVG on the <code>--chart-*</code> palette, with its vintage and source.</li>
+    <li><strong>Check it in a browser.</strong> A syntax error renders in place and logs its line and
+    column; <code>artoo verify --browser</code> reports it, and <code>artoo build</code> fails a page
+    that has diagram source but no renderer.</li>
+  </ul>
+
+  <footer class="colophon">
+    Rendered by Pele 1.10.1 (MIT) through artoo-diagrams.
+    <a href="https://pele.run">pele.run</a> documents the full Mermaid syntax it supports.
+  </footer>
+</main>
+<script src="lib/artoo-diagrams/pele.global.js"></script>
+<script src="lib/artoo-diagrams/diagrams.js"></script>
+<script src="lib/artoo-kit/kit.js"></script>
+</body>
+</html>

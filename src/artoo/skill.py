@@ -110,6 +110,11 @@ offline JSON packing. Delete `[content]` only when taking ownership of raw
 3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block — that also lets the chart follow the theme.
+   Draw structure (flows, sequences, states, schemas) as Mermaid: a
+   ` ```mermaid ` fence in Markdown content, or `<pre class="mermaid">` with
+   the built-in `artoo-diagrams` library. Start with `accTitle:`/`accDescr:`,
+   give nodes roles (`:::accent`), never hex colors, and read
+   `artoo docs artoo-diagrams` first.
 4. **Research never lands in `site/`.** Put it in `work/` or an attached
    notebook. Publishing is deny-by-default; see the firewall reference.
 5. **Keep revisions and critique with the owning repo.** Use the existing Dirk

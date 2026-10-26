@@ -155,6 +155,27 @@ using the same word: a `.bar` fixed header sets `height: 46px` on an SVG
 `<rect class="bar">` and collapses a chart. Keep your own classes out of the
 `deck-` namespace and the two cannot reach each other.
 
+## Diagrams, offline and on theme
+
+Write Mermaid. A ` ```mermaid ` fence in Markdown content, or a
+`<pre class="mermaid">` block in hand-written HTML, renders through the
+built-in **`artoo-diagrams`** library: a vendored, hash-pinned copy of
+[Pele](https://pele.run), which draws every diagram type built into Mermaid
+12.1 at about a quarter of mermaid.js's weight. Pele reads its colors and type
+from the kit's CSS tokens, so diagrams switch theme without being redrawn, and
+it re-lays wide diagrams out for narrow screens.
+
+```bash
+artoo lib add artoo-diagrams     # Markdown content does this on its own
+artoo docs artoo-diagrams        # accessibility, roles not colors, limits
+```
+
+Pele releases often. Artifacts never feel that directly: each keeps its pinned
+copy until `artoo lib update artoo-diagrams`. artoo itself refreshes the copy it
+ships with `scripts/update-pele.py`, which takes a release only when the npm
+integrity hash matches and its build provenance names `obsidianmd/pele` at
+that release's tag. See the [examples](https://lavallee.github.io/artoo/diagrams.html).
+
 ## Dense tables, and explorers that remember
 
 A comparison table of a few hundred entities across a few dozen measures is a
@@ -344,7 +365,7 @@ artoo deploy site/explainer
 The explainer inventories the repo deterministically, builds the source-anchored
 code graph and interactive map, fans out per-module analysis to a cheap worker
 (`codex`), synthesizes the narrative with a strong worker (`claude`), renders
-architecture diagrams, and assembles a multi-page site with the built-in design
+architecture diagrams offline with `artoo-diagrams`, and assembles a multi-page site with the built-in design
 kit. Planning starts from a named reader decision,
 supportable headline claim, counter-reading, and licit comparisons before it
 selects tables or figures. The result is a dated snapshot with a colophon saying
@@ -352,7 +373,7 @@ exactly how it was made.
 
 ## Status
 
-v0.6.0 — alpha. The manifest format, CLI surface, and plugin entry points
+v0.7.0 — alpha. The manifest format, CLI surface, and plugin entry points
 are young and may change before 1.0. See [DESIGN.md](DESIGN.md) for the
 architecture and [CHANGELOG.md](CHANGELOG.md) for history.
 

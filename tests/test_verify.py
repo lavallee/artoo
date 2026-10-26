@@ -74,3 +74,48 @@ def test_browser_is_an_actionable_soft_dependency(artifact, monkeypatch):
     result = verify.browser(artifact)
     assert not result.ok
     assert "Playwright" in result.problems[0]
+
+
+def test_static_fails_a_diagram_page_with_no_renderer(artifact):
+    _raw(artifact, '<!doctype html><html><body><pre class="mermaid">graph LR\nA-->B</pre></body></html>')
+    problems = verify.static(artifact).problems
+    assert any(
+        "1 Mermaid block(s)" in problem and "artoo lib add artoo-diagrams" in problem
+        for problem in problems
+    )
+
+
+def test_static_names_the_one_missing_diagram_script(artifact):
+    from artoo import libraries
+
+    libraries.add(artifact, "artoo-diagrams")
+    _raw(
+        artifact,
+        '<!doctype html><html><body><pre><code class="language-mermaid">graph LR\nA-->B'
+        '</code></pre><script src="lib/artoo-diagrams/diagrams.js"></script></body></html>',
+    )
+    problems = [p for p in verify.static(artifact).problems if "Mermaid" in p]
+    assert len(problems) == 1
+    assert "lib/artoo-diagrams/pele.global.js" in problems[0]
+    assert "diagrams.js or" not in problems[0]
+
+
+def test_static_accepts_either_diagram_renderer(artifact):
+    from artoo import libraries
+
+    libraries.add(artifact, "artoo-diagrams")
+    _raw(
+        artifact,
+        '<!doctype html><html><body><pre class="mermaid">graph LR\nA-->B</pre>'
+        '<script src="lib/artoo-diagrams/pele.global.js"></script>'
+        '<script src="lib/artoo-diagrams/diagrams.js"></script></body></html>',
+    )
+    assert not [p for p in verify.static(artifact).problems if "Mermaid" in p]
+    (artifact.site_dir / "lib" / "vendor").mkdir(parents=True)
+    (artifact.site_dir / "lib" / "vendor" / "mermaid.min.js").write_text("")
+    _raw(
+        artifact,
+        '<!doctype html><html><body><pre class="mermaid">graph LR\nA-->B</pre>'
+        '<script src="lib/vendor/mermaid.min.js"></script></body></html>',
+    )
+    assert not [p for p in verify.static(artifact).problems if "Mermaid" in p]

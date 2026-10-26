@@ -21,7 +21,7 @@ from pathlib import Path
 
 from .. import Library
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 
 # Class prefixes the kit owns outright. A class starting with one of these
 # that the stylesheet does not define is a guess, not an authorial choice, so
@@ -61,7 +61,7 @@ CLASSES = {
     "stat-row": "row of figures",
     "stat": "one figure; `.value` then `.label`",
     "toc": "table of contents, as an ordered list",
-    "diagram": "wrapper for an inline SVG or a mermaid block",
+    "diagram": "wrapper for an inline SVG or an artoo-diagrams Mermaid block",
     "colophon": "build and provenance footer",
     "collection-pager": "previous and next navigation at the foot of a collection page",
     "numeric": "tabular figures, so columns of numbers align",

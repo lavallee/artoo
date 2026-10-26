@@ -15,8 +15,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
+  font-family: var(--font-prose);
+  font-size: var(--text-lg);
   line-height: var(--leading-relaxed);
   -webkit-font-smoothing: antialiased;
 }
@@ -31,6 +31,7 @@ h1, h2, h3, h4 {
   margin: 0 0 var(--sp-4);
   font-weight: 650;
   letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 
 h1 { font-size: var(--text-3xl); }
@@ -67,7 +68,7 @@ img, svg, video {
 }
 
 code, kbd, pre, samp {
-  font-family: var(--font-mono);
+  font-family: var(--font-numeric);
   font-size: 0.9em;
 }
 
@@ -129,6 +130,13 @@ th {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-family: var(--font-ui);
+}
+
+.numeric,
+[data-numeric] {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 figure {

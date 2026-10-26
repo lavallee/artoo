@@ -1,4 +1,4 @@
-# artoo-kit 0.6.0
+# artoo-kit 0.6.1
 
 Long-form article layout, evidence regions, and the provenance panel.
 
@@ -15,7 +15,7 @@ Files (all under `assets/`, all vendored):
 | `base.css` | resets and page defaults |
 | `article.css` | long-form article grid (prose + margin gutter) |
 | `components.css` | nav, cards, callouts, badges, stats, colophon, provenance |
-| `kit.js` | theme toggle, mobile nav, optional mermaid boot |
+| `kit.js` | theme toggle, mobile nav, legacy mermaid.js boot |
 | `provenance.js` | provenance panel hydration + in-prose claim anchors |
 | `favicon.svg` | default site icon (link it to silence the `/favicon.ico` 404) |
 
@@ -67,7 +67,7 @@ is never rewritten. Scope defaults to `[data-claim-anchors]`, then `<main>`,
 then the body — put `data-claim-anchors` on the article element to bound it.
 
 This is done client-side, matching the kit's existing client-side enhancements
-(theme, nav, mermaid). Nothing rewrites the committed HTML; the anchors are an
+(theme, nav, legacy mermaid.js). Nothing rewrites the committed HTML; the anchors are an
 enhancement layered at load time.
 
 ## Gotchas
@@ -93,8 +93,10 @@ the CSS `fill` *property*, not the SVG presentation attribute.)
 
 ### Charts and figures
 
-The kit ships no chart primitive; author charts as inline SVG (self-contained,
-no runtime) or as a Mermaid diagram. Guidance:
+The kit ships no chart primitive. Author a quantitative chart as inline SVG
+(self-contained, no runtime); author structure — flows, sequences, states,
+schemas, timelines — as a Mermaid diagram with the `artoo-diagrams` library
+(`artoo docs artoo-diagrams`). Guidance:
 
 - **Palette.** Use the Okabe–Ito tokens `--chart-1 … --chart-8` (in
   `tokens.css`); they are colorblind-safe and ordered by draw order. Do not
@@ -148,7 +150,7 @@ authoring, migration, and recovery contract.
 | `stat-row` | row of figures |
 | `stat` | one figure; `.value` then `.label` |
 | `toc` | table of contents, as an ordered list |
-| `diagram` | wrapper for an inline SVG or a mermaid block |
+| `diagram` | wrapper for an inline SVG or an artoo-diagrams Mermaid block |
 | `colophon` | build and provenance footer |
 | `collection-pager` | previous and next navigation at the foot of a collection page |
 | `numeric` | tabular figures, so columns of numbers align |

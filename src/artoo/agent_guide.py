@@ -152,6 +152,8 @@ def _rules(m: Manifest) -> str:
    never resolves — SVG presentation attributes are not CSS. Give the shape a
    class and set `fill` in a `<style>` block, which also lets the chart follow
    the theme instead of baking one that only reads in light mode.
+   Diagrams of structure are Mermaid rendered by `artoo-diagrams`; give nodes
+   roles (`:::accent`, `:::warn`, `:::muted`) instead of `style` colors.
 4. **A figure earns its place by enabling a valid comparison.** Vintages,
    denominators, and a source note belong in the `figcaption`.{research}"""
 
@@ -186,7 +188,8 @@ def render(m: Manifest) -> str:
         "2. Keep research and intermediate files outside `site/`.\n"
         "3. Keep runtime assets local: no CDN scripts, fonts, or stylesheets.\n"
         f"4. Use declared library classes; do not guess inside {owned}.\n"
-        "5. Keep source vintages, denominators, and limits beside the claims they qualify.",
+        "5. Keep source vintages, denominators, and limits beside the claims they qualify.\n"
+        "6. Draw structure as Mermaid; read `artoo docs artoo-diagrams` first.",
         "## Shared saved data\n\n"
         "Read `artoo docs serve`: opt in with `[state]` "
         "`collections = [\"feedback\"]` and use artifact-relative ArtooStore. "

@@ -1,0 +1,82 @@
+/* artoo-diagrams: Pele's theme variables, bound to artoo-kit tokens. Pele
+   reads colors from CSS at paint time, so a diagram follows the page's
+   light/dark theme without being redrawn. The fallbacks are Pele's own
+   defaults, for a page that loads this library without the kit. */
+
+.mermaid {
+  --pele-bg: var(--surface, #ffffff);
+  --pele-fg: var(--text, #1f1f1f);
+  --pele-muted: var(--muted, #6e6e6e);
+  --pele-line: var(--text-2, #1f1f1f);
+  --pele-surface: var(--surface-2, #f3f3f3);
+  --pele-surface-alt: var(--bg, #e6e6e6);
+  --pele-border: var(--border-strong, #8a8a8a);
+  --pele-accent: var(--accent, #5b7bd5);
+  --pele-critical: var(--danger, #e45756);
+  --pele-error: var(--danger, #e45756);
+  --pele-font: var(--font-ui, sans-serif);
+  --pele-font-mono: var(--font-numeric, monospace);
+  --pele-radius: var(--radius-sm, 4px);
+  /* The kit's Okabe–Ito hues, so diagrams and charts share one palette. Pele
+     letters pie slices and timeline sections in the background color, which
+     is white here, so light pages lead with the darkest hues: white on them
+     measures 5.2, 3.9, 3.4, and 3.1:1. */
+  --pele-series-1: var(--chart-5, #4c78a8);
+  --pele-series-2: var(--chart-6, #f58518);
+  --pele-series-3: var(--chart-3, #54a24b);
+  --pele-series-4: var(--chart-4, #e45756);
+  --pele-series-5: var(--chart-1, #72b7b2);
+  --pele-series-6: var(--chart-2, #eeca3b);
+  --pele-series-7: var(--chart-8, #b279a2);
+  --pele-series-8: var(--chart-7, #9d755d);
+  display: block;
+  margin: 0;
+}
+
+/* On dark pages that lettering is near-black, which reads on every hue, so
+   the kit's draw order holds (7.7, 7.9, 5.2, and 5.8:1 for the first four). */
+[data-theme="dark"] .mermaid {
+  --pele-series-1: var(--chart-1);
+  --pele-series-2: var(--chart-2);
+  --pele-series-3: var(--chart-3);
+  --pele-series-4: var(--chart-4);
+  --pele-series-5: var(--chart-5);
+  --pele-series-6: var(--chart-6);
+  --pele-series-7: var(--chart-7);
+  --pele-series-8: var(--chart-8);
+}
+
+/* Before diagrams.js runs, and with JavaScript off, the source is the
+   fallback: legible, quiet, and still copyable. */
+pre.mermaid {
+  font-family: var(--font-numeric, monospace);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--muted, #6e6e6e);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.mermaid[data-diagram="error"] {
+  min-height: 3em;
+}
+
+/* Node roles. Mermaid `style` and `classDef` take literal colors, which stay
+   fixed when the theme changes, so a node names its role instead —
+   `id[Label]:::accent` or `class a,b muted` — and the color comes from here. */
+.mermaid .pele-node.accent > :not(text) {
+  stroke: var(--accent, #5b7bd5);
+  stroke-width: 2px;
+}
+
+.mermaid .pele-node.warn > :not(text) {
+  stroke: var(--warn, #8a5a00);
+  stroke-width: 2px;
+}
+
+.mermaid .pele-node.muted > :not(text) {
+  stroke-dasharray: 4 3;
+}
+
+.mermaid .pele-node.muted .pele-label {
+  fill: var(--muted, #6e6e6e);
+}

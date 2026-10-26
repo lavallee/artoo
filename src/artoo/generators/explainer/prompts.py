@@ -26,7 +26,10 @@ inline styles, no external resources):
   figure, followed by <figcaption> with units, vintage, denominator, source,
   and limits where relevant. Plain tables also work in the prose column.
 - Diagrams: <div class="diagram"><pre class="mermaid">…mermaid source…
-  </pre></div>
+  </pre></div>. Mermaid syntax, rendered offline by Pele. Start the source
+  with accTitle: and accDescr: lines; HTML-escape < > & inside the block;
+  no style/classDef hex colors (they ignore the theme); no HTML labels or
+  click callbacks.
 - Semantic notices: <div class="callout callout--warn"><span
   class="callout-title">…</span>…</div> only for a real warning, success, or
   danger state; status colors are not decoration.

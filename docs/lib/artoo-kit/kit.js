@@ -1,4 +1,4 @@
-/* artoo-kit helpers: theme toggle, mobile nav, optional mermaid boot.
+/* artoo-kit helpers: theme toggle, mobile nav, legacy mermaid.js boot.
    No dependencies; safe to include on every page. */
 (function () {
   "use strict";
@@ -7,12 +7,14 @@
   var root = document.documentElement;
   var saved = null;
   try { saved = localStorage.getItem("artoo-theme"); } catch (e) { /* file:// */ }
-  if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+  if (!root.hasAttribute("data-theme") && (saved === "light" || saved === "dark")) {
+    root.setAttribute("data-theme", saved);
+  }
 
   function currentTheme() {
     var explicit = root.getAttribute("data-theme");
     if (explicit) return explicit;
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    return "light";
   }
 
   document.addEventListener("click", function (event) {
@@ -26,13 +28,17 @@
     var navToggle = event.target.closest(".nav-toggle");
     if (navToggle) {
       var links = document.querySelector(".site-nav .nav-links");
-      if (links) links.classList.toggle("open");
+      if (links) {
+        var open = links.classList.toggle("open");
+        navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      }
     }
   });
 
-  // Mermaid: if a vendored mermaid.min.js is loaded, render .mermaid blocks
-  // with theme-aware colors.
-  if (window.mermaid) {
+  // Mermaid: artifacts that opted into mermaid.js (artoo-mermaid) still render
+  // .mermaid blocks here. artoo-diagrams renders the same blocks with Pele;
+  // when both are loaded, Pele owns them so nothing is drawn twice.
+  if (window.mermaid && !window.pele) {
     window.mermaid.initialize({
       startOnLoad: true,
       theme: currentTheme() === "dark" ? "dark" : "neutral",
