@@ -1,0 +1,62 @@
+# Opens a PR when Pele, the renderer artoo-diagrams vendors, has a new release.
+#
+# The refresh runs the same script a maintainer would, so a release that fails
+# the integrity or provenance check never becomes a PR. PRs opened with the
+# default GITHUB_TOKEN do not trigger other workflows, so this job runs the
+# suite itself before opening one; review the examples page visually anyway.
+name: Refresh Pele
+
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync
+      - name: Check for a newer release
+        id: check
+        run: |
+          if uv run python scripts/update-pele.py --check; then
+            echo "newer=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "newer=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Refresh and verify
+        if: steps.check.outputs.newer == 'true'
+        run: |
+          uv run python scripts/update-pele.py
+          (cd site/landing && uv run artoo lib update artoo-diagrams && uv run artoo build .)
+          uv run artoo deploy site/landing
+          uv run python scripts/sync-docs-site.py
+          uv run ruff check src tests
+          uv run pytest -q
+      - name: Open a pull request
+        if: steps.check.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('src/artoo/libraries/diagrams/pele.json'))['version'])")
+          branch="pele-$version"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "branch $branch already exists"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A
+          git commit -m "Refresh Pele to $version"
+          git push origin "$branch"
+          gh pr create --title "Refresh Pele to $version" --body "Automated refresh by scripts/update-pele.py: npm integrity and SLSA provenance (obsidianmd/pele, refs/tags/$version) checked, suite passed in this job.
+
+          Before merging, open site/landing/site/diagrams.html in light and dark at phone and desktop width, and skim Pele's changes: https://github.com/obsidianmd/pele/compare"

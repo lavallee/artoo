@@ -5,11 +5,7 @@ description = "Landing page for artoo — generate and manage artifacts."
 kind = "note"
 status = "draft"
 created = "2026-07-10"
-
-[[libraries]]
-name = "artoo-kit"
-version = "0.1.0"
-sha256 = "c5b710294939bd2f01360ad47a20f6a9a3fdc14840bf92a04480fb6f2a2a23a3"
+updated = "2026-10-26"
 
 [deploy]
 target = "github-pages"
@@ -20,3 +16,13 @@ docs_dir = "docs"
 mode = "docs"
 own_root = true
 subpath = ""
+
+[[libraries]]
+name = "artoo-kit"
+version = "0.6.1"
+sha256 = "65dc93402fddcaa21520f46c23443875956836ee272f0972367644811ce09209"
+
+[[libraries]]
+name = "artoo-diagrams"
+version = "1.10.1+artoo.1"
+sha256 = "764734b893ac7852b0c852a091f08f327a6930eedd73fd839aabc9aa0dd6c1e6"

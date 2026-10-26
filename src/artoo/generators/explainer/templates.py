@@ -32,7 +32,7 @@ PAGE_SHELL = """<!doctype html>
 {colophon}
 </footer>
 </main>
-{mermaid_tag}{provenance_scripts}{library_scripts}<script src="lib/artoo-kit/kit.js"></script>
+{diagram_scripts}{provenance_scripts}{library_scripts}<script src="lib/artoo-kit/kit.js"></script>
 </body>
 </html>
 """
@@ -98,10 +98,10 @@ def colophon(meta: dict) -> str:
 
 def render_page(
     *, page: dict, pages: list[dict], site_title: str, body: str,
-    meta: dict, mermaid_src: str = "", provenance: bool = False,
-    code_map: bool = False,
+    meta: dict, diagram_styles: str = "", diagram_scripts: str = "",
+    provenance: bool = False, code_map: bool = False,
 ) -> str:
-    mermaid_tag = f'<script src="{mermaid_src}"></script>\n' if mermaid_src else ""
+    styles = "\n".join(part for part in (diagram_styles, MAP_STYLES if code_map else "") if part)
     return PAGE_SHELL.format(
         title=html.escape(page["title"]),
         site_title=html.escape(site_title),
@@ -109,9 +109,9 @@ def render_page(
         nav_links=nav_links(pages, page["slug"]),
         body=body,
         colophon=colophon(meta),
-        mermaid_tag=mermaid_tag,
+        diagram_scripts=diagram_scripts,
         provenance_panel=PROVENANCE_PANEL if provenance else "",
         provenance_scripts=PROVENANCE_SCRIPTS if provenance else "",
-        library_styles=MAP_STYLES if code_map else "",
+        library_styles=styles,
         library_scripts=MAP_SCRIPTS if code_map else "",
     )

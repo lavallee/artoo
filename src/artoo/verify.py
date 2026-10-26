@@ -48,6 +48,8 @@ class _Document:
     empty_controls: int = 0
     tables: list[list[int]] = field(default_factory=list)
     table_headers: list[bool] = field(default_factory=list)
+    diagrams: int = 0
+    scripts: list[str] = field(default_factory=list)
 
 
 class _Parser(HTMLParser):
@@ -58,6 +60,8 @@ class _Parser(HTMLParser):
         self._row_cells = 0
         self._button_depth = 0
         self._button_text = ""
+        self._pre_depth = 0
+        self._pre_counted = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -66,6 +70,16 @@ class _Parser(HTMLParser):
             if element_id in self.doc.ids:
                 self.doc.duplicate_ids.append(element_id)
             self.doc.ids.add(element_id)
+        classes = set((values.get("class") or "").split())
+        if tag == "pre":
+            self._pre_depth += 1
+            self._pre_counted = "mermaid" in classes
+            self.doc.diagrams += self._pre_counted
+        elif tag == "code" and self._pre_depth and "language-mermaid" in classes:
+            self.doc.diagrams += not self._pre_counted
+            self._pre_counted = True
+        if tag == "script" and values.get("src"):
+            self.doc.scripts.append(values["src"] or "")
         if tag == "img" and "alt" not in values:
             self.doc.missing_alt += 1
         if tag == "a" and values.get("href", "") in {"", "#"}:
@@ -95,6 +109,8 @@ class _Parser(HTMLParser):
                 self._table["header"] = True
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "pre" and self._pre_depth:
+            self._pre_depth -= 1
         if tag == "tr" and self._table is not None and self._row_cells:
             self._table["rows"].append(self._row_cells)
         elif tag == "table" and self._table is not None:
@@ -125,6 +141,23 @@ def _target(site: Path, page: Path, url: str) -> tuple[Path | None, str]:
     if raw.startswith("/"):
         return site / raw.lstrip("/"), parsed.fragment
     return page.parent / raw, parsed.fragment
+
+
+def _diagram_problem(doc: _Document) -> str:
+    """A Mermaid block with no renderer ships as a wall of source text."""
+    if not doc.diagrams:
+        return ""
+    names = {urlsplit(src).path.rsplit("/", 1)[-1] for src in doc.scripts}
+    if any("mermaid" in name for name in names):
+        return ""  # mermaid.js (artoo-mermaid or a vendored copy) renders it
+    missing = [name for name in ("pele.global.js", "diagrams.js") if name not in names]
+    if not missing:
+        return ""
+    return (
+        f"has {doc.diagrams} Mermaid block(s) but does not load "
+        + " or ".join(f"lib/artoo-diagrams/{name}" for name in missing)
+        + "; run `artoo lib add artoo-diagrams` and see `artoo docs artoo-diagrams`"
+    )
 
 
 def static(m: Manifest) -> VerificationResult:
@@ -164,6 +197,9 @@ def static(m: Manifest) -> VerificationResult:
             result.warnings.append(
                 f"{_rel(site, page)} has {parser.doc.empty_controls} empty or nowhere-pointing control(s)"
             )
+        problem = _diagram_problem(parser.doc)
+        if problem:
+            result.problems.append(f"{_rel(site, page)} {problem}")
         for index, rows in enumerate(parser.doc.tables):
             if not parser.doc.table_headers[index]:
                 result.warnings.append(f"{_rel(site, page)} table {index + 1} has no <th> headings")

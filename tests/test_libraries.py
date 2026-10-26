@@ -175,3 +175,33 @@ def test_map_available_self_contained_and_carries_upstream_license():
     assert 'src="http' not in wrapper and "import(" not in wrapper
     assert "@font-face" not in css and "url(" not in css
     assert "The Cytoscape Consortium" in (root / "CYTOSCAPE-LICENSE").read_text()
+
+
+def test_diagrams_bundle_is_the_pinned_upstream_release():
+    import hashlib
+
+    from artoo.libraries import diagrams
+
+    lib = libraries.available()["artoo-diagrams"]
+    bundle = (lib.root / "pele.global.js").read_bytes()
+    assert hashlib.sha256(bundle).hexdigest() == diagrams.UPSTREAM["bundle_sha256"]
+    assert bundle.startswith(f"/*! Pele {diagrams.PELE_VERSION} |".encode())
+    assert diagrams.UPSTREAM["repository"] == "https://github.com/obsidianmd/pele"
+    assert (lib.root / "PELE-LICENSE").read_text().startswith("MIT License")
+    assert lib.version == f"{diagrams.PELE_VERSION}+artoo.{diagrams.REVISION}"
+    assert diagrams.PELE_VERSION in lib.summary
+
+
+def test_diagrams_glue_is_self_contained():
+    lib = libraries.available()["artoo-diagrams"]
+    for name in ("diagrams.js", "diagrams.css"):
+        text = (lib.root / name).read_text()
+        assert "https://" not in text and "http://" not in text
+    js = (lib.root / "diagrams.js").read_text()
+    assert "ArtooDiagrams" in js
+    assert "console.error" in js  # what `artoo verify --browser` reports
+
+
+def test_kit_leaves_diagrams_to_pele_when_both_are_loaded():
+    js = (libraries.available()["artoo-kit"].root / "kit.js").read_text()
+    assert "window.mermaid && !window.pele" in js

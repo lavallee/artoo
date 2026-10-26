@@ -81,7 +81,7 @@ def render_page(
         nav_links=nav_links(pages, page["slug"]),
         body=body,
         colophon=colophon(meta),
-        mermaid_tag="",
+        diagram_scripts="",
         provenance_panel=PROVENANCE_PANEL if provenance else "",
         provenance_scripts=PROVENANCE_SCRIPTS if provenance else "",
         library_styles="",

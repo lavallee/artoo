@@ -30,6 +30,7 @@ AUTHORED = {
     "manifest": "Every artifact.toml key, and what the validator enforces.",
     "data": "Pack JSON once for both HTTP and offline file viewing.",
     "verify": "Static integrity checks and optional browser proof.",
+    "review": "Source-owned revisions, Dirk discovery, and private review receipts.",
     "firewall": "What publishes, what is withheld, and why it is structural.",
     "serve": "Running an artifact locally, and the state store that makes saves durable.",
     "provenance": "Attaching a flip notebook, the projection, and the roundtrip verbs.",

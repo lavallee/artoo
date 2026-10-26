@@ -1,0 +1,9 @@
+{
+  "package": "pele",
+  "version": "1.10.1",
+  "integrity": "sha512-beU/HA96TdYrUYv+dbt6h4G3DqFyBIAGEGjfY5RbP1mUBCqcOrtV67/AhSQggxfL5gphFH5XJ0BsPzL6x/RP2w==",
+  "bundle": "dist/pele.global.js",
+  "bundle_sha256": "68bb24ad636f528e001dd7ec778d858b1971a22eb007358ea75940f7fd7a6a03",
+  "repository": "https://github.com/obsidianmd/pele",
+  "ref": "refs/tags/1.10.1"
+}

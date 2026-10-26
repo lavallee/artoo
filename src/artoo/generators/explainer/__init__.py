@@ -6,7 +6,7 @@ Pipeline — each stage caches into ``work/`` so interrupted runs resume:
 2. analysis fan-out (workers) → work/analysis/<unit>.md
 3. site plan (synthesis)      → work/plan.json
 4. pages (synthesis)          → work/pages/<slug>.html
-5. assembly (deterministic)   → site/<slug>.html + vendored kit/mermaid
+5. assembly (deterministic)   → site/<slug>.html + vendored kit/diagrams
 
 Without worker CLIs the generator degrades to a deterministic site built
 from the inventory alone — smaller, but honest about it.
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import click
 
-from ... import __version__, codegraph, libraries
+from ... import __version__, codegraph, content, libraries
 from ... import manifest as manifest_mod
 from ... import provenance as provenance_mod
 from ... import scaffold, workers
@@ -31,42 +31,23 @@ from ...research import ResearchLog
 from . import inventory as inventory_mod
 from . import prompts, templates
 
-MERMAID_URL = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
 ANALYSIS_CONCURRENCY = 3
 
 
-def _ensure_mermaid(m) -> str:
-    """Make a mermaid runtime available to the site; return its site-relative
-    src (or "" if none could be arranged).
+def _ensure_diagrams(m) -> tuple[str, str]:
+    """Make a diagram renderer available; return its (styles, scripts) tags.
 
-    Preference order: an already-vendored copy (stability), then the
-    artoo-mermaid site library (offline, pinned), then a CDN download
-    recorded under [[vendor]].
+    artoo-diagrams is built in, so this never touches the network. An artifact
+    that already records the artoo-mermaid library chose mermaid.js on purpose
+    and keeps it; one already carrying artoo-diagrams keeps its pinned copy.
     """
-    lib_rel = "lib/mermaid/mermaid.min.js"
-    if (m.site_dir / lib_rel).is_file():
-        return lib_rel
-    vendor_rel = "lib/vendor/mermaid.min.js"
-    if (m.site_dir / vendor_rel).is_file():
-        return vendor_rel
-    try:
-        libraries.get("mermaid")
-        libraries.add(m, "mermaid")
-        click.echo("vendored mermaid from the artoo-mermaid site library")
-        return lib_rel
-    except KeyError:
-        pass
-    try:
-        libraries.vendor_url(m, "mermaid", MERMAID_URL)
-        click.echo("vendored mermaid.min.js from CDN")
-        return vendor_rel
-    except Exception as exc:
-        click.secho(
-            f"! no mermaid available (install artoo-mermaid or go online): {exc}; "
-            "diagrams will render as source blocks",
-            fg="yellow",
-        )
-        return ""
+    recorded = {entry.get("name") for entry in m.libraries}
+    if "mermaid" in recorded and (m.site_dir / "lib/mermaid/mermaid.min.js").is_file():
+        return "", '<script src="lib/mermaid/mermaid.min.js"></script>\n'
+    if "artoo-diagrams" not in recorded:
+        libraries.add(m, "artoo-diagrams")
+        click.echo("vendored artoo-diagrams for Mermaid-syntax diagrams")
+    return content.DIAGRAM_STYLES, content.DIAGRAM_SCRIPTS + "\n"
 
 
 def _slugify(name: str) -> str:
@@ -491,8 +472,8 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
             click.echo(f"  wrote {page['slug']}")
 
         # 5. assembly
-        uses_mermaid = any('class="mermaid"' in b for b in bodies.values())
-        mermaid_src = _ensure_mermaid(m) if uses_mermaid else ""
+        uses_diagrams = any('class="mermaid"' in b for b in bodies.values())
+        diagram_styles, diagram_scripts = _ensure_diagrams(m) if uses_diagrams else ("", "")
 
         # Project the notebook this run recorded into site/data/ so the pages
         # can carry a data-driven provenance panel and a notebook-aware
@@ -525,7 +506,12 @@ def generate(repo: Path, out: Path | None, title: str, fresh: bool, max_units: i
             html_text = templates.render_page(
                 page=page, pages=plan["pages"],
                 site_title=plan["site_title"], body=bodies[page["slug"]],
-                meta=meta, mermaid_src=mermaid_src, provenance=with_panel,
+                meta=meta, provenance=with_panel,
+                **(
+                    {"diagram_styles": diagram_styles, "diagram_scripts": diagram_scripts}
+                    if 'class="mermaid"' in bodies[page["slug"]]
+                    else {}
+                ),
                 code_map=page["slug"] == "code-map",
             )
             (m.site_dir / f"{page['slug']}.html").write_text(html_text, encoding="utf-8")

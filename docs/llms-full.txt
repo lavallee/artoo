@@ -22,7 +22,9 @@ artoo init docs/spending-report --title "Where the money went"
 artoo status docs/spending-report     # manifest health, firewall, library drift
 artoo build  docs/spending-report     # render, pack data, verify, stamp `updated`
 artoo verify docs/spending-report     # links, assets, anchors, offline dependencies
-artoo deploy docs/spending-report     # firewall-stage, then publish
+artoo review docs/spending-report "A concrete design finding" --page index.html
+# commit the artifact and review receipt in the subject's repo; use its private reader
+artoo deploy docs/spending-report     # separate, authorized publication step
 ```
 
 `artoo init` writes a concise `AGENTS.md` for automatic context and an
@@ -46,6 +48,8 @@ docs/spending-report/
 ```
 
 Only `site/` is publishable. See `artoo docs firewall`.
+For source-owned revisions, Dirk discovery, and feedback that attaches to the
+exact render, see `artoo docs review`.
 
 ## Choosing a kind and form
 
@@ -74,6 +78,10 @@ Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
 3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block.
+   Draw structure as Mermaid instead: a ` ```mermaid ` fence in Markdown
+   content, or `<pre class="mermaid">` with the built-in `artoo-diagrams`
+   library. Give nodes roles (`:::accent`), not colors; see
+   `artoo docs artoo-diagrams`.
 4. **Put research in `work/` or `notebook/`.** Both sit beside the
    presentation and neither can ship.
 
@@ -299,6 +307,61 @@ command names the install needed or lets you omit `--browser`.
 
 A clean check proves structural and runtime integrity. It does not promote an
 artifact's status or establish factual, editorial, visual, or human acceptance.
+
+---
+
+# Private review and source-owned revisions
+
+*On its own: `artoo docs review`*
+
+Keep each artifact in the repository that owns its subject. Its `artifact.toml`
+names the page; `site/` holds the served projection; `work/` holds the brief,
+source contract, and review events. A deck, explorer, or raw HTML page follows
+the same contract. Agents in Claude, Codex, or another harness should use this
+path when Artoo is available rather than making a detached artifact in a
+harness-specific surface.
+
+## One path from draft to review
+
+1. `artoo init <repo-path> --kind … --form … --title …`, or add a manifest to
+   an existing source-owned HTML tree. Keep generated and research inputs beside
+   `site/`, not in a central artifact repository.
+2. `artoo build <artifact>` and `artoo verify <artifact> --browser`. Review the
+   actual phone and desktop render, task flow, source limits, and links. These
+   checks prove rendering and integrity, not editorial quality.
+3. Commit the artifact and its source contract in the owning repository. A
+   changed render is a new Git revision; do not silently replace a reviewed
+   candidate. `artoo review` also records a digest of exactly the files the
+   firewall would serve, so an uncommitted trial still has a distinct identity.
+4. Where an existing Dirk reader indexes the project repository, use its
+   discovered `/a/<repo>/<slug>/` route for private review. Dirk scans
+   `artifact.toml` and reads the site live; do not copy the artifact into a
+   separate hosting repository or start another server. Check the actual access
+   plane before sharing a URL. Artoo itself does not add authentication.
+5. Record findings and fixes against the rendered revision:
+
+   ```bash
+   artoo review path/to/artifact "The mobile answer is below the first screen" --page answers/device-policy/index.html
+   artoo review path/to/artifact "Selected answer now receives focus" --page answers/device-policy/index.html --resolves <finding-id>
+   ```
+
+   The append-only `work/reviews.jsonl` records event ids, the artifact slug,
+   site digest, Git head and dirty state, page, text, timestamp, and the
+   finding resolved. Commit those events with the source-owned artifact. A
+   resolution points to the earlier finding and captures the *new* render;
+   the reviewer can compare both. `--page` must name a served file. The review
+   file stays outside `site/` and is never served or deployed.
+
+`artoo feedback` is a different route: when a Flip notebook is attached, it
+opens a question or log in that canonical research record. Use it for source
+claim corrections. Use `artoo review` for presentation, flow, and acceptance
+findings, including artifacts without notebooks. One accountable source owner
+accepts a correction; a green browser check does not do that work.
+
+Dirk discovery is a convenience, not a publication or approval gate. Public
+deployment still requires its own authorization and `artoo deploy` or the
+owning product's publisher. Access controls belong to the existing reader
+plane; do not widen them to make review easier.
 
 ---
 
@@ -963,6 +1026,141 @@ artoo-deck owns `deck-`. A class starting with one of those that the vendored st
 
 ---
 
+# artoo-diagrams 1.10.1+artoo.1
+
+*On its own: `artoo docs artoo-diagrams`*
+
+Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
+
+Mermaid-syntax diagrams that render offline, in the page's own type and
+colors. Vendored into an artifact at `site/lib/artoo-diagrams/` with a pinned
+hash; `artoo lib update artoo-diagrams` is the explicit upgrade boundary.
+
+You write [Mermaid](https://mermaid.js.org) syntax. The renderer is
+[Pele](https://pele.run), which draws every diagram type built into Mermaid
+12.1 with its own layout and reads its colors from CSS, so a diagram recolors
+when the reader switches theme instead of being redrawn.
+
+| file | role |
+|------|------|
+| `pele.global.js` | Pele's browser bundle (MIT), byte for byte as published on npm |
+| `diagrams.js` | finds Mermaid blocks, renders them with Pele, reports errors |
+| `diagrams.css` | binds Pele's colors and fonts to the artoo-kit tokens; node roles |
+| `PELE-LICENSE` | Pele's license |
+
+## Use it
+
+Markdown content needs nothing: a ` ```mermaid ` fence in an article or
+collection page renders as a diagram, and `artoo build` vendors this library
+the first time a page needs it.
+
+Hand-written HTML vendors the library once:
+
+```bash
+artoo lib add artoo-diagrams
+```
+
+then loads it on each page that has a diagram, and only those (the bundle
+is about 700 KB):
+
+```html
+<link rel="stylesheet" href="lib/artoo-diagrams/diagrams.css">
+...
+<script src="lib/artoo-diagrams/pele.global.js"></script>
+<script src="lib/artoo-diagrams/diagrams.js"></script>
+```
+
+and writes each diagram as a source block inside the kit's `diagram`
+wrapper:
+
+```html
+<figure class="diagram">
+<pre class="mermaid">flowchart LR
+  accTitle: How a build gates publication
+  accDescr: Content is rendered, checked by the firewall, then verified.
+  render[Render content] --> firewall{{Publish firewall}}:::accent --> verify[Verify]
+</pre>
+  <figcaption>The takeaway, in a sentence.</figcaption>
+</figure>
+```
+
+Rendering waits for the document, so the two scripts can sit anywhere in
+either order. With JavaScript off, the reader sees the source.
+
+## Write diagrams that hold up
+
+- **Use a diagram for structure, inline SVG for numbers.** Flows, sequences,
+  states, schemas, architecture, and timelines are what diagrams are for. A
+  chart that carries a quantitative claim belongs in inline SVG on the
+  `--chart-*` palette, with its vintage, denominator, and source in the
+  `figcaption`. Pie, XY, and quadrant charts are fine for sketches.
+- **Start with `accTitle:` and `accDescr:`.** They become the SVG's
+  accessible name and description. The `figcaption` carries the point.
+- **Name a role, never a color.** Mermaid `style`, `classDef`, and `linkStyle`
+  take literal colors, which stay fixed when the theme changes, and the parser
+  rejects `var(--token)` there. Tag the node instead, and the color comes from
+  the kit:
+
+  | role | use |
+  |------|-----|
+  | `accent` | the node the diagram is about: a gate, a decision, the subject |
+  | `warn` | a failure path or a risk |
+  | `muted` | context: out of scope, deprecated, external |
+
+  Write `id[Label]:::accent`, or `class a,b muted` for several nodes. For a
+  role of your own, tag `:::name` and style it in your stylesheet with tokens,
+  e.g. `.mermaid .pele-node.name > :not(text) { stroke: var(--success); }`.
+- **Escape `<`, `>`, and `&` in hand-written HTML.** The block's text is the
+  source, so write `A[List&lt;T&gt;]`. Markdown fences need no escaping.
+- **Let wide diagrams leave the prose column.** In an article, put
+  `article-breakout` on the figure (`class="diagram article-breakout"`).
+  Below 640 px a left-to-right flowchart turns vertical, and a diagram that
+  had to shrink gets zoom controls, so write one that reads in either
+  direction.
+- **Leave out what Pele does not render.** HTML labels, `click` callbacks,
+  Mermaid themes and `themeVariables`, ZenUML, and other external Mermaid
+  plugins are not supported. Labels support line breaks, bold, and italic.
+- **One diagram, one idea.** Past a dozen or so nodes, split it, or use
+  `artoo-map` for a code graph a reader should explore.
+
+## Check it
+
+A syntax error is drawn in place of the diagram, and `diagrams.js` logs it to
+the console with the block's id (or position), the line and column, and the
+offending line. `artoo verify --browser` reports those messages, so give
+diagrams an `id` when a page has several.
+
+`artoo build` fails a page that has a Mermaid block but does not load
+`pele.global.js` and `diagrams.js`, because that page would ship a wall of
+source text.
+
+## Diagrams added after load
+
+An explorer that inserts diagram source at runtime calls
+`ArtooDiagrams.render(element)` to render the blocks inside `element`. It
+returns Pele's mounted diagrams; each re-fits itself when its container
+resizes.
+
+## Versions and mermaid.js
+
+The library's version is `<pele version>+artoo.<revision>`, so `artoo lib
+status` shows which Pele an artifact carries. A newer artoo ships a newer Pele;
+your artifact keeps its pinned copy until you run `artoo lib update
+artoo-diagrams`. Look at the page after updating: Pele's layout still changes
+between minor releases.
+
+If you need mermaid.js itself, for HTML labels or an external Mermaid plugin,
+install the separate `artoo-mermaid` library and load `mermaid.min.js` with
+the kit's `kit.js` instead. Use one renderer per page.
+
+## Class vocabulary
+
+| class | role |
+|---|---|
+| `mermaid` | a Mermaid source block (`<pre class="mermaid">`); diagrams.js replaces it with the rendered diagram, themed from the kit's tokens |
+
+---
+
 # artoo-grid 0.1.0
 
 *On its own: `artoo docs artoo-grid`*
@@ -1118,7 +1316,7 @@ artoo-grid owns `grid-`. A class starting with one of those that the vendored st
 
 ---
 
-# artoo-kit 0.6.0
+# artoo-kit 0.6.1
 
 *On its own: `artoo docs artoo-kit`*
 
@@ -1137,7 +1335,7 @@ Files (all under `assets/`, all vendored):
 | `base.css` | resets and page defaults |
 | `article.css` | long-form article grid (prose + margin gutter) |
 | `components.css` | nav, cards, callouts, badges, stats, colophon, provenance |
-| `kit.js` | theme toggle, mobile nav, optional mermaid boot |
+| `kit.js` | theme toggle, mobile nav, legacy mermaid.js boot |
 | `provenance.js` | provenance panel hydration + in-prose claim anchors |
 | `favicon.svg` | default site icon (link it to silence the `/favicon.ico` 404) |
 
@@ -1189,7 +1387,7 @@ is never rewritten. Scope defaults to `[data-claim-anchors]`, then `<main>`,
 then the body — put `data-claim-anchors` on the article element to bound it.
 
 This is done client-side, matching the kit's existing client-side enhancements
-(theme, nav, mermaid). Nothing rewrites the committed HTML; the anchors are an
+(theme, nav, legacy mermaid.js). Nothing rewrites the committed HTML; the anchors are an
 enhancement layered at load time.
 
 ## Gotchas
@@ -1215,8 +1413,10 @@ the CSS `fill` *property*, not the SVG presentation attribute.)
 
 ### Charts and figures
 
-The kit ships no chart primitive; author charts as inline SVG (self-contained,
-no runtime) or as a Mermaid diagram. Guidance:
+The kit ships no chart primitive. Author a quantitative chart as inline SVG
+(self-contained, no runtime); author structure — flows, sequences, states,
+schemas, timelines — as a Mermaid diagram with the `artoo-diagrams` library
+(`artoo docs artoo-diagrams`). Guidance:
 
 - **Palette.** Use the Okabe–Ito tokens `--chart-1 … --chart-8` (in
   `tokens.css`); they are colorblind-safe and ordered by draw order. Do not
@@ -1270,7 +1470,7 @@ authoring, migration, and recovery contract.
 | `stat-row` | row of figures |
 | `stat` | one figure; `.value` then `.label` |
 | `toc` | table of contents, as an ordered list |
-| `diagram` | wrapper for an inline SVG or a mermaid block |
+| `diagram` | wrapper for an inline SVG or an artoo-diagrams Mermaid block |
 | `colophon` | build and provenance footer |
 | `collection-pager` | previous and next navigation at the foot of a collection page |
 | `numeric` | tabular figures, so columns of numbers align |

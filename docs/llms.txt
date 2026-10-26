@@ -11,6 +11,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 - [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
 - [data](https://lavallee.github.io/artoo/reference/data.md): Pack JSON once for both HTTP and offline file viewing.
 - [verify](https://lavallee.github.io/artoo/reference/verify.md): Static integrity checks and optional browser proof.
+- [review](https://lavallee.github.io/artoo/reference/review.md): Source-owned revisions, Dirk discovery, and private review receipts.
 - [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
 - [serve](https://lavallee.github.io/artoo/reference/serve.md): Running an artifact locally, and the state store that makes saves durable.
 - [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
@@ -21,6 +22,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 
 - [artoo-controls](https://lavallee.github.io/artoo/reference/artoo-controls.md): Search, filter groups, active chips, result counts, URL state, CSV downloads, and optional saved explorer configurations.
 - [artoo-deck](https://lavallee.github.io/artoo/reference/artoo-deck.md): Slides: acts, speaker notes, overview, keyboard/touch nav, landscape print.
+- [artoo-diagrams](https://lavallee.github.io/artoo/reference/artoo-diagrams.md): Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
 - [artoo-grid](https://lavallee.github.io/artoo/reference/artoo-grid.md): Declarative dense data tables: sorting, frozen identity columns, in-cell bars and heat, column picker, CSV export, and an honest missing-value convention.
 - [artoo-kit](https://lavallee.github.io/artoo/reference/artoo-kit.md): Long-form article layout, evidence regions, and the provenance panel.
 - [artoo-map](https://lavallee.github.io/artoo/reference/artoo-map.md): Interactive evidence-bearing code maps: saved views, focus, paths, truth layers, source receipts, and JSON, Mermaid, and SVG exports.

@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import libraries
 from .generators.notebook_report import markdown
 from .manifest import Manifest
 
@@ -15,6 +16,15 @@ _H1 = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 _HEADING = re.compile(r"<(h[23])>(.*?)</\1>")
 _TAGS = re.compile(r"<[^>]+>")
 _OUTPUTS = "artoo-content.json"
+# A ```mermaid fence becomes the source block artoo-diagrams renders, the same
+# markup an author writes by hand, so there is one diagram contract, not two.
+_MERMAID_FENCE = re.compile(r'<pre><code class="language-mermaid">(.*?)</code></pre>', re.S)
+DIAGRAMS = "artoo-diagrams"
+DIAGRAM_STYLES = '<link rel="stylesheet" href="lib/artoo-diagrams/diagrams.css">'
+DIAGRAM_SCRIPTS = (
+    '<script src="lib/artoo-diagrams/pele.global.js"></script>\n'
+    '<script src="lib/artoo-diagrams/diagrams.js"></script>'
+)
 
 
 @dataclass
@@ -46,7 +56,9 @@ def _slug(value: str, used: set[str]) -> str:
 
 
 def _body_and_toc(source: str) -> tuple[str, list[tuple[int, str, str]]]:
-    fragment = markdown.to_html(_without_first_h1(source))
+    fragment = _MERMAID_FENCE.sub(
+        r'<pre class="mermaid">\1</pre>', markdown.to_html(_without_first_h1(source))
+    )
     used: set[str] = set()
     toc: list[tuple[int, str, str]] = []
 
@@ -111,7 +123,21 @@ def _record_outputs(m: Manifest, written: list[Path]) -> None:
     )
 
 
-def _head(m: Manifest, title: str) -> str:
+def _has_diagram(body: str) -> bool:
+    return 'class="mermaid"' in body
+
+
+def _ensure_diagrams(m: Manifest) -> None:
+    """Vendor artoo-diagrams the first time content needs it; never re-vendor.
+
+    An artifact that already records the library keeps the bytes it pinned:
+    `artoo lib update artoo-diagrams` stays the only upgrade boundary.
+    """
+    if not any(entry.get("name") == DIAGRAMS for entry in m.libraries):
+        libraries.add(m, DIAGRAMS)
+
+
+def _head(m: Manifest, title: str, diagrams: bool = False) -> str:
     description = html.escape(m.description or f"{title} — {m.kind}", quote=True)
     return f"""<head>
 <meta charset="utf-8">
@@ -123,7 +149,7 @@ def _head(m: Manifest, title: str) -> str:
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
 <link rel="stylesheet" href="lib/artoo-kit/components.css">
-</head>"""
+{DIAGRAM_STYLES + chr(10) if diagrams else ""}</head>"""
 
 
 def _dates(m: Manifest) -> str:
@@ -137,9 +163,12 @@ def _article(m: Manifest, source: str) -> str:
     title = _title(source, m.title)
     body, toc = _body_and_toc(source)
     evidence, scripts = _evidence(m)
+    diagrams = _has_diagram(body)
+    if diagrams:
+        scripts = "\n".join(part for part in (DIAGRAM_SCRIPTS, scripts) if part)
     return f"""<!doctype html>
 <html lang="en" data-theme="light">
-{_head(m, title)}
+{_head(m, title, diagrams)}
 <body>
 <header class="article-masthead">
   <a class="article-masthead__name" href="index.html">{html.escape(m.title)}</a>
@@ -176,6 +205,9 @@ def _collection_page(
     title = _title(source, fallback)
     body, toc = _body_and_toc(source)
     evidence, scripts = _evidence(m)
+    diagrams = _has_diagram(body)
+    if diagrams:
+        scripts = "\n".join(part for part in (DIAGRAM_SCRIPTS, scripts) if part)
     nav = "\n".join(
         "  <a{} href=\"{}\">{}</a>".format(
             ' aria-current="page"' if index == position else "",
@@ -195,7 +227,7 @@ def _collection_page(
         pager.append(f'<a rel="next" href="{href}">{html.escape(following[1])} →</a>')
     return f"""<!doctype html>
 <html lang="en" data-theme="light">
-{_head(m, title)}
+{_head(m, title, diagrams)}
 <body>
 <nav class="site-nav" aria-label="Collection">
   <a class="brand" href="index.html">{html.escape(m.title)}</a>
@@ -250,6 +282,8 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
         rendered = _article(m, source.read_text(encoding="utf-8"))
         if dry_run:
             return RenderResult("checked")
+        if _has_diagram(rendered):
+            _ensure_diagrams(m)
         dest.write_text(rendered, encoding="utf-8")
         _record_outputs(m, [dest])
         return RenderResult("written", [dest])
@@ -290,6 +324,8 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
         dest = m.site_dir / name
         rendered = _collection_page(m, source, pages, position)
         if not dry_run:
+            if _has_diagram(rendered):
+                _ensure_diagrams(m)
             dest.write_text(rendered, encoding="utf-8")
             written.append(dest)
     if not dry_run:

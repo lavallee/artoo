@@ -6,6 +6,74 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-26
+
+### Added
+
+- **`artoo-diagrams`, Mermaid-syntax diagrams rendered offline.** A new built-in
+  site library vendors [Pele](https://pele.run) 1.10.1, which renders every
+  diagram type built into Mermaid 12.1 at about a quarter of mermaid.js's weight,
+  synchronously and with no runtime dependencies. Its colors and fonts are bound
+  to the artoo-kit tokens, so diagrams follow the light/dark toggle without being
+  redrawn, and wide diagrams re-lay themselves out on narrow screens. Nodes take
+  theme-aware roles (`:::accent`, `:::warn`, `:::muted`) in place of literal
+  `style` colors. `ArtooDiagrams.render(element)` renders blocks added at runtime.
+- **Diagrams in Markdown content.** A ` ```mermaid ` fence in an article or
+  collection page renders as a diagram; `artoo build` vendors `artoo-diagrams`
+  the first time a page needs it and never re-vendors a pinned copy.
+- **A diagram contract for agents.** `artoo docs artoo-diagrams`, the generated
+  `AGENTS.md` and `ARTOO_REFERENCE.md`, the installable skill, and the Pages
+  reference all carry the same guidance: accessible titles and descriptions,
+  roles rather than colors, escaping, wide diagrams, and what Pele does not render.
+- **A pinned, auditable upstream.** `scripts/update-pele.py` refreshes the bundle
+  only when the npm tarball matches the registry's integrity hash and npm's SLSA
+  provenance names a build of `obsidianmd/pele` at that release's tag. It rejects
+  the unrelated 2020 package that once held the name. A weekly workflow runs it
+  and opens a PR after the suite passes. The library version reads
+  `<pele>+artoo.<revision>`, so `artoo lib status` shows which Pele an artifact
+  carries.
+- **Diagram examples** on the [Pages site](https://lavallee.github.io/artoo/diagrams.html),
+  published from the `site/landing` artifact.
+- **Source-owned, revision-bound review.** `artoo review <artifact> "finding"
+  --page <file>` appends a private finding to `work/reviews.jsonl`, bound to a
+  digest of exactly the files the firewall would serve plus the Git head;
+  `--resolves <id>` records the fix against the new render. `artoo docs review`
+  documents the path from draft to private review.
+- **Opt-in durable artifact state.** `[state] collections = [...]` lets `artoo
+  serve` store named JSON documents under the artifact's `state/` directory with
+  revision checks: a stale write is a 409 conflict, never last-writer-wins.
+
+### Changed
+
+- **The explainer renders diagrams with `artoo-diagrams`** and no longer
+  downloads mermaid.js from a CDN at generate time. An artifact that already
+  records the `artoo-mermaid` library keeps mermaid.js.
+- **ArtooStore speaks protocol 2.** Saves carry the revision last read, failed
+  writes are kept for explicit recovery, and legacy browser copies are imported
+  only after an explicit comparison. HTTP failures never silently become
+  browser-only saves. A protocol-1 server must be upgraded.
+- artoo-kit 0.6.1: `kit.js` leaves `.mermaid` blocks to Pele when both renderers
+  are loaded, so nothing is drawn twice.
+
+### Fixed
+
+- `artoo build` now fails a page that contains Mermaid source but loads no
+  renderer, naming the missing script and the command that adds it, instead of
+  shipping a wall of source text.
+- `artoo lib list` and `artoo lib status` keep their columns aligned for long
+  library versions.
+
+### Notes
+
+Pele is three weeks old and releases every few days, so the library is named for
+its role, not its engine: artifacts write Mermaid against `artoo-diagrams`, and
+the renderer can change behind that name. Every artifact keeps its hash-pinned
+copy until `artoo lib update artoo-diagrams`. mermaid.js stays available through
+the separate `artoo-mermaid` package for HTML labels and external Mermaid plugins.
+In the light theme, Pele draws pie-slice and timeline-section labels in the
+background color, so `artoo-diagrams` leads with the darkest palette hues; only
+the first reaches 4.5:1 with white text.
+
 ## [0.6.0] — 2026-08-30
 
 ### Added

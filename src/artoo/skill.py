@@ -34,7 +34,8 @@ DESCRIPTION = (
     "when asked to produce a report, explainer, deck, one-off site, or "
     "publishable write-up inside a repo, when a directory holds an "
     "artifact.toml, or when an `artoo` command needs running. Covers init, "
-    "build, deploy, the layout class vocabulary, and the deploy firewall."
+    "build, private review, source-owned revisions, deploy, the layout class "
+    "vocabulary, and the deploy firewall."
 )
 
 BODY = """\
@@ -74,7 +75,8 @@ Then author the `[content]` source named by `artifact.toml`, and:
 ```bash
 artoo build  docs/spending-report    # verify, refresh inputs, stamp `updated`
 artoo verify docs/spending-report    # links, assets, anchors, offline runtime
-artoo deploy docs/spending-report    # firewall-staged publish
+artoo review docs/spending-report "A concrete finding" --page index.html
+artoo deploy docs/spending-report    # separate, authorized publish step
 ```
 
 `artoo build` is the check that matters. It fails on a class used inside a
@@ -108,8 +110,19 @@ offline JSON packing. Delete `[content]` only when taking ownership of raw
 3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block — that also lets the chart follow the theme.
+   Draw structure (flows, sequences, states, schemas) as Mermaid: a
+   ` ```mermaid ` fence in Markdown content, or `<pre class="mermaid">` with
+   the built-in `artoo-diagrams` library. Start with `accTitle:`/`accDescr:`,
+   give nodes roles (`:::accent`), never hex colors, and read
+   `artoo docs artoo-diagrams` first.
 4. **Research never lands in `site/`.** Put it in `work/` or an attached
    notebook. Publishing is deny-by-default; see the firewall reference.
+5. **Keep revisions and critique with the owning repo.** Use the existing Dirk
+   reader route, when available, for a private preview. `artoo review` binds a
+   finding and later resolution to exact served-file digests in private
+   `work/reviews.jsonl`; commit that receipt with the artifact. Use `artoo
+   feedback` for corrections to an attached Flip notebook. Do not substitute
+   a harness-specific artifact surface for this source-owned path.
 
 ## Shared feedback and saved data
 

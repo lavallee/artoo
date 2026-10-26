@@ -55,6 +55,7 @@ directory if you omit it.
 | manifest health, firewall report, library drift | `artoo status .` |
 | refresh inputs, verify, stamp `updated` | `artoo build .` |
 | static and optional browser checks | `artoo verify .` |
+| private finding or resolution tied to this render | `artoo review . "…" --page index.html` |
 | build or interrogate a repository graph | `artoo map --help` |
 | publish (firewall-staged) | `artoo deploy .` |
 | the layout vocabulary, in full | `artoo docs <library>` |
@@ -151,6 +152,8 @@ def _rules(m: Manifest) -> str:
    never resolves — SVG presentation attributes are not CSS. Give the shape a
    class and set `fill` in a `<style>` block, which also lets the chart follow
    the theme instead of baking one that only reads in light mode.
+   Diagrams of structure are Mermaid rendered by `artoo-diagrams`; give nodes
+   roles (`:::accent`, `:::warn`, `:::muted`) instead of `style` colors.
 4. **A figure earns its place by enabling a valid comparison.** Vintages,
    denominators, and a source note belong in the `figcaption`.{research}"""
 
@@ -185,13 +188,21 @@ def render(m: Manifest) -> str:
         "2. Keep research and intermediate files outside `site/`.\n"
         "3. Keep runtime assets local: no CDN scripts, fonts, or stylesheets.\n"
         f"4. Use declared library classes; do not guess inside {owned}.\n"
-        "5. Keep source vintages, denominators, and limits beside the claims they qualify.",
+        "5. Keep source vintages, denominators, and limits beside the claims they qualify.\n"
+        "6. Draw structure as Mermaid; read `artoo docs artoo-diagrams` first.",
         "## Shared saved data\n\n"
         "Read `artoo docs serve`: opt in with `[state]` "
         "`collections = [\"feedback\"]` and use artifact-relative ArtooStore. "
         "Load before editing; explicitly compare browser imports; preserve pending edits. "
         "Disk saves do not commit Git. Test second-session persistence, conflicts, and "
         "interrupted saves. Keep state private; deployment/auth changes require separate review.",
+        "## Review and ownership\n\n"
+        "Keep this artifact and its evolution in the repository that owns its subject. "
+        "Use `artoo review . \"finding\" --page index.html` for a private, revision-bound "
+        "design or task-flow finding; resolve it with `--resolves <id>` after the new "
+        "render is checked. The receipt stays in `work/reviews.jsonl`. Where Dirk "
+        "indexes this repo, use its existing private reader route for review; "
+        "a route or green check is not publication approval. See `artoo docs review`.",
         "## Check it\n\n"
         "Run `artoo build .` after edits. It refreshes generated content and "
         "data, applies the publish firewall, and checks local links, assets, markup, "

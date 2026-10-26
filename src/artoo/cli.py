@@ -15,6 +15,7 @@ from . import agent_guide, discover, docs as docs_mod, firewall, flip_read, gene
 from . import libraries as libraries_mod
 from . import manifest as manifest_mod
 from . import provenance as provenance_mod
+from . import review as review_mod
 from . import scaffold, serve as serve_mod, skill as skill_mod, vizier as vizier_mod
 from . import verify as verify_mod
 from .codegraph_cli import map_group
@@ -578,8 +579,10 @@ def lib():
 @lib.command(name="list")
 def lib_list():
     """Libraries available to vendor."""
-    for name, library in sorted(libraries_mod.available().items()):
-        click.echo(f"{name:20} {library.version:10} {library.root}")
+    available = sorted(libraries_mod.available().items())
+    width = max(10, *(len(library.version) for _, library in available))
+    for name, library in available:
+        click.echo(f"{name:20} {library.version:{width}} {library.root}")
 
 
 @lib.command(name="add")
@@ -605,8 +608,9 @@ def lib_status(artifact: Path | None):
     if not rows:
         click.echo("no libraries recorded in the manifest")
         return
+    width = max(10, *(len(row["version"]) for row in rows))
     for row in rows:
-        click.echo(f"{row['name']:20} {row['version']:10} {row['state']}")
+        click.echo(f"{row['name']:20} {row['version']:{width}} {row['state']}")
 
 
 @lib.command(name="update")
@@ -648,6 +652,33 @@ class _GenerateGroup(click.Group):
 @main.command(cls=_GenerateGroup, name="generate")
 def generate_cmd():
     """Run a generator plugin."""
+
+
+# -- private artifact review --------------------------------------------------
+
+
+@main.command()
+@click.argument("artifact", type=click.Path(path_type=Path))
+@click.argument("text")
+@click.option("--page", default="", help="Site-relative page containing the finding.")
+@click.option("--resolves", default="", help="Open finding id this revision resolves.")
+def review(artifact: Path, text: str, page: str, resolves: str):
+    """Record a finding or resolution against the exact served revision.
+
+    Events live in work/reviews.jsonl beside the artifact. The site digest and
+    Git state make a later design critique or fix traceable to what was shown.
+    No public file is changed. Notebook claim/source corrections still use
+    `artoo feedback` when an attached flip notebook is authoritative.
+    """
+    m = _resolve(str(artifact))
+    try:
+        event = review_mod.record(m, text, page=page, resolves=resolves)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(
+        f"{event['event']} {event['id']} · revision {event['site_revision'][:12]} "
+        "· work/reviews.jsonl (private)"
+    )
 
 
 # -- feedback -----------------------------------------------------------------

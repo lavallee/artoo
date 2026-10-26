@@ -49,3 +49,43 @@ def test_collection_prunes_only_previously_generated_pages(tmp_path):
     assert not (artifact.site_dir / "evidence.html").exists()
     assert (artifact.site_dir / "limits.html").exists()
     assert custom.read_text() == "kept"
+
+
+def test_mermaid_fence_renders_as_a_diagram_and_vendors_the_renderer(artifact):
+    from artoo import libraries, manifest
+
+    source = artifact.dir / artifact.content_source
+    source.write_text("# Flow\n\n```mermaid\nflowchart LR\n  A --> B\n```\n")
+    assert content.render(artifact).status == "written"
+    page = (artifact.site_dir / "index.html").read_text()
+    assert '<pre class="mermaid">flowchart LR\n  A --&gt; B</pre>' in page
+    assert 'href="lib/artoo-diagrams/diagrams.css"' in page
+    assert page.index('src="lib/artoo-diagrams/pele.global.js"') < page.index(
+        'src="lib/artoo-diagrams/diagrams.js"'
+    )
+    reloaded = manifest.load(artifact.dir)
+    assert any(lib["name"] == "artoo-diagrams" for lib in reloaded.libraries)
+    assert (libraries.vendored_dir(reloaded, "artoo-diagrams") / "pele.global.js").is_file()
+
+
+def test_content_never_re_vendors_a_pinned_diagram_library(artifact):
+    from artoo import manifest
+
+    artifact.libraries.append({"name": "artoo-diagrams", "version": "0.0.1", "sha256": "x"})
+    artifact.save()
+    source = artifact.dir / artifact.content_source
+    source.write_text("# Flow\n\n```mermaid\nflowchart LR\n  A --> B\n```\n")
+    content.render(artifact)
+    pinned = [
+        lib for lib in manifest.load(artifact.dir).libraries if lib["name"] == "artoo-diagrams"
+    ]
+    assert pinned == [{"name": "artoo-diagrams", "version": "0.0.1", "sha256": "x"}]
+
+
+def test_pages_without_diagrams_load_no_renderer(artifact):
+    source = artifact.dir / artifact.content_source
+    source.write_text("# Plain\n\n```python\nprint('mermaid')\n```\n")
+    content.render(artifact)
+    page = (artifact.site_dir / "index.html").read_text()
+    assert "artoo-diagrams" not in page
+    assert 'class="language-python"' in page

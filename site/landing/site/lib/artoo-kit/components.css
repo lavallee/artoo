@@ -13,6 +13,7 @@
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
 }
 
 .site-nav .brand {
@@ -58,7 +59,8 @@
   margin: var(--sp-6) 0;
 }
 
-.card {
+.card,
+.nav-card {
   display: block;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -68,17 +70,20 @@
   transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
-a.card:hover {
+a.card:hover,
+a.nav-card:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
 }
 
-.card h3 {
+.card h3,
+.nav-card h3 {
   margin: 0 0 var(--sp-2);
   font-size: var(--text-lg);
 }
 
-.card p {
+.card p,
+.nav-card p {
   color: var(--text-2);
   font-size: var(--text-sm);
   margin: 0 0 var(--sp-2);
@@ -88,7 +93,6 @@ a.card:hover {
 
 .callout {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius);
   background: var(--surface);
   padding: var(--sp-3) var(--sp-4);
@@ -105,9 +109,9 @@ a.card:hover {
   margin-bottom: var(--sp-1);
 }
 
-.callout--warn { border-left-color: var(--warn); }
-.callout--danger { border-left-color: var(--danger); }
-.callout--success { border-left-color: var(--success); }
+.callout--warn .callout-title { color: var(--warn); }
+.callout--danger .callout-title { color: var(--danger); }
+.callout--success .callout-title { color: var(--success); }
 
 /* -- badges & meta ---------------------------------------------------------- */
 
@@ -149,6 +153,8 @@ a.card:hover {
   color: var(--text);
   display: block;
   line-height: var(--leading-tight);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat .label {
@@ -202,6 +208,118 @@ a.card:hover {
 }
 
 .colophon a { color: var(--muted); text-decoration: underline; }
+
+.collection-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  border-top: 1px solid var(--border);
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-4);
+}
+
+/* -- provenance panel ------------------------------------------------------- */
+/* Data-driven from site/data/provenance.json via provenance.js. Empty when no
+   projection is present — progressive, so the page reads fine without flip. */
+
+.provenance {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--sp-4) var(--sp-6);
+  margin: var(--sp-8) 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.provenance--empty { display: none; }
+
+.provenance__header { margin-bottom: var(--sp-4); }
+
+.provenance__title-heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-family: var(--font-ui);
+}
+
+.provenance__vintage {
+  margin: var(--sp-1) 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.provenance__counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-4) 0;
+}
+
+.provenance__stat { display: flex; flex-direction: column; }
+
+.provenance__stat-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.provenance__stat-label {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.provenance__section { margin-top: var(--sp-4); }
+
+.provenance__heading {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.provenance__list { list-style: none; margin: 0; padding: 0; }
+
+.provenance__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+.provenance__item:first-child { border-top: 0; }
+
+.provenance__id {
+  font-family: var(--font-numeric);
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.provenance__title { color: var(--text); flex: 1 1 12rem; min-width: 0; }
+.provenance__meta { color: var(--muted); font-size: var(--text-xs); }
+
+.provenance__grade[data-grade="A"] { color: var(--success); border-color: var(--success); }
+.provenance__grade[data-grade="B"] { color: var(--accent); border-color: var(--accent); }
+.provenance__grade[data-grade="C"] { color: var(--warn); border-color: var(--warn); }
+.provenance__grade[data-grade="?"] { color: var(--muted); }
+
+.provenance__lb { color: var(--warn); border-color: var(--warn); background: transparent; }
+
+/* Claim references woven into prose by provenance.js. */
+.claim-ref {
+  border: 0;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.claim-ref:hover { background: var(--surface-2); }
 
 /* -- responsive nav -------------------------------------------------------------- */
 
