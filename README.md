@@ -128,7 +128,8 @@ The reference is also published for readers who cannot run the CLI:
 
 `kind` describes the subject; `form` describes how a reader uses it. The four
 forms are `article`, `explorer`, `collection`, and `deck`. Articles and
-collections can render conservative Markdown deterministically. Explorers get
+collections can render conservative Markdown, images and figures included,
+deterministically. Explorers get
 common controls and offline data packing. Raw HTML remains the escape hatch.
 See `artoo docs forms`.
 

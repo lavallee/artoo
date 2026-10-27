@@ -89,3 +89,19 @@ def test_pages_without_diagrams_load_no_renderer(artifact):
     page = (artifact.site_dir / "index.html").read_text()
     assert "artoo-diagrams" not in page
     assert 'class="language-python"' in page
+
+
+def test_markdown_figure_renders_and_verify_checks_the_file(artifact):
+    from artoo import verify
+
+    source = artifact.dir / artifact.content_source
+    source.write_text('# Shot\n\n![The canvas beside the chat](assets/shot.png "It works")\n')
+    assert content.render(artifact).status == "written"
+    page = (artifact.site_dir / "index.html").read_text()
+    assert '<figure class="article-figure"><img src="assets/shot.png" alt="The canvas beside the chat"' in page
+    assert "<figcaption>It works</figcaption>" in page
+    missing = verify.static(artifact)
+    assert any("assets/shot.png" in problem for problem in missing.problems)
+    (artifact.site_dir / "assets").mkdir()
+    (artifact.site_dir / "assets" / "shot.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    assert not [p for p in verify.static(artifact).problems if "shot.png" in p]
