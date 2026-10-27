@@ -112,8 +112,11 @@ common form from kind; `--form` overrides it.
 
 `[content] source = "content.md"` renders a deterministic shell, title and
 update metadata, TOC, section anchors, optional evidence panel, and colophon
-around conservative Markdown. Delete the `[content]` table when the artifact
-needs hand-authored HTML; Artoo then leaves `site/` alone.
+around conservative Markdown. A paragraph that is only an image,
+`![alt](assets/shot.png "caption")`, becomes an `article-figure` with the title
+as its caption; keep the file under `site/` so it publishes and verifies. Delete
+the `[content]` table when the artifact needs hand-authored HTML; Artoo then
+leaves `site/` alone.
 
 ## Explorer
 

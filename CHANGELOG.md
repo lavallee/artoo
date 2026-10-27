@@ -6,6 +6,18 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-27
+
+### Added
+
+- **Images in Markdown content.** `![alt](src)` renders as an `<img>` with its
+  alt text, inline in a paragraph. A paragraph that is only an image becomes a
+  `<figure class="article-figure">`, and an optional title,
+  `![alt](src "caption")`, becomes its `figcaption` (inline markup allowed).
+  Attributes are escaped, image syntax inside code spans stays literal, and
+  `artoo verify` already checks that each image exists locally and has alt text.
+  Article and collection pages, and the `notebook-report` generator, all get it.
+
 ## [0.7.0] — 2026-10-26
 
 ### Added

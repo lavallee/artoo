@@ -13,11 +13,17 @@ Supported, and nothing else:
 - fenced code blocks (```` ``` ````), left verbatim and HTML-escaped
 - blockquotes (``>``)
 - thematic breaks (``---`` / ``***`` on their own line)
-- inline: ``**bold**``, ``*italic*`` / ``_italic_``, ``` `code` ```, and
-  ``[text](url)`` links
+- inline: ``**bold**``, ``*italic*`` / ``_italic_``, ``` `code` ```,
+  ``[text](url)`` links, and ``![alt](src)`` images
+- figures: a paragraph that is only an image, ``![alt](src "caption")``,
+  becomes ``<figure class="article-figure">`` with the optional title as its
+  ``figcaption``
+
+Image sources stay local in practice: ``artoo verify`` flags missing files,
+remote runtime assets, and images without ``alt``.
 
 Deliberate non-goals (documented limits): nested lists, tables, reference-style
-links, images, HTML passthrough, setext headings, footnotes. A draft that needs
+links, HTML passthrough, setext headings, footnotes. A draft that needs
 those should be authored as HTML upstream. Bracketed flip ids like ``[C7]`` are
 left untouched on purpose — they carry no ``(url)`` so the link rule skips them,
 and the artoo-kit provenance hydrator turns them into claim anchors client-side.
@@ -33,6 +39,18 @@ _ULIST = re.compile(r"^[-*]\s+(.*)$")
 _OLIST = re.compile(r"^\d+\.\s+(.*)$")
 _HR = re.compile(r"^(-{3,}|\*{3,}|_{3,})$")
 _LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+_IMAGE = re.compile(r'!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)')
+_FIGURE = re.compile(r'^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$')
+
+
+def _attr(text: str) -> str:
+    """Raw Markdown text as an HTML attribute value."""
+    return html.escape(text, quote=True)
+
+
+def _img(alt: str, src: str) -> str:
+    return f'<img src="{_attr(src)}" alt="{_attr(alt)}" loading="lazy">'
+
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _ITALIC = re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)")
 _CODE = re.compile(r"`([^`]+)`")
@@ -48,6 +66,12 @@ def _inline(text: str) -> str:
         return f"\x00{len(spans) - 1}\x00"
 
     text = _CODE.sub(_stash, text)
+
+    def _stash_image(match: re.Match) -> str:
+        spans.append(_img(match.group(1), match.group(2)))
+        return f"\x00{len(spans) - 1}\x00"
+
+    text = _IMAGE.sub(_stash_image, text)
     text = html.escape(text, quote=False)
     text = _LINK.sub(
         lambda m: f'<a href="{html.escape(m.group(2), quote=True)}">{m.group(1)}</a>',
@@ -148,6 +172,12 @@ def to_html(md: str) -> str:
             para.append(lines[i].strip())
             i += 1
         close_list()
+        figure = _FIGURE.match(" ".join(para))
+        if figure:
+            alt, src, caption = figure.groups()
+            caption_html = f"<figcaption>{_inline(caption)}</figcaption>" if caption else ""
+            out.append(f'<figure class="article-figure">{_img(alt, src)}{caption_html}</figure>')
+            continue
         out.append(f"<p>{_inline(' '.join(para))}</p>")
 
     close_list()

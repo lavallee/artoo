@@ -58,3 +58,37 @@ def test_blockquote_and_hr():
 def test_code_span_protects_special_chars():
     out = md.to_html("use `a && b` here")
     assert "<code>a &amp;&amp; b</code>" in out
+
+
+def test_image_alone_in_a_paragraph_is_a_figure():
+    out = md.to_html('Intro.\n\n![The index page](assets/index.png "Every canvas, with a *preview*")\n\nAfter.')
+    assert (
+        '<figure class="article-figure"><img src="assets/index.png" alt="The index page" loading="lazy">'
+        "<figcaption>Every canvas, with a <em>preview</em></figcaption></figure>"
+    ) in out
+    assert "<p>Intro.</p>" in out and "<p>After.</p>" in out
+
+
+def test_figure_without_caption_has_no_figcaption():
+    out = md.to_html("![A chart](chart.svg)")
+    assert out == '<figure class="article-figure"><img src="chart.svg" alt="A chart" loading="lazy"></figure>'
+
+
+def test_inline_image_stays_in_its_paragraph():
+    out = md.to_html("Click ![the gear](gear.svg) then [save](https://x.test).")
+    assert out == (
+        '<p>Click <img src="gear.svg" alt="the gear" loading="lazy"> then '
+        '<a href="https://x.test">save</a>.</p>'
+    )
+
+
+def test_image_attributes_are_escaped():
+    out = md.to_html('![Tom & "Jerry" <3](a.png?x=1&y=2)')
+    assert 'alt="Tom &amp; &quot;Jerry&quot; &lt;3"' in out
+    assert 'src="a.png?x=1&amp;y=2"' in out
+
+
+def test_image_syntax_in_code_is_literal():
+    out = md.to_html("`![not](img.png)`")
+    assert "<img" not in out
+    assert "<code>![not](img.png)</code>" in out
