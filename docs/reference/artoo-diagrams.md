@@ -1,6 +1,6 @@
-# artoo-diagrams 1.10.1+artoo.1
+# artoo-diagrams 1.13.0+artoo.1
 
-Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
+Mermaid-syntax diagrams rendered offline by Pele 1.13.0: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
 
 Mermaid-syntax diagrams that render offline, in the page's own type and
 colors. Vendored into an artifact at `site/lib/artoo-diagrams/` with a pinned

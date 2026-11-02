@@ -84,9 +84,9 @@ This library owns `article-`, `provenance`. A class starting with one of those t
 
 Full prose contract: `artoo docs artoo-kit`.
 
-### artoo-diagrams 1.10.1+artoo.1
+### artoo-diagrams 1.13.0+artoo.1
 
-Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
+Mermaid-syntax diagrams rendered offline by Pele 1.13.0: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
 
 Vendored at `site/lib/artoo-diagrams/`. Read the stylesheets there if you need the exact rule; this table is the vocabulary they define.
 
