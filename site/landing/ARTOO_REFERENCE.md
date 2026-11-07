@@ -38,7 +38,19 @@ you and invisible to the world with no configuration. Put working material in
 
 ## Layout vocabulary
 
-### artoo-kit 0.6.1
+### artoo-diagrams 1.10.1+artoo.1
+
+Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
+
+Vendored at `site/lib/artoo-diagrams/`. Read the stylesheets there if you need the exact rule; this table is the vocabulary they define.
+
+| class | role |
+|---|---|
+| `mermaid` | a Mermaid source block (`<pre class="mermaid">`); diagrams.js replaces it with the rendered diagram, themed from the kit's tokens |
+
+Full prose contract: `artoo docs artoo-diagrams`.
+
+### artoo-kit 0.8.0
 
 Long-form article layout, evidence regions, and the provenance panel.
 
@@ -58,6 +70,9 @@ Vendored at `site/lib/artoo-kit/`. Read the stylesheets there if you need the ex
 | `article-byline` | publication line; wrap the date in `<time datetime=…>` |
 | `article-lede` | opening paragraph, set larger |
 | `article-figure` | figure wrapper for a table or chart; put vintage, denominator, and source in the `figcaption` |
+| `article-table` | scroll region around a table (Markdown pipe tables get one): wide tables scroll sideways inside it instead of widening the page |
+| `article-loop` | a silent looping video inside an `article-figure` (Markdown: an image whose src is a video); named by `aria-label`, paused with controls for reduced motion, click toggles |
+| `article-toggle` | figure variant: one of 2–4 images or loops shown at a time, switched by labelled radios; `__bar` holds the labels, `__panels` the media (Markdown: a ```` ```toggle ```` fence) |
 | `article-marginnote` | right-gutter note, inline on mobile; `--def`, `--source`, `--callout` variants, `.term` for the term defined |
 | `article-pullquote` | breakout-width quote; attribute it with `<cite>` |
 | `article-pullnumber` | breakout-width figure; `.num` is the value, `.label` its caption |
@@ -83,18 +98,6 @@ Vendored at `site/lib/artoo-kit/`. Read the stylesheets there if you need the ex
 This library owns `article-`, `provenance`. A class starting with one of those that the stylesheet does not define is a guess, and `artoo build` fails on it and names the nearest real class. Your own classes go outside those prefixes — they are never second-guessed.
 
 Full prose contract: `artoo docs artoo-kit`.
-
-### artoo-diagrams 1.10.1+artoo.1
-
-Mermaid-syntax diagrams rendered offline by Pele 1.10.1: flowcharts, sequences, state, ER, timelines, and more, following the page's theme.
-
-Vendored at `site/lib/artoo-diagrams/`. Read the stylesheets there if you need the exact rule; this table is the vocabulary they define.
-
-| class | role |
-|---|---|
-| `mermaid` | a Mermaid source block (`<pre class="mermaid">`); diagrams.js replaces it with the rendered diagram, themed from the kit's tokens |
-
-Full prose contract: `artoo docs artoo-diagrams`.
 
 ## Rules
 

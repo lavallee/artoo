@@ -300,7 +300,8 @@ a.nav-card:hover {
   color: var(--accent);
 }
 
-.provenance__title { color: var(--text); flex: 1 1 12rem; min-width: 0; }
+/* Source titles are often bare URLs; let them break rather than widen the page on a phone. */
+.provenance__title { color: var(--text); flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .provenance__meta { color: var(--muted); font-size: var(--text-xs); }
 
 .provenance__grade[data-grade="A"] { color: var(--success); border-color: var(--success); }
