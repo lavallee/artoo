@@ -6,6 +6,15 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-11-07
+
+### Fixed
+
+- A wide Markdown table no longer widens the page on a phone. Pipe tables now sit in
+  a focusable `article-table` region that scrolls sideways, and long code in a table
+  cell wraps (artoo-kit 0.7.1). Found by `artoo verify --browser` on a walkthrough
+  collection's asset table at 390px.
+
 ## [0.9.0] — 2026-11-07
 
 ### Added

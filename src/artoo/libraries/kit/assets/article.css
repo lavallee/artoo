@@ -191,6 +191,21 @@
   height: auto;
 }
 
+.article-table {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: var(--sp-6) 0;
+}
+
+.article-table > table {
+  margin: 0;
+}
+
+.article-table:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .article-loop {
   width: 100%;
   border-radius: var(--radius, 8px);
