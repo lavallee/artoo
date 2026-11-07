@@ -31,6 +31,9 @@ KINDS = [
 STATUSES = ["draft", "building", "live", "archived"]
 
 FORMS = ["article", "explorer", "collection", "deck"]
+VERIFY_BROWSER = ["auto", "always", "never"]
+# Named token sets in artoo-kit's tokens.css; keep in step with `[data-look]` there.
+LOOKS = ["editorial", "ledger", "broadsheet", "field"]
 
 _KIND_FORMS = {
     "explorer": "explorer",
@@ -75,6 +78,13 @@ class Manifest:
     deploy_config: dict = field(default_factory=dict)
 
     workers: dict = field(default_factory=dict)
+    # Verification policy. `browser` is "auto" (run Chromium checks when
+    # Playwright is present), "always" (fail without it) or "never". `allow`
+    # names design-lint rules this artifact deliberately breaks.
+    verify_browser: str = "auto"
+    verify_allow: list[str] = field(default_factory=list)
+    # A named set of kit token overrides; "" is the kit default.
+    look: str = ""
     libraries: list[dict] = field(default_factory=list)
     vendor: list[dict] = field(default_factory=list)
 
@@ -110,6 +120,14 @@ class Manifest:
             problems.append("artifact.title is required")
         if self.kind not in KINDS:
             problems.append(f"artifact.kind {self.kind!r} not one of {', '.join(KINDS)}")
+        if self.verify_browser not in VERIFY_BROWSER:
+            problems.append(
+                f"verify.browser {self.verify_browser!r} not one of {', '.join(VERIFY_BROWSER)}"
+            )
+        if not all(isinstance(rule, str) for rule in self.verify_allow):
+            problems.append("verify.allow must be a list of lint rule names")
+        if self.look and self.look not in LOOKS:
+            problems.append(f"artifact.look {self.look!r} not one of {', '.join(LOOKS)}")
         if self.form and self.form not in FORMS:
             problems.append(f"artifact.form {self.form!r} not one of {', '.join(FORMS)}")
         if self.status not in STATUSES:
@@ -229,6 +247,8 @@ def dumps(m: Manifest) -> str:
     artifact_pairs.append(("kind", m.kind))
     if m.form:
         artifact_pairs.append(("form", m.form))
+    if m.look:
+        artifact_pairs.append(("look", m.look))
     artifact_pairs.append(("status", m.status))
     if m.created:
         artifact_pairs.append(("created", m.created))
@@ -271,6 +291,14 @@ def dumps(m: Manifest) -> str:
         research_pairs.append(("rendered_updated", m.rendered_updated))
     if research_pairs:
         blocks.append(_table("research", research_pairs))
+
+    verify_pairs: list[tuple[str, object]] = []
+    if m.verify_browser != "auto":
+        verify_pairs.append(("browser", m.verify_browser))
+    if m.verify_allow:
+        verify_pairs.append(("allow", m.verify_allow))
+    if verify_pairs:
+        blocks.append(_table("verify", verify_pairs))
 
     if m.workers:
         blocks.append(_table("workers", sorted(m.workers.items())))
@@ -320,6 +348,7 @@ def loads(text: str) -> Manifest:
         description=artifact.get("description", ""),
         kind=artifact.get("kind", "report"),
         form=artifact.get("form", ""),
+        look=artifact.get("look", ""),
         status=artifact.get("status", "draft"),
         created=str(artifact.get("created", "")),
         updated=str(artifact.get("updated", "")),
@@ -338,6 +367,8 @@ def loads(text: str) -> Manifest:
         deploy_target=target,
         deploy_config=dict(deploy_config),
         workers=dict(data.get("workers", {})),
+        verify_browser=str(data.get("verify", {}).get("browser", "auto")),
+        verify_allow=list(data.get("verify", {}).get("allow", [])),
         libraries=[dict(x) for x in data.get("libraries", [])],
         vendor=[dict(x) for x in data.get("vendor", [])],
     )

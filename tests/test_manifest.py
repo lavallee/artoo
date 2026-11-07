@@ -117,3 +117,34 @@ def test_data_destinations_must_stay_inside_site():
     problems = man.validate()
     assert any("stay inside" in problem for problem in problems)
     assert any("JavaScript name" in problem for problem in problems)
+
+
+def test_verify_and_look_round_trip(tmp_path):
+    from artoo import manifest
+
+    m = manifest.new("x", "X")
+    m.look = "ledger"
+    m.verify_browser = "never"
+    m.verify_allow = ["raw-color"]
+    m.save(tmp_path)
+    loaded = manifest.load(tmp_path)
+    assert (loaded.look, loaded.verify_browser, loaded.verify_allow) == ("ledger", "never", ["raw-color"])
+    assert loaded.validate() == []
+    assert "[verify]" in (tmp_path / "artifact.toml").read_text()
+
+
+def test_verify_and_look_defaults_stay_out_of_the_file(tmp_path):
+    from artoo import manifest
+
+    manifest.new("x", "X").save(tmp_path)
+    text = (tmp_path / "artifact.toml").read_text()
+    assert "[verify]" not in text and "look" not in text
+
+
+def test_verify_and_look_validate():
+    from artoo import manifest
+
+    m = manifest.new("x", "X")
+    m.look, m.verify_browser = "neon", "sometimes"
+    problems = " ".join(m.validate())
+    assert "artifact.look 'neon'" in problems and "verify.browser 'sometimes'" in problems
