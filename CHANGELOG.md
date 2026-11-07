@@ -76,6 +76,14 @@ guidance above are what brought it to parity.
 - Long provenance source URLs wrap instead of widening the page on a phone
   (artoo-kit 0.8.0).
 
+## [0.9.4] — 2026-11-07
+
+### Fixed
+
+- A long word or bare URL in prose (paragraphs, list items, captions, table cells)
+  breaks when it would otherwise widen the page on a phone (artoo-kit 0.7.3).
+  Found by `artoo verify --browser` on a page citing a raw GitHub URL.
+
 ## [0.9.3] — 2026-11-07
 
 ### Fixed
