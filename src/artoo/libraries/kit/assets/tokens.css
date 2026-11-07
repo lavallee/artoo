@@ -118,6 +118,122 @@
   color-scheme: dark;
 }
 
+/* -- looks ------------------------------------------------------------------
+   A look is a named set of token overrides: `look = "ledger"` in artifact.toml
+   puts data-look on <html>. The kit owns the floor (spacing, type scale,
+   components); a look supplies the face, so two artifacts built from the same
+   blocks do not have to look like one product. Every look keeps text, muted,
+   and accent at WCAG AA or better on bg, surface, and surface-2, in light and
+   dark. The default ("editorial") is the :root palette above. */
+
+/* ledger — cool paper, sans throughout, tight radii: dense reports and data */
+[data-look="ledger"] {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --border: #dde2ea;
+  --border-strong: #c5ccd8;
+  --text: #18202c;
+  --text-2: #2f3a4b;
+  --muted: #556074;
+  --accent: #0f6b70;
+  --accent-strong: #0b5559;
+  --code-bg: #eef1f5;
+  --selection: #bfe3e4;
+  --font-prose: var(--font-ui);
+  --font-display: var(--font-ui);
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-lg: 6px;
+}
+
+[data-look="ledger"][data-theme="dark"] {
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-2: #1b222c;
+  --border: #2a323d;
+  --border-strong: #38414d;
+  --text: #e6eaf0;
+  --text-2: #c3cad5;
+  --muted: #8e98a7;
+  --accent: #4fc1c6;
+  --accent-strong: #7fd6d9;
+  --code-bg: #11161d;
+  --selection: #1d4f52;
+}
+
+/* broadsheet — white newsprint, high-contrast serif, one red, square corners */
+[data-look="broadsheet"] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f4f2;
+  --border: #e2e2de;
+  --border-strong: #1a1a1a;
+  --text: #111111;
+  --text-2: #2b2b2b;
+  --muted: #5c5c5c;
+  --accent: #b3261e;
+  --accent-strong: #8e1d17;
+  --code-bg: #f4f4f2;
+  --selection: #f6c9c5;
+  --font-prose: Georgia, "Times New Roman", Times, serif;
+  --font-display: "Bodoni 72", Didot, "Big Caslon", "Times New Roman", Georgia, serif;
+  --radius-sm: 0;
+  --radius: 0;
+  --radius-lg: 0;
+}
+
+[data-look="broadsheet"][data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1a1a1a;
+  --surface-2: #222222;
+  --border: #2e2e2e;
+  --border-strong: #e0e0dc;
+  --text: #f2f2f0;
+  --text-2: #d4d4d0;
+  --muted: #a3a3a0;
+  --accent: #ff7a6e;
+  --accent-strong: #ff9c93;
+  --code-bg: #1a1a1a;
+  --selection: #5a2622;
+}
+
+/* field — warm and soft, sans prose, olive accent, generous radii: explainers */
+[data-look="field"] {
+  --bg: #f6f4ec;
+  --surface: #fffdf7;
+  --surface-2: #efece0;
+  --border: #e2ddca;
+  --border-strong: #cfc7ad;
+  --text: #23261c;
+  --text-2: #3a3e30;
+  --muted: #5d624f;
+  --accent: #4a671d;
+  --accent-strong: #3a5216;
+  --code-bg: #efece0;
+  --selection: #dbe6c2;
+  --font-prose: var(--font-ui);
+  --font-display: "Avenir Next", Avenir, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 18px;
+}
+
+[data-look="field"][data-theme="dark"] {
+  --bg: #14160f;
+  --surface: #1c1f16;
+  --surface-2: #23271c;
+  --border: #33382a;
+  --border-strong: #454b39;
+  --text: #ecebe1;
+  --text-2: #cfd0c0;
+  --muted: #a6a893;
+  --accent: #a9c96b;
+  --accent-strong: #c3dd90;
+  --code-bg: #191c13;
+  --selection: #3d4a24;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;

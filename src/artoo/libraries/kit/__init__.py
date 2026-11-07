@@ -22,7 +22,7 @@ from pathlib import Path
 from .. import Library
 from .blocks import BLOCKS
 
-VERSION = "0.7.2"
+VERSION = "0.8.0"
 
 # Class prefixes the kit owns outright. A class starting with one of these
 # that the stylesheet does not define is a guess, not an authorial choice, so
