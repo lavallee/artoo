@@ -117,8 +117,8 @@ table {
   font-size: var(--text-sm);
 }
 
-td code,
-th code {
+/* Long inline code (a command, an env var) wraps instead of widening the page on a phone. */
+:not(pre) > code {
   overflow-wrap: anywhere;
 }
 
