@@ -130,6 +130,24 @@ def _vocabulary(m: Manifest) -> str:
     return "## Layout vocabulary\n\n" + "\n\n".join(sections)
 
 
+def _blocks(m: Manifest) -> str:
+    """The block catalog in one line each; the full contract is `artoo docs blocks`."""
+    if not (m.content_source or m.content_pages):
+        return ""
+    from . import blocks as blocks_mod
+
+    rows = "\n".join(
+        f"| `::: {block.name}` | {block.summary} |" for block in blocks_mod.registry().values()
+    )
+    return (
+        "## Blocks\n\n"
+        "Structured pieces of Markdown content are blocks, not hand-written HTML. A block "
+        "written wrong fails `artoo build` at `file:line` with the fix. Attributes, bodies "
+        "and examples: `artoo docs blocks`.\n\n"
+        f"| block | use it for |\n|---|---|\n{rows}"
+    )
+
+
 def _rules(m: Manifest) -> str:
     research = ""
     if m.notebook:
@@ -177,6 +195,18 @@ def render(m: Manifest) -> str:
         except KeyError:
             continue
     owned = ", ".join(f"`{namespace}`" for namespace in namespaces) or "declared library prefixes"
+    if m.content_source or m.content_pages:
+        authoring = (
+            "7. Write structured pieces as blocks (`::: callout`, `::: stats`, "
+            "`::: grid data=PACK`; `artoo docs blocks`), `::: html` only when none fits.\n"
+            "8. Revise the source in place, naming blocks by `#id`; never regenerate a "
+            "whole page."
+        )
+    else:
+        authoring = (
+            "7. Revise by editing the page in place; never regenerate a whole page to "
+            "change part of it."
+        )
     parts = [
         _PREAMBLE.format(version=__version__),
         f"# {m.title}",
@@ -189,25 +219,32 @@ def render(m: Manifest) -> str:
         "3. Keep runtime assets local: no CDN scripts, fonts, or stylesheets.\n"
         f"4. Use declared library classes; do not guess inside {owned}.\n"
         "5. Keep source vintages, denominators, and limits beside the claims they qualify.\n"
-        "6. Draw structure as Mermaid; read `artoo docs artoo-diagrams` first.",
-        "## Shared saved data\n\n"
-        "Read `artoo docs serve`: opt in with `[state]` "
-        "`collections = [\"feedback\"]` and use artifact-relative ArtooStore. "
-        "Load before editing; explicitly compare browser imports; preserve pending edits. "
-        "Disk saves do not commit Git. Test second-session persistence, conflicts, and "
-        "interrupted saves. Keep state private; deployment/auth changes require separate review.",
+        "6. Draw structure as Mermaid; read `artoo docs artoo-diagrams` first.\n"
+        + authoring,
+        # Guidance that only matters to an artifact using a feature loads when it
+        # does; automatic context is paid for on every turn of every session.
+        (
+            "## Shared saved data\n\n"
+            "Read `artoo docs serve`: use artifact-relative ArtooStore. "
+            "Load before editing; explicitly compare browser imports; preserve pending edits. "
+            "Disk saves do not commit Git. Test second-session persistence, conflicts, and "
+            "interrupted saves. Keep state private; deployment/auth changes require separate "
+            "review."
+            if m.state_collections
+            else "Saving shared data from the page: `artoo docs serve`."
+        ),
         "## Review and ownership\n\n"
-        "Keep this artifact and its evolution in the repository that owns its subject. "
-        "Use `artoo review . \"finding\" --page index.html` for a private, revision-bound "
-        "design or task-flow finding; resolve it with `--resolves <id>` after the new "
-        "render is checked. The receipt stays in `work/reviews.jsonl`. Where Dirk "
-        "indexes this repo, use its existing private reader route for review; "
-        "a route or green check is not publication approval. See `artoo docs review`.",
+        "Keep this artifact in the repository that owns its subject. Record a private, "
+        "revision-bound finding with `artoo review . \"finding\" --page index.html`; resolve "
+        "it with `--resolves <id>` once the new render is checked. A green check is not "
+        "publication approval. See `artoo docs review`.",
         "## Check it\n\n"
-        "Run `artoo build .` after edits. It refreshes generated content and "
-        "data, applies the publish firewall, and checks local links, assets, markup, "
-        "and evidence. Run `artoo verify . --browser` for console, overflow, and "
-        "screenshot checks when Playwright is installed.\n\n"
+        "Run `artoo build .` after edits: it renders content, packs data, applies the "
+        "firewall, and checks links, assets, markup, evidence and design lint. With "
+        "Playwright it also opens each page in Chromium at phone and desktop width and "
+        "writes `work/verification/contact-sheet.png`. Fix what findings name (page, "
+        "element, source line), then look at the contact sheet once; do not loop on "
+        "screenshots.\n\n"
         f"Open `{REFERENCE_NAME}` only when you need the full vendored class vocabulary, "
         "firewall detail, or command reference. `artoo docs` has the complete tool reference.",
         END,
@@ -223,6 +260,7 @@ def render_reference(m: Manifest) -> str:
         "full class vocabulary enters context only when it is useful.",
         _commands(m),
         _firewall(m),
+        _blocks(m),
         _vocabulary(m),
         _rules(m),
         "## More\n\n`artoo docs` lists the manifest, forms, data, evidence, firewall, "

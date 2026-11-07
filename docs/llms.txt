@@ -8,6 +8,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 
 - [quickstart](https://lavallee.github.io/artoo/reference/quickstart.md): Install, the golden path, and the authoring rules that matter.
 - [forms](https://lavallee.github.io/artoo/reference/forms.md): Separate subject kind from article, explorer, collection, and deck form.
+- [blocks](https://lavallee.github.io/artoo/reference/blocks.md): Typed Markdown blocks, the raw-HTML island, and how errors point at lines.
 - [manifest](https://lavallee.github.io/artoo/reference/manifest.md): Every artifact.toml key, and what the validator enforces.
 - [data](https://lavallee.github.io/artoo/reference/data.md): Pack JSON once for both HTTP and offline file viewing.
 - [verify](https://lavallee.github.io/artoo/reference/verify.md): Static integrity checks and optional browser proof.

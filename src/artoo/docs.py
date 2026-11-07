@@ -27,6 +27,7 @@ REFERENCE_DIR = Path(__file__).parent / "reference"
 AUTHORED = {
     "quickstart": "Install, the golden path, and the authoring rules that matter.",
     "forms": "Separate subject kind from article, explorer, collection, and deck form.",
+    "blocks": "Typed Markdown blocks, the raw-HTML island, and how errors point at lines.",
     "manifest": "Every artifact.toml key, and what the validator enforces.",
     "data": "Pack JSON once for both HTTP and offline file viewing.",
     "verify": "Static integrity checks and optional browser proof.",
@@ -76,6 +77,55 @@ def class_table(lib: libraries_mod.Library) -> str:
     )
 
 
+def blocks_catalog() -> str:
+    """Every block, generated from its declaration, so the docs cannot drift from it."""
+    from . import blocks as blocks_mod
+
+    sections = []
+    for block in blocks_mod.registry().values():
+        owner = f"`{block.library}`" if block.library else "core"
+        body = {
+            "markdown": "Markdown",
+            "lines": "one item per line",
+            "raw": "raw HTML, verbatim",
+            "none": "none",
+        }[block.body]
+        summary = block.summary[:1].upper() + block.summary[1:]
+        lines = [f"### `{block.name}`", "", f"{summary}.", "", f"From {owner}. Body: {body}."]
+        if block.attrs:
+            lines += ["", "| attribute | meaning |", "|---|---|"]
+            for attr in block.attrs:
+                notes = []
+                if attr.required:
+                    notes.append("required")
+                if attr.flag:
+                    notes.append("flag")
+                if attr.choices:
+                    notes.append("one of " + ", ".join(f"`{c}`" for c in attr.choices))
+                if attr.name == block.positional:
+                    notes.append("may be written bare")
+                extra = f" ({'; '.join(notes)})" if notes else ""
+                lines.append(f"| `{attr.name}` | {attr.help}{extra} |")
+        lines += ["", "```markdown", block.example, "```"]
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
+
+
+# Authored topics can carry a placeholder line that is replaced, at render
+# time, with text generated from code. The generated half is the half a test
+# can hold to the implementation.
+GENERATED = {
+    "<!-- artoo:blocks -->": blocks_catalog,
+}
+
+
+def _expand(text: str) -> str:
+    for marker, produce in GENERATED.items():
+        if marker in text:
+            text = text.replace(marker, produce().rstrip())
+    return text
+
+
 def _strip_title(text: str) -> str:
     """Drop a leading H1 so the composed page has exactly one."""
     lines = text.splitlines()
@@ -90,7 +140,7 @@ def render(name: str) -> str:
     """The full text of one topic."""
     path = REFERENCE_DIR / f"{name}.md"
     if name in AUTHORED and path.is_file():
-        return path.read_text(encoding="utf-8").rstrip() + "\n"
+        return _expand(path.read_text(encoding="utf-8")).rstrip() + "\n"
 
     try:
         lib = libraries_mod.get(name)

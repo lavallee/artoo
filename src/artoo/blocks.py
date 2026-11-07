@@ -290,9 +290,10 @@ HTML = Block(
     render=_html,
     body="raw",
     example=(
-        '::: html #shift\n<figure class="article-figure">\n'
-        '  <svg class="diagram" viewBox="0 0 320 40" role="img" aria-label="Shift">'
-        "…</svg>\n</figure>\n:::"
+        '::: html #timeline\n<figure class="article-figure diagram">\n'
+        '  <svg viewBox="0 0 320 40" role="img" aria-label="Spending rose each year">'
+        '<rect class="timeline-bar" x="0" y="10" width="320" height="20"/></svg>\n'
+        "</figure>\n:::"
     ),
 )
 
@@ -301,8 +302,9 @@ def registry() -> dict[str, Block]:
     """Every block the installed libraries declare, plus the core ``html`` block."""
     from . import libraries
 
-    found = {HTML.name: HTML}
+    found: dict[str, Block] = {}
     for lib in libraries.available().values():
         for block in lib.blocks:
             found.setdefault(block.name, block)
+    found.setdefault(HTML.name, HTML)  # last: the escape hatch, not the first resort
     return found

@@ -12,6 +12,7 @@ title = "Where the money went"    # required
 description = "…"
 kind = "report"                   # see the kinds list below
 form = "article"                  # article | explorer | collection | deck
+look = "ledger"                   # editorial (default) | ledger | broadsheet | field
 status = "draft"                  # draft | building | live | archived
 created = "2026-08-18"
 updated = "2026-08-18"            # stamped by a successful `artoo build`

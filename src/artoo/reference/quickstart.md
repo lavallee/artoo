@@ -39,6 +39,9 @@ docs/spending-report/
 ```
 
 Only `site/` is publishable. See `artoo docs firewall`.
+Set `look` in `[artifact]` to give the piece its own face — `editorial`
+(default), `ledger`, `broadsheet` or `field`; each is a token set in artoo-kit
+that holds WCAG AA contrast in light and dark.
 For source-owned revisions, Dirk discovery, and feedback that attaches to the
 exact render, see `artoo docs review`.
 
@@ -59,21 +62,27 @@ Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
 
 ## Authoring rules that matter
 
-1. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
+1. **Prose in Markdown, structured pieces as blocks.** A callout, a row of
+   figures, a captioned table, a dense grid bound to a data pack: write
+   `::: callout`, `::: stats`, `::: figure`, `::: grid data=PACK`. Blocks
+   cost a fraction of the markup they expand to and fail the build at
+   `file:line` when written wrong. `::: html` is the escape hatch for anything
+   bespoke. See `artoo docs blocks`.
+2. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
    `artoo docs artoo-kit` list every class, with its role. `artoo build` fails on a
    class invented inside a library's namespace, and names the nearest real
    one.
-2. **Never reach for a CDN.** An artifact must render from a `file://` URL.
+3. **Never reach for a CDN.** An artifact must render from a `file://` URL.
    Vendor a runtime with `artoo lib vendor <name> <url>` and it is recorded
    with a pinned hash.
-3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
+4. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block.
    Draw structure as Mermaid instead: a ` ```mermaid ` fence in Markdown
    content, or `<pre class="mermaid">` with the built-in `artoo-diagrams`
    library. Give nodes roles (`:::accent`), not colors; see
    `artoo docs artoo-diagrams`.
-4. **Put research in `work/` or `notebook/`.** Both sit beside the
+5. **Put research in `work/` or `notebook/`.** Both sit beside the
    presentation and neither can ship.
 
 ## Doing it in bulk
