@@ -6,6 +6,14 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-11-07
+
+### Fixed
+
+- A long word or bare URL in prose (paragraphs, list items, captions, table cells)
+  breaks when it would otherwise widen the page on a phone (artoo-kit 0.7.3).
+  Found by `artoo verify --browser` on a page citing a raw GitHub URL.
+
 ## [0.9.3] — 2026-11-07
 
 ### Fixed
