@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import codegraph, libraries as libraries_mod
+from . import codegraph, libraries as libraries_mod, lint
 
 REFERENCE_DIR = Path(__file__).parent / "reference"
 
@@ -111,11 +111,30 @@ def blocks_catalog() -> str:
     return "\n\n".join(sections)
 
 
+# Replaced in ``verify.md`` by the table of lint rules, generated from
+# ``lint.RULES`` so the documented rules are always the enforced ones.
+LINT_RULES_PLACEHOLDER = "<!-- artoo:lint-rules -->"
+
+
+def lint_rule_table() -> str:
+    """The design-lint rules as a markdown table."""
+    rows = "\n".join(
+        f"| `{rule.id}` | {_cell(rule.summary)} | {_cell(rule.fix)} |"
+        for rule in lint.RULES.values()
+    )
+    return f"| rule | what it catches | fix |\n|---|---|---|\n{rows}"
+
+
+def _cell(text: str) -> str:
+    return text.replace("|", "\\|").replace("<", "&lt;")
+
+
 # Authored topics can carry a placeholder line that is replaced, at render
 # time, with text generated from code. The generated half is the half a test
 # can hold to the implementation.
 GENERATED = {
     "<!-- artoo:blocks -->": blocks_catalog,
+    LINT_RULES_PLACEHOLDER: lint_rule_table,
 }
 
 
