@@ -41,6 +41,13 @@ def _refresh_guide(m: Manifest) -> None:
     click.echo(f"refreshed {path.name} for the new vendored set")
 
 
+def _display_path(path: Path, m: Manifest) -> str:
+    try:
+        return str(path.relative_to(m.dir))
+    except ValueError:
+        return str(path)
+
+
 def _declared_source_problems(m: Manifest) -> list[str]:
     problems = content_mod.render(m, dry_run=True).problems
     problems.extend(data_mod.pack(m, dry_run=True).problems)
@@ -343,11 +350,26 @@ def status(path: Path | None, as_json: bool):
 @main.command(name="build")
 @click.argument("path", type=click.Path(path_type=Path), required=False)
 @click.option("--dry-run", is_flag=True)
+@click.option(
+    "--browser/--no-browser",
+    "use_browser",
+    default=None,
+    help="Run or skip Chromium checks, overriding [verify] browser (default: auto).",
+)
 @click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
-def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
-    """Run the artifact's build commands, then verify the site."""
+def build_cmd(path: Path | None, dry_run: bool, use_browser: bool | None, as_json: bool):
+    """Run the artifact's build commands, then verify the site.
+
+    Browser checks run after static checks pass, as [verify] browser says:
+    "auto" runs them where Playwright and Chromium are available, "always"
+    fails without them, "never" skips them. They write per-page screenshots
+    and one contact sheet to work/verification/.
+    """
     m = _resolve(str(path) if path else None)
-    result = build_mod.build(m, dry_run=dry_run)
+    policy = m.verify_browser
+    if use_browser is not None:
+        policy = "always" if use_browser else "never"
+    result = build_mod.build(m, dry_run=dry_run, browser=policy)
 
     if as_json:
         click.echo(
@@ -365,6 +387,8 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
                     "withheld": result.withheld,
                     "stamped": result.stamped,
                     "provenance": result.provenance,
+                    "browser": result.browser,
+                    "contact_sheet": result.contact_sheet,
                 },
                 indent=2,
             )
@@ -381,6 +405,10 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
         click.secho(f"✗ {problem}", fg="red")
     for warning in result.warnings:
         click.secho(f"! {warning}", fg="yellow")
+    if result.browser:
+        click.echo(result.browser)
+    if result.contact_sheet:
+        click.echo(f"look once: {_display_path(Path(result.contact_sheet), m)}")
     if result.ok:
         if result.stamped:
             click.echo(f"stamped updated = {result.stamped}")
@@ -396,7 +424,7 @@ def build_cmd(path: Path | None, dry_run: bool, as_json: bool):
     "--screenshots",
     type=click.Path(path_type=Path),
     default=None,
-    help="Write phone and desktop screenshots (requires --browser).",
+    help="Write phone and desktop screenshots and a contact sheet (requires --browser).",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON.")
 def verify_cmd(
@@ -421,6 +449,7 @@ def verify_cmd(
                     "problems": result.problems,
                     "warnings": result.warnings,
                     "screenshots": [str(path) for path in result.screenshots],
+                    "contact_sheet": str(result.contact_sheet) if result.contact_sheet else "",
                 },
                 indent=2,
             )
@@ -432,6 +461,8 @@ def verify_cmd(
         click.secho(f"! {warning}", fg="yellow")
     for image in result.screenshots:
         click.echo(f"screenshot {image}")
+    if result.contact_sheet:
+        click.echo(f"look once: {_display_path(result.contact_sheet, m)}")
     if result.ok:
         click.secho("✓ static verification clean" + ("; browser clean" if use_browser else ""), fg="green")
     else:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import tempfile
 from dataclasses import dataclass, field
@@ -27,6 +28,9 @@ class VerificationResult:
     problems: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     screenshots: list[Path] = field(default_factory=list)
+    contact_sheet: Path | None = None
+    pages: int = 0  # pages the browser opened
+    skipped: str = ""  # why optional browser checks did not run
 
     @property
     def ok(self) -> bool:
@@ -36,6 +40,9 @@ class VerificationResult:
         self.problems.extend(other.problems)
         self.warnings.extend(other.warnings)
         self.screenshots.extend(other.screenshots)
+        self.contact_sheet = other.contact_sheet or self.contact_sheet
+        self.pages = other.pages or self.pages
+        self.skipped = other.skipped or self.skipped
         return self
 
 
@@ -319,34 +326,305 @@ def static(m: Manifest) -> VerificationResult:
     return result
 
 
-def browser(m: Manifest, *, screenshots: Path | None = None) -> VerificationResult:
-    """Run Chromium checks when Playwright is installed; keep it an optional extra."""
+# ---- browser checks --------------------------------------------------------
+
+VIEWPORTS = (("phone", 390, 844), ("desktop", 1440, 900))
+# Messages per rule, page and viewport before the rest collapse into "and N more".
+CAP = 3
+INSTALL_HINT = (
+    "`uv tool install artoo-artifacts --with-executables-from playwright`, "
+    "then `playwright install chromium`"
+)
+# Long pages are screenshotted to this height: enough to judge the page, small
+# enough that a forty-page collection does not write gigabytes.
+SHOT_MAX_HEIGHT = 8000
+SHEET_MAX_PAGES = 24
+
+# rule -> (fails the build, what to do about it)
+RULES: dict[str, tuple[bool, str]] = {
+    "overflow": (True, "let it wrap, or put wide content in a scroll region (`article-table`)"),
+    "image": (True, "the file is missing or is not an image; fix the src"),
+    "diagram": (True, "check the Mermaid source and that lib/artoo-diagrams loads"),
+    "clipped": (False, "give the box room or let the text wrap"),
+    "small": (False, "set it to at least 12px"),
+    "contrast": (False, "darken the text or lighten its background"),
+    "overlap": (False, "move the positioned box or make room for it"),
+}
+
+_PROBE = Path(__file__).with_name("browser_probe.js").read_text(encoding="utf-8")
+
+
+@dataclass
+class Finding:
+    """One browser finding, located as precisely as the page allows."""
+
+    rule: str
+    page: str
+    viewports: list[str]
+    what: str
+    selector: str = ""
+    heading: str = ""
+    src: str = ""
+
+    def where(self) -> str:
+        parts = [f"`{self.selector}`"] if self.selector else []
+        if self.heading:
+            parts.append(f"§{self.heading}")
+        if self.src:
+            parts.append(self.src)
+        return " ".join(parts)
+
+    def message(self) -> str:
+        where = self.where()
+        return (
+            f"{self.page} ({', '.join(self.viewports)}) {self.what}"
+            + (f" at {where}" if where else "")
+            + f"; {RULES[self.rule][1]}"
+        )
+
+
+def _quote(text: str) -> str:
+    return f'"{text}"' if text else ""
+
+
+def _describe(rule: str, item: dict) -> str:
+    text = _quote(item.get("text", ""))
+    if rule == "image":
+        return f"broken image {item.get('detail', '')!r}"
+    if rule == "diagram":
+        return "Mermaid diagram did not render" + (f" ({text})" if text else "")
+    if rule == "clipped":
+        return f"text is clipped by its box: {text}"
+    if rule == "small":
+        return f"{item.get('size')}px text {text}"
+    if rule == "contrast":
+        return (
+            f"contrast {item.get('ratio')}:1 is under {item.get('need'):g}:1 "
+            f"({item.get('fg')} on {item.get('bg')}) for {text}"
+        )
+    if rule == "overlap":
+        return (
+            f"positioned text {text} sits over `{item.get('other', '')}` "
+            f"{_quote(item.get('otherText', ''))}"
+        ).rstrip()
+    return rule
+
+
+def _overflow_message(page: str, label: str, data: dict) -> str:
+    named = []
+    for item in data.get("offenders", []):
+        where = Finding(
+            "overflow", page, [label], "", item.get("sel", ""),
+            item.get("heading", ""), item.get("src", ""),
+        ).where()
+        named.append(f"{where} reaches {item.get('right')}px")
+    more = int(data.get("total", 0)) - len(named)
+    detail = ""
+    if named:
+        detail = "; widest: " + ", ".join(named) + (f", and {more} more" if more > 0 else "")
+    return (
+        f"{page} overflows horizontally at {data.get('viewport')}px ({label}): the page is "
+        f"{data.get('width')}px wide{detail}; {RULES['overflow'][1]}"
+    )
+
+
+def findings_from_probe(page: str, probes: dict[str, dict]) -> tuple[list[str], list[str]]:
+    """Turn per-viewport probe output into capped problem and warning messages.
+
+    A finding that shows at both widths is one message naming both, so a
+    contrast fault in a shared footer reads once per page, not twice.
+    """
+    problems: list[str] = []
+    warnings: list[str] = []
+    for label, data in probes.items():
+        if data.get("overflow"):
+            problems.append(_overflow_message(page, label, data["overflow"]))
+    for rule in RULES:
+        if rule == "overflow":
+            continue
+        merged: dict[tuple[str, str], Finding] = {}
+        hidden: dict[str, int] = {}
+        for label, data in probes.items():
+            items = data.get(rule) or []
+            # The probe returns a bounded sample; its count is the true total.
+            hidden[label] = max(0, int((data.get("counts") or {}).get(rule, 0)) - len(items))
+            for item in items:
+                what = _describe(rule, item)
+                key = (item.get("sel", ""), what)
+                if key in merged:
+                    if label not in merged[key].viewports:
+                        merged[key].viewports.append(label)
+                else:
+                    merged[key] = Finding(
+                        rule, page, [label], what, item.get("sel", ""),
+                        item.get("heading", ""), item.get("src", ""),
+                    )
+        groups: dict[tuple[str, ...], list[Finding]] = {}
+        for finding in merged.values():
+            groups.setdefault(tuple(finding.viewports), []).append(finding)
+        sink = problems if RULES[rule][0] else warnings
+        for viewports, found in groups.items():
+            sink.extend(finding.message() for finding in found[:CAP])
+            more = len(found) - CAP
+            if len(viewports) == 1:
+                more += hidden.get(viewports[0], 0)
+            if more > 0:
+                sink.append(f"{page} ({', '.join(viewports)}) and {more} more {rule} finding(s)")
+    return problems, warnings
+
+
+def _console_line(message, site: Path) -> str:
+    # The staged copy lives in a temp dir that is gone by the time anyone
+    # reads this; name files as the site does.
+    text = message.text.replace(site.resolve().as_uri() + "/", "")
+    try:
+        location = message.location or {}
+    except Exception:  # noqa: BLE001 - a location is a nicety, never a reason to fail
+        location = {}
+    url = location.get("url") or ""
+    if url.startswith("file://"):
+        try:
+            path = Path(unquote(urlsplit(url).path)).relative_to(site.resolve())
+        except ValueError:
+            return text
+        line = location.get("lineNumber")
+        text += f" (at {path}{':' + str(line + 1) if isinstance(line, int) else ''})"
+    return text
+
+
+def _shoot(page, dest: Path, width: int) -> None:
+    height = page.evaluate(
+        "Math.max(document.documentElement.scrollHeight, "
+        "document.body ? document.body.scrollHeight : 0)"
+    )
+    if height and height > SHOT_MAX_HEIGHT:
+        clip = {"x": 0, "y": 0, "width": width, "height": SHOT_MAX_HEIGHT}
+        page.screenshot(path=str(dest), full_page=True, clip=clip)
+    else:
+        page.screenshot(path=str(dest), full_page=True)
+
+
+def _sheet_html(shots: list[tuple[str, dict[str, Path]]], omitted: int) -> str:
+    rows = []
+    for page, images in shots:
+        figures = []
+        for label, width, _height in sorted(VIEWPORTS, key=lambda v: v[0] != "desktop"):
+            image = images.get(label)
+            if image:
+                figures.append(
+                    f'<figure class="{label}"><figcaption>{label} · {width}px</figcaption>'
+                    f'<div class="crop"><img src="{image.resolve().as_uri()}" alt=""></div>'
+                    "</figure>"
+                )
+        rows.append(
+            f"<section><h2>{html.escape(page)}</h2><div class=pair>{''.join(figures)}</div>"
+            "</section>"
+        )
+    if omitted:
+        rows.append(
+            f"<p class=more>and {omitted} more page(s); their screenshots sit beside this sheet</p>"
+        )
+    # Up to three pages a row keeps a large collection near a landscape page
+    # instead of a strip too tall for anyone, or any model, to read at once.
+    columns = 1 if len(shots) == 1 else 2 if len(shots) <= 4 else 3
+    return (
+        "<!doctype html><meta charset=utf-8><style>"
+        "body{margin:0;padding:20px;background:#e9e7e2;color:#222;width:max-content;"
+        "font:14px/1.3 system-ui,sans-serif;display:grid;gap:16px;"
+        f"grid-template-columns:repeat({columns},max-content);align-items:start}}"
+        "section{background:#fff;border:1px solid #ccc;padding:10px 14px 14px}"
+        "h2{font:600 15px/1.2 ui-monospace,monospace;margin:0 0 8px}"
+        ".pair{display:flex;gap:14px;align-items:flex-start}"
+        "figure{margin:0}figcaption{font-size:12px;color:#555;margin:0 0 4px}"
+        ".crop{overflow:hidden;max-height:600px;border:1px solid #bbb;background:#fff}"
+        ".desktop .crop{width:480px}.phone .crop{width:200px}.crop img{display:block;width:100%}"
+        ".more{font-style:italic;grid-column:1/-1}"
+        "</style><body>" + "".join(rows)
+    )
+
+
+def _contact_sheet(instance, shots: list[tuple[str, dict[str, Path]]], dest: Path) -> None:
+    """Compose one image of every page at both widths: the look-once review."""
+    shown = shots[:SHEET_MAX_PAGES]
+    with tempfile.TemporaryDirectory(prefix="artoo-sheet-") as temp:
+        sheet = Path(temp) / "sheet.html"
+        sheet.write_text(_sheet_html(shown, len(shots) - len(shown)), encoding="utf-8")
+        context = instance.new_context(viewport={"width": 800, "height": 600})
+        try:
+            page = context.new_page()
+            page.goto(sheet.as_uri(), wait_until="load")
+            page.screenshot(path=str(dest), full_page=True)
+        finally:
+            context.close()
+
+
+def _first_line(exc: Exception) -> str:
+    text = str(exc).strip()
+    return text.splitlines()[0] if text else type(exc).__name__
+
+
+def browser(
+    m: Manifest,
+    *,
+    screenshots: Path | None = None,
+    optional: bool = False,
+    fresh: bool = False,
+) -> VerificationResult:
+    """Open every publishable page in Chromium at phone and desktop widths.
+
+    Playwright stays a soft dependency. When it is missing or Chromium will
+    not launch, ``optional`` decides whether that is a problem (the caller
+    asked for a browser) or only a note in ``result.skipped``. With
+    ``screenshots``, each page is captured there and composed into one
+    ``contact-sheet.png``; ``fresh`` first clears the PNGs a previous run left
+    there, once Chromium has launched, so a skipped run keeps the last ones.
+    """
     result = VerificationResult()
+
+    def unavailable(reason: str, hint: str) -> VerificationResult:
+        if optional:
+            result.skipped = f"{reason} ({hint})"
+        else:
+            result.problems.append(
+                f"browser verification needs Playwright and Chromium, but {reason}; {hint}"
+            )
+        return result
+
     try:
         from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
     except ImportError:
-        result.problems.append(
-            "browser verification needs Playwright; install `playwright` and run "
-            "`playwright install chromium`, or omit --browser"
-        )
-        return result
-    if screenshots:
-        screenshots.mkdir(parents=True, exist_ok=True)
+        return unavailable("Playwright is not installed here", INSTALL_HINT)
     with tempfile.TemporaryDirectory(prefix="artoo-verify-") as temp:
         site = Path(temp) / "site"
         firewall.stage(m, site)
         pages = sorted(site.rglob("*.html"))
+        probes: dict[str, dict[str, dict]] = {}
+        shots: dict[str, dict[str, Path]] = {}
         with sync_playwright() as playwright:
-            instance = playwright.chromium.launch()
             try:
-                for width, height, label in ((390, 844, "phone"), (1440, 900, "desktop")):
+                instance = playwright.chromium.launch()
+            except Exception as exc:  # noqa: BLE001 - Playwright raises its own Error type
+                return unavailable(
+                    f"Chromium did not launch ({_first_line(exc)})",
+                    "run `playwright install chromium`",
+                )
+            result.pages = len(pages)
+            if screenshots:
+                screenshots.mkdir(parents=True, exist_ok=True)
+                if fresh:
+                    # A screenshot of a page that no longer exists would sit
+                    # beside the sheet looking current.
+                    for old in screenshots.glob("*.png"):
+                        old.unlink()
+            try:
+                for label, width, height in VIEWPORTS:
                     context = instance.new_context(viewport={"width": width, "height": height})
                     page = context.new_page()
                     errors: list[str] = []
                     page.on("pageerror", lambda error: errors.append(str(error)))
                     page.on(
                         "console",
-                        lambda message: errors.append(message.text)
+                        lambda message: errors.append(_console_line(message, site))
                         if message.type == "error"
                         else None,
                     )
@@ -354,18 +632,18 @@ def browser(m: Manifest, *, screenshots: Path | None = None) -> VerificationResu
                         rel = _rel(site, path)
                         try:
                             page.goto(path.resolve().as_uri(), wait_until="networkidle")
-                        except Exception as exc:
+                        except Exception as exc:  # noqa: BLE001
                             result.problems.append(
-                                f"browser could not open {rel} at {label}: {exc}"
+                                f"browser could not open {rel} at {label}: {_first_line(exc)}"
                             )
+                            errors.clear()
                             continue
-                        overflow = page.evaluate(
-                            "document.documentElement.scrollWidth > "
-                            "document.documentElement.clientWidth + 1"
-                        )
-                        if overflow:
-                            result.problems.append(
-                                f"{rel} overflows horizontally at {width}px ({label})"
+                        try:
+                            probes.setdefault(rel, {})[label] = page.evaluate(_PROBE)
+                        except Exception as exc:  # noqa: BLE001 - a probe fault is ours
+                            result.warnings.append(
+                                f"browser checks could not inspect {rel} at {label}: "
+                                f"{_first_line(exc)}"
                             )
                         for error in errors:
                             result.problems.append(f"{rel} browser error at {label}: {error}")
@@ -373,11 +651,19 @@ def browser(m: Manifest, *, screenshots: Path | None = None) -> VerificationResu
                         if screenshots:
                             stem = "-".join(Path(rel).with_suffix("").parts)
                             dest = screenshots / f"{stem}-{label}.png"
-                            page.screenshot(path=str(dest), full_page=True)
+                            _shoot(page, dest, width)
                             result.screenshots.append(dest)
+                            shots.setdefault(rel, {})[label] = dest
                     context.close()
+                if screenshots and shots:
+                    result.contact_sheet = screenshots / "contact-sheet.png"
+                    _contact_sheet(instance, list(shots.items()), result.contact_sheet)
             finally:
                 instance.close()
+    for rel, by_viewport in probes.items():
+        problems, warnings = findings_from_probe(rel, by_viewport)
+        result.problems.extend(problems)
+        result.warnings.extend(warnings)
     return result
 
 
@@ -391,3 +677,5 @@ def run(
     if use_browser:
         result.merge(browser(m, screenshots=screenshots))
     return result
+
+
