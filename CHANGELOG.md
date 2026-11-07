@@ -6,6 +6,11 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A toggle with three or four options no longer runs off a phone screen: its bar tightens below 480px and wraps
+  as a last resort (artoo-kit 0.8.1). Found by the browser checks on a four-look comparison at 390px.
+
 ## [0.10.1] — 2026-11-07
 
 ### Added

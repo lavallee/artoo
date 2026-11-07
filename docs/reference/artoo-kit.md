@@ -1,4 +1,4 @@
-# artoo-kit 0.8.0
+# artoo-kit 0.8.1
 
 Long-form article layout, evidence regions, and the provenance panel.
 
