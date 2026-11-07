@@ -6,6 +6,12 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Features** on the Pages site: everything artoo does in one list, grouped, with how you reach each feature and
+  the release it arrived in. The source is `site/landing/work/features.json`, which other tools can read;
+  `scripts/build-features.py` renders it with artoo's own Markdown converter. The landing site moves to artoo-kit 0.8.0.
+
 ## [0.10.0] — 2026-11-07
 
 Bakes in what agent-driven HTML generation has converged on: a constrained

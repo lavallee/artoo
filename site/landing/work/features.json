@@ -1,0 +1,500 @@
+{
+ "product": "artoo",
+ "version": "0.10.0",
+ "updated": "2026-11-07",
+ "note": "The full feature list. scripts/build-features.py renders it to site/landing/site/features.html; keep it in step with CHANGELOG.md.",
+ "groups": [
+  {
+   "id": "artifacts",
+   "name": "Artifacts"
+  },
+  {
+   "id": "writing",
+   "name": "Writing pages"
+  },
+  {
+   "id": "libraries",
+   "name": "Site libraries"
+  },
+  {
+   "id": "data",
+   "name": "Data and evidence"
+  },
+  {
+   "id": "checking",
+   "name": "Checking a build"
+  },
+  {
+   "id": "review",
+   "name": "Reviewing and serving"
+  },
+  {
+   "id": "publishing",
+   "name": "Publishing"
+  },
+  {
+   "id": "agents",
+   "name": "For agents"
+  },
+  {
+   "id": "maps",
+   "name": "Code maps"
+  }
+ ],
+ "features": [
+  {
+   "id": "artifact",
+   "group": "artifacts",
+   "name": "An artifact",
+   "summary": "A directory with a manifest, a publishable site/ and a private work/: a piece of presentation that lives beside the research behind it, in the repo that owns the subject.",
+   "since": "0.1.0",
+   "docs": "reference/quickstart.md",
+   "who": "author"
+  },
+  {
+   "id": "init",
+   "group": "artifacts",
+   "name": "Start one",
+   "summary": "Scaffolds the manifest, a starter page, the vendored kit and a private brief, plus working rules for agents.",
+   "cli": "init PATH --kind K --form F",
+   "since": "0.1.0",
+   "docs": "reference/quickstart.md",
+   "who": "author"
+  },
+  {
+   "id": "kinds-forms",
+   "group": "artifacts",
+   "name": "Kinds and forms",
+   "summary": "What it's about (explainer, report, walkthrough, presentation, case study, explorer, note…) is separate from how it's read: article, collection, explorer or deck.",
+   "cli": "init --kind · --form",
+   "since": "0.5.0",
+   "docs": "reference/forms.md",
+   "who": "author"
+  },
+  {
+   "id": "status",
+   "group": "artifacts",
+   "name": "Status",
+   "summary": "Manifest health, what the firewall would publish, and library drift, for one artifact.",
+   "cli": "status",
+   "since": "0.1.0",
+   "docs": "reference/manifest.md",
+   "who": "author"
+  },
+  {
+   "id": "list-doctor",
+   "group": "artifacts",
+   "name": "Every artifact in a repo",
+   "summary": "Find all artifacts under a folder, and a coherence report across them.",
+   "cli": "list · doctor",
+   "since": "0.1.0",
+   "docs": "reference/quickstart.md",
+   "who": "author"
+  },
+  {
+   "id": "markdown",
+   "group": "writing",
+   "name": "Write in Markdown",
+   "summary": "Article and collection pages render from Markdown into deterministic, accessible shells; delete [content] to own the HTML instead.",
+   "cli": "[content] source · pages",
+   "since": "0.5.0",
+   "docs": "reference/manifest.md",
+   "who": "author"
+  },
+  {
+   "id": "figures",
+   "group": "writing",
+   "name": "Images and figures",
+   "summary": "An image on its own line becomes a figure, with its title as the caption and alt text checked.",
+   "since": "0.8.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "video",
+   "group": "writing",
+   "name": "Video loops",
+   "summary": "A video in an image line becomes a silent, named loop with a poster, paused for readers who prefer less motion.",
+   "since": "0.9.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "toggle",
+   "group": "writing",
+   "name": "Toggle figures",
+   "summary": "Two to four images or loops the reader flips between, in pure CSS.",
+   "since": "0.9.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "tables",
+   "group": "writing",
+   "name": "Tables",
+   "summary": "Pipe tables, with numeric columns and a scroll region so a wide table never widens the page.",
+   "since": "0.9.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "front-matter",
+   "group": "writing",
+   "name": "Page front matter",
+   "summary": "Each page can set its own description, kicker and social card image.",
+   "since": "0.9.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "blocks",
+   "group": "writing",
+   "name": "Blocks",
+   "summary": "::: callout, stats, pullquote, figure, wide, cards and lede, checked at build time and reported by line when written wrong.",
+   "since": "0.10.0",
+   "docs": "reference/blocks.md",
+   "who": "author"
+  },
+  {
+   "id": "grid-block",
+   "group": "writing",
+   "name": "Data tables from a pack",
+   "summary": "::: grid data=PACK draws a table from a data pack, with its columns checked against the data, so no figure is retyped.",
+   "since": "0.10.0",
+   "docs": "reference/blocks.md",
+   "who": "author"
+  },
+  {
+   "id": "islands",
+   "group": "writing",
+   "name": "HTML islands",
+   "summary": "::: html is the escape hatch: raw HTML copied verbatim, still under every check.",
+   "since": "0.10.0",
+   "docs": "reference/blocks.md",
+   "who": "author"
+  },
+  {
+   "id": "diagrams",
+   "group": "writing",
+   "name": "Diagrams",
+   "summary": "Mermaid fences render offline as diagrams that follow the theme and re-lay themselves on narrow screens.",
+   "since": "0.7.0",
+   "docs": "reference/artoo-diagrams.md",
+   "who": "author"
+  },
+  {
+   "id": "looks",
+   "group": "writing",
+   "name": "Named looks",
+   "summary": "editorial, ledger, broadsheet or field: token sets that hold contrast in light and dark, so artifacts needn't all read as one product.",
+   "cli": "look = \"ledger\"",
+   "since": "0.10.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "kit",
+   "group": "libraries",
+   "name": "artoo-kit",
+   "summary": "Article layout, figures, callouts, cards, the provenance panel and light/dark, with a documented class vocabulary.",
+   "since": "0.1.0",
+   "docs": "reference/artoo-kit.md",
+   "who": "author"
+  },
+  {
+   "id": "deck",
+   "group": "libraries",
+   "name": "artoo-deck",
+   "summary": "Slides as a deck: acts, speaker notes, overview, keyboard and touch, landscape print.",
+   "since": "0.4.0",
+   "docs": "reference/artoo-deck.md",
+   "who": "author"
+  },
+  {
+   "id": "grid",
+   "group": "libraries",
+   "name": "artoo-grid",
+   "summary": "Dense comparison tables with sorting, frozen columns, in-cell bars and heat, CSV export, and missing values that never read as zero.",
+   "since": "0.5.0",
+   "docs": "reference/artoo-grid.md",
+   "who": "author"
+  },
+  {
+   "id": "controls",
+   "group": "libraries",
+   "name": "artoo-controls",
+   "summary": "Explorer controls: search, filters, chips, result counts, URL state, CSV, saved configurations.",
+   "since": "0.5.0",
+   "docs": "reference/artoo-controls.md",
+   "who": "author"
+  },
+  {
+   "id": "diagrams-lib",
+   "group": "libraries",
+   "name": "artoo-diagrams",
+   "summary": "Mermaid-syntax diagrams rendered offline by a pinned, auditable Pele build.",
+   "since": "0.7.0",
+   "docs": "reference/artoo-diagrams.md",
+   "who": "author"
+  },
+  {
+   "id": "map-lib",
+   "group": "libraries",
+   "name": "artoo-map",
+   "summary": "An offline, interactive code map: focus, paths, truth layers, exports.",
+   "since": "0.6.0",
+   "docs": "reference/artoo-map.md",
+   "who": "author"
+  },
+  {
+   "id": "vendoring",
+   "group": "libraries",
+   "name": "Vendored, pinned, offline",
+   "summary": "Every runtime asset is copied in with a hash; nothing loads from a CDN, so an artifact opens from a file.",
+   "cli": "lib add · vendor URL · update · status",
+   "since": "0.1.0",
+   "docs": "reference/manifest.md",
+   "who": "author"
+  },
+  {
+   "id": "packs",
+   "group": "data",
+   "name": "Data packs",
+   "summary": "One private JSON source becomes publishable JSON and a file://-safe script global.",
+   "cli": "[[data]]",
+   "since": "0.5.0",
+   "docs": "reference/data.md",
+   "who": "author"
+  },
+  {
+   "id": "evidence",
+   "group": "data",
+   "name": "Evidence and provenance",
+   "summary": "Claims on the page link to their sources in a provenance panel, from any provider.",
+   "since": "0.5.0",
+   "docs": "reference/provenance.md",
+   "who": "author"
+  },
+  {
+   "id": "flip",
+   "group": "data",
+   "name": "Flip notebooks",
+   "summary": "Attach a research notebook: project its claims onto the page, and route feedback back into it.",
+   "cli": "provenance · feedback",
+   "since": "0.2.0",
+   "docs": "reference/provenance.md",
+   "who": "author"
+  },
+  {
+   "id": "vizier",
+   "group": "data",
+   "name": "Chart guidance",
+   "summary": "Record a Vizier guide for the charts in an artifact.",
+   "cli": "vizier-guide",
+   "since": "0.2.0",
+   "who": "author"
+  },
+  {
+   "id": "build",
+   "group": "checking",
+   "name": "Build",
+   "summary": "Runs your build commands, renders the pages, packs the data, vendors what's needed, and verifies the result.",
+   "cli": "build",
+   "since": "0.1.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "static-checks",
+   "group": "checking",
+   "name": "Static checks",
+   "summary": "Links, anchors, assets, duplicate ids, alt text, remote dependencies, data JSON.",
+   "cli": "verify",
+   "since": "0.2.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "class-check",
+   "group": "checking",
+   "name": "No invented classes",
+   "summary": "A class guessed inside a library's namespace fails the build and names the nearest real one, or the library update it needs.",
+   "since": "0.5.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "browser",
+   "group": "checking",
+   "name": "Browser checks",
+   "summary": "Every page in Chromium at phone and desktop width: errors, overflow naming the element, broken images, contrast, tiny or clipped text.",
+   "cli": "build · verify --browser",
+   "since": "0.10.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "contact-sheet",
+   "group": "checking",
+   "name": "Contact sheet",
+   "summary": "Every page at desktop and phone, side by side, in one image.",
+   "since": "0.10.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "design-lint",
+   "group": "checking",
+   "name": "Design lint",
+   "summary": "Named rules for pages that look generated: raw colours, foreign fonts, gradient text, glass, emoji icons, stock copy.",
+   "since": "0.10.0",
+   "docs": "reference/verify.md",
+   "who": "author"
+  },
+  {
+   "id": "review",
+   "group": "review",
+   "name": "Review against the render",
+   "summary": "A finding or its fix, bound to exactly the files the page serves and the Git head.",
+   "cli": "review ART \"finding\" --page P · --resolves ID",
+   "since": "0.7.0",
+   "docs": "reference/review.md",
+   "who": "author"
+  },
+  {
+   "id": "serve",
+   "group": "review",
+   "name": "Serve it locally",
+   "summary": "Runs the artifact the way a deploy would show it: a withheld file is absent, not just unlinked.",
+   "cli": "serve",
+   "since": "0.5.0",
+   "docs": "reference/serve.md",
+   "who": "author"
+  },
+  {
+   "id": "state",
+   "group": "review",
+   "name": "Saved state",
+   "summary": "Named JSON documents a page saves through serve, kept in the artifact's state/ folder, with conflict checks.",
+   "cli": "[state] collections",
+   "since": "0.7.0",
+   "docs": "reference/serve.md",
+   "who": "author"
+  },
+  {
+   "id": "firewall",
+   "group": "publishing",
+   "name": "The firewall",
+   "summary": "Only site/ publishes. Research, briefs and state sit beside it and can't ship by accident.",
+   "since": "0.1.0",
+   "docs": "reference/firewall.md",
+   "who": "author"
+  },
+  {
+   "id": "deploy",
+   "group": "publishing",
+   "name": "Deploy",
+   "summary": "Firewall-staged, then handed to an adapter: GitHub Pages (docs, workflow or branch), rsync, or a command.",
+   "cli": "deploy",
+   "since": "0.1.0",
+   "docs": "reference/firewall.md",
+   "who": "author"
+  },
+  {
+   "id": "agents-md",
+   "group": "agents",
+   "name": "Working rules for agents",
+   "summary": "Each artifact carries a short AGENTS.md and an on-demand ARTOO_REFERENCE.md generated from the libraries it actually vendored.",
+   "since": "0.5.0",
+   "docs": "reference/quickstart.md",
+   "who": "agent"
+  },
+  {
+   "id": "docs-cli",
+   "group": "agents",
+   "name": "The reference, offline",
+   "summary": "artoo docs prints the golden path, the manifest, every block and every library's vocabulary.",
+   "cli": "docs [topic]",
+   "since": "0.5.0",
+   "docs": "reference/quickstart.md",
+   "who": "agent"
+  },
+  {
+   "id": "skill",
+   "group": "agents",
+   "name": "Install as a skill",
+   "summary": "Installs artoo's contract as an agent skill.",
+   "cli": "skill",
+   "since": "0.5.0",
+   "docs": "reference/quickstart.md",
+   "who": "agent"
+  },
+  {
+   "id": "llms",
+   "group": "agents",
+   "name": "llms.txt",
+   "summary": "The whole reference for language models, published beside the site.",
+   "since": "0.5.0",
+   "docs": "llms.txt",
+   "who": "agent"
+  },
+  {
+   "id": "generators",
+   "group": "agents",
+   "name": "Generators",
+   "summary": "Plugins that write artifacts: an explainer for a repo, and a report from a notebook.",
+   "cli": "generate NAME",
+   "since": "0.1.0",
+   "docs": "reference/generators.md",
+   "who": "agent"
+  },
+  {
+   "id": "workers",
+   "group": "agents",
+   "name": "Workers",
+   "summary": "Tiered delegation to local agent CLIs for analysis and synthesis.",
+   "since": "0.1.0",
+   "docs": "reference/generators.md",
+   "who": "agent"
+  },
+  {
+   "id": "plugins",
+   "group": "agents",
+   "name": "Plugins",
+   "summary": "Generators, deploy adapters and site libraries are entry points, so others can add their own.",
+   "since": "0.1.0",
+   "docs": "reference/generators.md",
+   "who": "agent"
+  },
+  {
+   "id": "map-build",
+   "group": "maps",
+   "name": "Code graphs",
+   "summary": "artoo map build records a repository's structure with evidence: source coordinates, truth classes, receipts.",
+   "cli": "map build",
+   "since": "0.6.0",
+   "docs": "reference/code-maps.md",
+   "who": "author"
+  },
+  {
+   "id": "map-ask",
+   "group": "maps",
+   "name": "Ask the graph",
+   "summary": "view, why, path and context answer bounded questions about a codebase, with the evidence behind each answer.",
+   "cli": "map view · why · path · context",
+   "since": "0.6.0",
+   "docs": "reference/code-maps.md",
+   "who": "author"
+  },
+  {
+   "id": "map-export",
+   "group": "maps",
+   "name": "Exports",
+   "summary": "Mermaid, JSON and SVG views of the same selection; Mermaid is an export, not the source of truth.",
+   "cli": "map view --format",
+   "since": "0.6.0",
+   "docs": "reference/code-maps.md",
+   "who": "author"
+  }
+ ]
+}
