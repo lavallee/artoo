@@ -1,6 +1,6 @@
 {
  "product": "artoo",
- "version": "0.10.0",
+ "version": "0.10.1",
  "updated": "2026-11-07",
  "note": "The full feature list. scripts/build-features.py renders it to site/landing/site/features.html; keep it in step with CHANGELOG.md.",
  "groups": [
