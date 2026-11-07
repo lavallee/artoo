@@ -222,6 +222,8 @@
 
 .article-toggle__bar {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   margin-bottom: var(--sp-3);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -232,6 +234,13 @@
 .article-toggle__bar label {
   padding: var(--sp-1) var(--sp-4);
   cursor: pointer;
+}
+
+/* Three or four options don't fit a phone at full padding: tighten, and wrap as a last resort. */
+@media (max-width: 480px) {
+  .article-toggle__bar label {
+    padding: var(--sp-1) var(--sp-3);
+  }
 }
 
 /* Two classes deep, so it outranks `.article-figure img` (one class and a type). */
