@@ -416,3 +416,14 @@ def test_verify_screenshots_dir_gets_the_contact_sheet(artifact, chromium, tmp_p
     assert result.exit_code == 0, result.output
     assert (shots / "contact-sheet.png").is_file()
     assert "look once:" in result.output
+
+
+def test_verification_screenshots_ignore_themselves(tmp_path):
+    from artoo import build as build_mod
+    target = tmp_path / "work" / "verification"
+    target.mkdir(parents=True)
+    (target / "contact-sheet.png").write_bytes(b"png")
+    build_mod._ignore_screenshots(target)
+    assert (target / ".gitignore").read_text().strip().endswith("*")
+    build_mod._ignore_screenshots(tmp_path / "missing")   # no folder, nothing written, no error
+    assert not (tmp_path / "missing").exists()

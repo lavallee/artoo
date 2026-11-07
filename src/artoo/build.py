@@ -146,6 +146,12 @@ def verification_dir(m: Manifest) -> Path:
     return target
 
 
+def _ignore_screenshots(target: Path) -> None:
+    """Screenshots are rebuilt on every build, so they don't belong in Git: the folder ignores its own contents."""
+    if target.is_dir():
+        (target / ".gitignore").write_text("# Rebuilt by `artoo build`: screenshots and the contact sheet, not source.\n*\n")
+
+
 def _browser_checks(m: Manifest, result: BuildResult, policy: str, *, dry_run: bool) -> None:
     if dry_run:
         result.browser = "browser checks skipped (dry run)"
@@ -158,6 +164,7 @@ def _browser_checks(m: Manifest, result: BuildResult, policy: str, *, dry_run: b
     checked = verify_mod.browser(
         m, screenshots=verification_dir(m), optional=policy == "auto", fresh=True
     )
+    _ignore_screenshots(verification_dir(m))
     if checked.skipped:
         result.browser = (
             f"browser checks skipped: {checked.skipped}, "
