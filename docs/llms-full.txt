@@ -1319,7 +1319,7 @@ artoo-grid owns `grid-`. A class starting with one of those that the vendored st
 
 ---
 
-# artoo-kit 0.7.2
+# artoo-kit 0.7.3
 
 *On its own: `artoo docs artoo-kit`*
 
