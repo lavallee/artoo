@@ -48,7 +48,7 @@ body = re.sub(r"<h2>(.*?)</h2>", lambda m: f'<h2 id="{re.sub(r"[^a-z0-9]+", "-",
 
 index = (LANDING / "site" / "index.html").read_text(encoding="utf-8")
 head = index[: index.index("<main")]
-head = re.sub(r"<title>.*?</title>", f"<title>Features — artoo</title>", head, count=1)
+head = re.sub(r"<title>.*?</title>", "<title>Features — artoo</title>", head, count=1)
 head = re.sub(r'<meta name="description" content="[^"]*">',
               f'<meta name="description" content="Everything artoo {data["version"]} does, in one list.">', head, count=1)
 toc = "".join(f'<li><a href="#{re.sub(r"[^a-z0-9]+", "-", g["name"].lower()).strip("-")}">{html.escape(g["name"])}</a></li>'
