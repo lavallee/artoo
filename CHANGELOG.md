@@ -6,6 +6,22 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.3] — 2026-11-07
+
+### Fixed
+
+- Long inline code anywhere in a page (a command, an environment variable), not
+  only in table cells, wraps instead of widening the page on a phone (artoo-kit
+  0.7.2). Found by `artoo verify --browser` on toucan's agent guide and quick start.
+
+## [0.9.2] — 2026-11-07
+
+### Fixed
+
+- `\|` inside a Markdown table cell is a literal pipe, as in GitHub-flavoured
+  Markdown, so command syntax like `accept\|reject` stays in its cell instead of
+  splitting it. Found writing toucan's feature list.
+
 ## [0.9.1] — 2026-11-07
 
 ### Fixed

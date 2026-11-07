@@ -133,3 +133,9 @@ def test_pipe_table_with_right_aligned_numbers():
     assert '<th scope="col" class="numeric">Words</th>' in out
     assert '<td class="numeric">508</td>' in out
     assert out.count("<tr>") == 3
+
+
+def test_escaped_pipe_stays_in_its_cell():
+    out = md.to_html("| Command | Does |\n|---|---|\n| `proposals accept\\|reject` | decides |")
+    assert "<code>proposals accept|reject</code>" in out
+    assert out.count("<td") == 2
