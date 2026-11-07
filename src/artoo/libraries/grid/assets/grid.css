@@ -288,7 +288,9 @@
   position: absolute;
   inset-block: 2px;
   left: 0;
-  width: var(--grid-fill, 0%);
+  /* The bar spans at most two thirds of the cell, so the right-aligned figure
+     sits on the cell background instead of on top of its own bar. */
+  width: calc(var(--grid-fill, 0%) * 0.66);
   background: rgb(var(--grid-seq) / 0.22);
   border-radius: 2px;
   z-index: -1;

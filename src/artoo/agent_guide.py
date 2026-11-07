@@ -197,8 +197,9 @@ def render(m: Manifest) -> str:
     owned = ", ".join(f"`{namespace}`" for namespace in namespaces) or "declared library prefixes"
     if m.content_source or m.content_pages:
         authoring = (
-            "7. Write structured pieces as blocks (`::: callout`, `::: stats`, "
-            "`::: grid data=PACK`; `artoo docs blocks`), `::: html` only when none fits.\n"
+            "7. Use blocks for standard pieces (`::: callout`, `::: stats`, "
+            "`::: grid data=PACK`; `artoo docs blocks`); draw the figure that carries "
+            "the argument as a `::: html` island.\n"
             "8. Revise the source in place, naming blocks by `#id`; never regenerate a "
             "whole page."
         )

@@ -117,7 +117,7 @@ def test_grid_binds_a_pack_vendors_the_library_and_loads_assets(tmp_path):
     page = (tmp_path / "site" / "index.html").read_text()
     assert '<link rel="stylesheet" href="lib/artoo-grid/grid.css">' in page
     assert page.index('src="lib/artoo-grid/grid.js"') < page.index('src="data/d.js"')
-    assert '"columns": [{"field": "name", "title": "Name", "format": "name"}' in page
+    assert '{"field": "name", "title": "Name", "format": "name", "minWidth": 96}' in page
     assert (tmp_path / "site" / "lib" / "artoo-grid" / "grid.js").is_file()
     assert any(e["name"] == "artoo-grid" for e in manifest.load(tmp_path).libraries)
 
@@ -176,3 +176,25 @@ def test_every_block_is_documented_with_summary_and_example():
     for block in blocks.registry().values():
         assert block.summary and block.example.startswith(f"::: {block.name}")
         assert block.body in {"markdown", "lines", "raw", "none"}
+
+
+def test_grid_infers_formats_booleans_height_and_layout_from_the_pack(tmp_path):
+    rows = [{"name": "Long district name", "n": 12411, "share": 8.25, "ok": True},
+            {"name": "B", "n": 9, "share": 1.5, "ok": None}]
+    m = _artifact(tmp_path, "# Demo\n\n::: grid data=D\nname | Name\nn | N\nshare | Share\nok | OK\n:::\n",
+                  rows=rows)
+    assert build.build(m).ok
+    page = (tmp_path / "site" / "index.html").read_text()
+    assert '{"field": "n", "title": "N", "format": "number", "decimals": 0}' in page
+    assert '{"field": "share", "title": "Share", "format": "number", "decimals": 2}' in page
+    assert '{"field": "ok", "title": "OK", "format": "chip"}' in page
+    assert 'var b=["ok"]' in page
+    assert '"tabulator": {"height": false}' in page and '"layout": "fitColumns"' in page
+    assert '{"field": "name", "title": "Name", "minWidth": 168}' in page  # 18 characters
+
+
+def test_grid_keeps_an_explicit_format(tmp_path):
+    m = _artifact(tmp_path, "# Demo\n\n::: grid data=D\nn | N | currency\n:::\n", rows=[{"n": 5}])
+    assert build.build(m).ok
+    assert '{"field": "n", "title": "N", "format": "currency"}' in (
+        tmp_path / "site" / "index.html").read_text()

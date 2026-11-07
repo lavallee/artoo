@@ -66,8 +66,8 @@ Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
    figures, a captioned table, a dense grid bound to a data pack: write
    `::: callout`, `::: stats`, `::: figure`, `::: grid data=PACK`. Blocks
    cost a fraction of the markup they expand to and fail the build at
-   `file:line` when written wrong. `::: html` is the escape hatch for anything
-   bespoke. See `artoo docs blocks`.
+   `file:line` when written wrong. Draw the figure that carries the argument
+   as a `::: html` island, from the data pack. See `artoo docs blocks`.
 2. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
    `artoo docs artoo-kit` list every class, with its role. `artoo build` fails on a
    class invented inside a library's namespace, and names the nearest real

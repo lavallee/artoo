@@ -7,16 +7,43 @@ Markdown content has three tiers, and most pages should live in the first two:
    captioned table, a dense grid bound to a data pack. Each block is declared
    by the library whose vocabulary it emits, so it renders correct markup
    every time and fails the build, at `file:line`, when it is written wrong.
-3. **`::: html` islands** for anything bespoke — a custom SVG figure, an
-   interaction no block covers. The body is copied verbatim.
+3. **`::: html` islands** for the figure that carries the argument — a
+   chart built for this comparison, an interaction no block covers. The body
+   is copied verbatim.
 
-Reach for the lowest tier that can say it. A block costs a fraction of the
-markup it expands to, cannot invent a class, and keeps its numbers in the
-data rather than retyped into the page. The island keeps ambition possible
-without giving up the safety net: the invented-class check, `artoo verify`,
+Use blocks for the standard pieces: a block costs a fraction of the markup it
+expands to, cannot invent a class, and keeps its numbers in the data rather
+than retyped into the page. But do not let the catalog set the ceiling. The
+piece a reader remembers is usually one figure made for its question — a
+dumbbell of two shares per district, a scatter with the threshold drawn in —
+and no generic block draws that. In a blind review of agent-built reports,
+pages with one purpose-built figure beat pages assembled only from stock
+pieces. Build that figure as an island.
+
+The island keeps the safety net: the invented-class check, `artoo verify`,
 the design lint, and the browser checks all still apply to it. Use kit
 classes and tokens inside it (`var(--accent)`, `var(--chart-1)`), never raw
-colours or fonts.
+colours or fonts, and read numbers from the data pack rather than typing
+them:
+
+```markdown
+::: html #shares
+<figure class="article-figure">
+  <svg class="shares" role="img" aria-label="Substitute and textbook shares by district"></svg>
+  <figcaption>Share of spending, FY2025. Source: state finance ledger.</figcaption>
+</figure>
+<style>
+  .shares { width: 100%; height: auto; }
+  .shares .sub { fill: var(--chart-6); }
+  .shares .book { fill: var(--chart-5); }
+  .shares text { fill: var(--muted); font: 12px var(--font-ui); }
+</style>
+<script>
+  // window.DATA comes from the [[data]] pack; draw from it, never retype it.
+  document.addEventListener("DOMContentLoaded", function () { /* … */ });
+</script>
+:::
+```
 
 ## Syntax
 

@@ -87,6 +87,35 @@ def _column(call: Call, offset: int, line: str, fields: set[str] | None):
     return spec
 
 
+def _infer(spec: dict, rows: list | None) -> None:
+    """Fill in what the author left out, from the values the pack actually holds.
+
+    Left alone the grid prints every unformatted number as text — 12411, 26031 —
+    and every boolean as `true`; a blind review of agent-built reports singled
+    both out. Inferring from the data costs nothing, and a format written on the
+    column line still wins.
+    """
+    if rows is None:
+        return
+    values = [row.get(spec["field"]) for row in rows if isinstance(row, dict)]
+    present = [v for v in values if v is not None and v != ""]
+    if "format" not in spec and present:
+        if all(isinstance(v, bool) for v in present):
+            spec["format"] = "chip"
+            spec["_bool"] = True
+        elif all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in present):
+            spec["format"] = "number"
+            if "decimals" not in spec:
+                places = [len(repr(v).split(".")[1]) for v in present
+                          if isinstance(v, float) and "." in repr(v)]
+                spec["decimals"] = min(max(places, default=0), 2)
+    if spec.get("format", "text") in ("name", "text") and "width" not in spec:
+        # Fitted columns share the width evenly, which truncates the one column
+        # a reader scans by; size identity columns to their longest value.
+        longest = max((len(str(v)) for v in present), default=0)
+        spec.setdefault("minWidth", max(96, min(240, longest * 8 + 24)))
+
+
 def _grid(call: Call) -> str:
     global_name = call.get("data")
     key = call.get("rows")
@@ -101,6 +130,7 @@ def _grid(call: Call) -> str:
         spec = _column(call, offset, line, fields)
         if spec is None:
             return ""
+        _infer(spec, rows)
         columns.append(spec)
     if not columns:
         call.error("has no columns; write one `field | Title | format` line per column")
@@ -118,7 +148,16 @@ def _grid(call: Call) -> str:
         toolbar["columns"] = True
     if call.get("download"):
         toolbar["download"] = call.get("download")
+    booleans = [spec.pop("_bool") and spec["field"] for spec in columns if "_bool" in spec]
     config: dict = {"columns": columns}
+    # A short table should read as a table, not a scroll box hiding its last
+    # rows; past that, a fixed height keeps the virtual renderer fast.
+    if rows is not None and len(rows) <= 60:
+        config["tabulator"] = {"height": False}
+    # Fit columns to the figure when they can share it; a table that is wider
+    # than the page keeps its natural widths and scrolls inside its region.
+    if len(columns) <= 7:
+        config["layout"] = "fitColumns"
     if index:
         config["index"] = index
     if toolbar:
@@ -135,7 +174,13 @@ def _grid(call: Call) -> str:
         f"<script>document.addEventListener(\"DOMContentLoaded\",function(){{"
         f"var d=window[{json.dumps(global_name)}],k={lookup},c={payload};"
         f"if(k){{k.split('.').forEach(function(p){{d=d&&d[p];}});}}"
-        f"c.data=Array.isArray(d)?d:[];ArtooGrid.create({json.dumps('#' + mount)},c);}});"
+        f"var b={json.dumps(booleans)};d=Array.isArray(d)?d:[];"
+        f"c.data=b.length?d.map(function(r){{var o=Object.assign({{}},r);b.forEach(function(f){{"
+        f"if(o[f]===true)o[f]='Yes';else if(o[f]===false)o[f]='No';}});return o;}}):d;"
+        # Fitting columns to the page helps on a desktop and crushes headers on a
+        # phone, where a table should keep its widths and scroll in its region.
+        f"if(c.layout==='fitColumns'&&window.innerWidth<720)delete c.layout;"
+        f"ArtooGrid.create({json.dumps('#' + mount)},c);}});"
         f"</script></figure>"
     )
 

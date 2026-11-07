@@ -283,7 +283,8 @@ HTML = Block(
     name="html",
     library="",
     summary=(
-        "raw HTML, copied verbatim — the escape hatch for a bespoke figure or interaction. "
+        "raw HTML, copied verbatim — for the figure that carries the argument, or an "
+        "interaction no block covers. "
         "Use kit classes and tokens (`var(--accent)`); the class check, verify, the design "
         "lint and the browser checks still apply"
     ),
