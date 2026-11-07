@@ -29,7 +29,7 @@ Supported, and nothing else:
 - pipe tables: a header row, a ``---|---`` separator row (``---:`` right-aligns
   and marks the column ``numeric``), then body rows; wrapped in a focusable
   ``article-table`` region that scrolls sideways when the table is wider than
-  the screen
+  the screen. ``\\|`` in a cell is a literal pipe
 
 Image sources stay local in practice: ``artoo verify`` flags missing files,
 remote runtime assets, and images without ``alt``.
@@ -129,12 +129,14 @@ _TABLE_SEP = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
 
 
 def _cells(row: str) -> list[str]:
+    """Split a table row on unescaped pipes; ``\\|`` is a literal pipe, as in GFM
+    (command syntax like ``accept|reject`` lives in cells)."""
     row = row.strip()
     if row.startswith("|"):
         row = row[1:]
-    if row.endswith("|"):
+    if row.endswith("|") and not row.endswith("\\|"):
         row = row[:-1]
-    return [c.strip() for c in row.split("|")]
+    return [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", row)]
 
 
 def _table(rows: list[str]) -> str:
