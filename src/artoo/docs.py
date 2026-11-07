@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import codegraph, libraries as libraries_mod
+from . import codegraph, libraries as libraries_mod, lint
 
 REFERENCE_DIR = Path(__file__).parent / "reference"
 
@@ -76,6 +76,24 @@ def class_table(lib: libraries_mod.Library) -> str:
     )
 
 
+# Replaced in ``verify.md`` by the table of lint rules, generated from
+# ``lint.RULES`` so the documented rules are always the enforced ones.
+LINT_RULES_PLACEHOLDER = "<!-- artoo:lint-rules -->"
+
+
+def lint_rule_table() -> str:
+    """The design-lint rules as a markdown table."""
+    rows = "\n".join(
+        f"| `{rule.id}` | {_cell(rule.summary)} | {_cell(rule.fix)} |"
+        for rule in lint.RULES.values()
+    )
+    return f"| rule | what it catches | fix |\n|---|---|---|\n{rows}"
+
+
+def _cell(text: str) -> str:
+    return text.replace("|", "\\|").replace("<", "&lt;")
+
+
 def _strip_title(text: str) -> str:
     """Drop a leading H1 so the composed page has exactly one."""
     lines = text.splitlines()
@@ -90,7 +108,10 @@ def render(name: str) -> str:
     """The full text of one topic."""
     path = REFERENCE_DIR / f"{name}.md"
     if name in AUTHORED and path.is_file():
-        return path.read_text(encoding="utf-8").rstrip() + "\n"
+        text = path.read_text(encoding="utf-8")
+        if LINT_RULES_PLACEHOLDER in text:
+            text = text.replace(LINT_RULES_PLACEHOLDER, lint_rule_table())
+        return text.rstrip() + "\n"
 
     try:
         lib = libraries_mod.get(name)

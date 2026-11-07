@@ -9,7 +9,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from . import firewall
+from . import firewall, lint
 from .manifest import Manifest
 
 _REMOTE = re.compile(r"^(?:https?:)?//", re.I)
@@ -316,6 +316,10 @@ def static(m: Manifest) -> VerificationResult:
             result.problems.append(
                 f"{_rel(site, path)} fetches a remote runtime resource; pack it into the artifact"
             )
+    # Design lint is taste written down as rules, so it warns and never fails;
+    # only a typo in [verify] allow is a problem, because it silently allows nothing.
+    result.problems.extend(lint.allow_problems(m))
+    result.warnings.extend(finding.message() for finding in lint.check(m))
     return result
 
 

@@ -50,6 +50,9 @@ target = "github-pages"           # github-pages | rsync | command
 [workers]
 # generator model tiers, e.g. cheap = "codex", strong = "claude"
 
+[verify]
+allow = ["raw-color"]             # design-lint rules this artifact breaks on purpose
+
 [[libraries]]                     # written by `artoo lib add`; do not hand-edit
 name = "artoo-kit"
 version = "0.3.0"
@@ -85,6 +88,9 @@ reference-guide → collection, everything else → article.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
   is the source of truth. It must never overlap `build.site`.
+- `verify.allow` names design-lint rules (`artoo docs verify`, "Design lint").
+  An id that is not a known rule fails the build with the list of real ones, so
+  a typo cannot silently allow nothing.
 - `[[libraries]]` and `[[vendor]]` entries carry their hashes. Editing a
   vendored file by hand shows up as `modified` in `artoo status`; that is
   the intended signal, not a failure.
