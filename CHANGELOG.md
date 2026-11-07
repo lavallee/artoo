@@ -6,6 +6,76 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-11-07
+
+Bakes in what agent-driven HTML generation has converged on: a constrained
+intermediate compiled to vetted markup, a declared escape hatch, checks the
+tool runs rather than rules the author must remember, and one look at the
+result instead of a polish loop. The research behind it lives in the
+`generation-architecture` notebook.
+
+### Added
+
+- **Blocks in Markdown content.** `::: callout`, `::: stats`, `::: pullquote`,
+  `::: pullnumber`, `::: figure`, `::: wide`, `::: full`, `::: cards` and
+  `::: lede` (artoo-kit), and `::: grid data=PACK` (artoo-grid), bound to a
+  `[[data]]` pack by global name, with its column fields checked against the
+  pack at build time so no figure is retyped from the data. Unformatted grid
+  columns take their format from the data (thousands separators, decimals,
+  booleans as Yes/No); tables of up to 60 rows grow to fit instead of
+  scrolling in a box; columns fit the page on desktop and keep their widths
+  on phones. Each block is
+  declared once by its library; that declaration validates, renders and
+  documents it (`artoo docs blocks`). A block written wrong fails the build at
+  `content.md:LINE`, naming the attribute or block that exists. Nesting is by
+  colon count; `#id` names a block for linking and for revision.
+- **`::: html` islands**, the escape hatch: raw HTML copied verbatim, still
+  under the class check, verification, the design lint and the browser checks.
+- **Browser checks by default.** `artoo build` opens every page in Chromium at
+  phone and desktop width when Playwright is installed (`[verify] browser =
+  "auto"`, or `"always"` / `"never"`; `--browser/--no-browser` overrides).
+  Problems: page and console errors, horizontal overflow naming the elements
+  that cause it, broken images, Mermaid that did not render. Warnings: clipped
+  text, text under 10.5px, WCAG contrast, positioned text overlapping text.
+  Each finding names the page, the viewports, an element path, the nearest
+  section, and, for block output, the source line (`content.md:42`).
+- **A contact sheet.** `work/verification/contact-sheet.png` puts every page
+  at desktop and phone side by side: one image to look at once.
+- **Design lint.** Deterministic, named rules beside the invented-class check:
+  `raw-color`, `foreign-font`, `gradient-text`, `glass`, `emoji-icon`,
+  `numbered-eyebrow`, `card-as-container`, `stock-copy`. Findings are
+  warnings with `file:line` and a fix in kit tokens; `[verify] allow` opts an
+  artifact out of a rule it breaks on purpose. Calibrated against 513 local
+  artifacts until false positives were rare.
+- **Named looks.** `look = "ledger" | "broadsheet" | "field"` in `[artifact]`
+  (default `editorial`): token sets in artoo-kit 0.8.0 that hold WCAG AA in
+  light and dark, so artifacts built from the same blocks need not read as
+  one product.
+
+### Changed
+
+- `AGENTS.md` teaches blocks before raw HTML, revising the source in place by
+  `#id` instead of regenerating a page, and fixing what findings name before
+  looking at the contact sheet once. Shared-data guidance now loads only for
+  artifacts that declare `[state]`, which keeps the automatic guide under its
+  word budget.
+- A content error stops the build before site checks, so a missing page is
+  not reported as a second, misleading problem.
+
+- artoo-grid 0.2.0: in-cell bars span at most two thirds of the cell, so the
+  figure never sits on its own bar.
+
+Tested before release with a 12-run A/B of agent authoring (same briefs, same
+checks): blocks finished in a median 41s against 73.5s for raw HTML, at
+about half the output tokens and 31% lower cost, with all builds passing.
+A first round lost a blind design review; the grid defaults and the island
+guidance above are what brought it to parity.
+
+### Fixed
+
+- Long provenance source URLs wrap instead of widening the page on a phone
+  (artoo-kit 0.8.0).
+
 ## [0.9.4] — 2026-11-07
 
 ### Fixed

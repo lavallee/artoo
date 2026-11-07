@@ -28,8 +28,9 @@ an author writes against.
 from pathlib import Path
 
 from .. import Library
+from .blocks import BLOCKS
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 # Everything this library defines is prefixed `grid-`, so an artifact's own
 # `.grid-of-cards` would be flagged. That is the intended trade: the prefix is
@@ -67,5 +68,6 @@ library = Library(
     root=Path(__file__).parent / "assets",
     namespaces=NAMESPACES,
     classes=CLASSES,
+    blocks=BLOCKS,
     vendored=("tabulator.min.css",),
 )

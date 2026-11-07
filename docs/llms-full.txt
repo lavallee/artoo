@@ -48,6 +48,9 @@ docs/spending-report/
 ```
 
 Only `site/` is publishable. See `artoo docs firewall`.
+Set `look` in `[artifact]` to give the piece its own face — `editorial`
+(default), `ledger`, `broadsheet` or `field`; each is a token set in artoo-kit
+that holds WCAG AA contrast in light and dark.
 For source-owned revisions, Dirk discovery, and feedback that attaches to the
 exact render, see `artoo docs review`.
 
@@ -68,21 +71,27 @@ Forms: `article`, `explorer`, `collection`, `deck`. See `artoo docs forms`.
 
 ## Authoring rules that matter
 
-1. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
+1. **Prose in Markdown, structured pieces as blocks.** A callout, a row of
+   figures, a captioned table, a dense grid bound to a data pack: write
+   `::: callout`, `::: stats`, `::: figure`, `::: grid data=PACK`. Blocks
+   cost a fraction of the markup they expand to and fail the build at
+   `file:line` when written wrong. Draw the figure that carries the argument
+   as a `::: html` island, from the data pack. See `artoo docs blocks`.
+2. **Use the vocabulary the artifact vendored.** `ARTOO_REFERENCE.md` and
    `artoo docs artoo-kit` list every class, with its role. `artoo build` fails on a
    class invented inside a library's namespace, and names the nearest real
    one.
-2. **Never reach for a CDN.** An artifact must render from a `file://` URL.
+3. **Never reach for a CDN.** An artifact must render from a `file://` URL.
    Vendor a runtime with `artoo lib vendor <name> <url>` and it is recorded
    with a pinned hash.
-3. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
+4. **Style SVG with CSS, not presentation attributes.** `fill="var(--chart-1)"`
    does not resolve. Give the shape a class and set `fill` in a `<style>`
    block.
    Draw structure as Mermaid instead: a ` ```mermaid ` fence in Markdown
    content, or `<pre class="mermaid">` with the built-in `artoo-diagrams`
    library. Give nodes roles (`:::accent`), not colors; see
    `artoo docs artoo-diagrams`.
-4. **Put research in `work/` or `notebook/`.** Both sit beside the
+5. **Put research in `work/` or `notebook/`.** Both sit beside the
    presentation and neither can ship.
 
 ## Doing it in bulk
@@ -146,6 +155,278 @@ HTML because slide composition is intentionally spatial.
 
 ---
 
+# Blocks
+
+*On its own: `artoo docs blocks`*
+
+Markdown content has three tiers, and most pages should live in the first two:
+
+1. **Prose** in Markdown: headings, paragraphs, lists, pipe tables, images.
+2. **Blocks** for the structured pieces: a callout, a row of figures, a
+   captioned table, a dense grid bound to a data pack. Each block is declared
+   by the library whose vocabulary it emits, so it renders correct markup
+   every time and fails the build, at `file:line`, when it is written wrong.
+3. **`::: html` islands** for the figure that carries the argument — a
+   chart built for this comparison, an interaction no block covers. The body
+   is copied verbatim.
+
+Use blocks for the standard pieces: a block costs a fraction of the markup it
+expands to, cannot invent a class, and keeps its numbers in the data rather
+than retyped into the page. But do not let the catalog set the ceiling. The
+piece a reader remembers is usually one figure made for its question — a
+dumbbell of two shares per district, a scatter with the threshold drawn in —
+and no generic block draws that. In a blind review of agent-built reports,
+pages with one purpose-built figure beat pages assembled only from stock
+pieces. Build that figure as an island.
+
+The island keeps the safety net: the invented-class check, `artoo verify`,
+the design lint, and the browser checks all still apply to it. Use kit
+classes and tokens inside it (`var(--accent)`, `var(--chart-1)`), never raw
+colours or fonts, and read numbers from the data pack rather than typing
+them:
+
+```markdown
+::: html #shares
+<figure class="article-figure">
+  <svg class="shares" role="img" aria-label="Substitute and textbook shares by district"></svg>
+  <figcaption>Share of spending, FY2025. Source: state finance ledger.</figcaption>
+</figure>
+<style>
+  .shares { width: 100%; height: auto; }
+  .shares .sub { fill: var(--chart-6); }
+  .shares .book { fill: var(--chart-5); }
+  .shares text { fill: var(--muted); font: 12px var(--font-ui); }
+</style>
+<script>
+  // window.DATA comes from the [[data]] pack; draw from it, never retype it.
+  document.addEventListener("DOMContentLoaded", function () { /* … */ });
+</script>
+:::
+```
+
+## Syntax
+
+```markdown
+::: callout warn #caveat title="The denominator changed"
+Counts before 2024 exclude **charter schools**.
+:::
+```
+
+- The opening fence is three or more colons, the block name, then
+  attributes in any order: `key=value`, `key="quoted value"`, `#id`, and
+  bare words for flags or the block's one positional attribute.
+- The body is Markdown, one item per line, or raw HTML, depending on the
+  block (listed below).
+- A line of the same number of colons closes it. To nest, give the outer
+  block more colons: `:::: wide` … `::: callout` … `:::` … `::::`.
+- An `#id` lands on the block's root element. Use it to link to the block
+  and to name it when you revise: "tighten the `#caveat` callout".
+
+Every block's root also carries `data-block` and `data-src="content.md:12"`.
+That is how a browser finding ("overflows at 390px") names the line that
+produced the element.
+
+## Revising
+
+Edit the source in place and rebuild. Do not regenerate a page to change
+part of it: rewriting a whole page is where earlier fixes silently come
+undone. Target the block by its `#id` or its line, change what the finding
+names, and run `artoo build` again.
+
+## Errors
+
+A block written wrong fails the build and names the fix:
+
+```
+content.md:14: `callout` block has no attribute 'tone' (did you mean "title"?); it takes variant, title
+content.md:22: unknown block "calout" (did you mean "callout"?) — `artoo docs blocks` lists the blocks this artifact can use
+content.md:31: `grid` block: column field 'prof_pct' is not in the data (it has county, hhi, id, name, prof)
+```
+
+The first block that needs a library vendors it (the `grid` block adds
+`artoo-grid`); after that the artifact keeps the bytes it pinned, and
+`artoo lib update` stays the only upgrade boundary.
+
+## Catalog
+
+### `callout`
+
+A boxed aside for a caveat, warning or result the reader must not miss.
+
+From `artoo-kit`. Body: Markdown.
+
+| attribute | meaning |
+|---|---|
+| `variant` | tone (one of `note`, `warn`, `danger`, `success`; may be written bare) |
+| `title` | bold first line |
+
+```markdown
+::: callout warn title="The denominator changed"
+Counts before 2024 exclude charter schools.
+:::
+```
+
+### `stats`
+
+A row of 2–6 headline figures, one `value | label` line each.
+
+From `artoo-kit`. Body: one item per line.
+
+```markdown
+::: stats
+$4.2M | spent in 2025
+38% | of it on staffing
+12 | vendors
+:::
+```
+
+### `pullquote`
+
+A breakout-width quotation; attribute it with cite=.
+
+From `artoo-kit`. Body: one item per line.
+
+| attribute | meaning |
+|---|---|
+| `cite` | who said it, and where |
+
+```markdown
+::: pullquote cite="Superintendent, board minutes, March 2025"
+We were budgeting for a district that no longer exists.
+:::
+```
+
+### `pullnumber`
+
+One large figure with its label, breakout width.
+
+From `artoo-kit`. Body: one item per line.
+
+| attribute | meaning |
+|---|---|
+| `value` | the figure, formatted as it should read (required) |
+
+```markdown
+::: pullnumber value="1 in 7"
+builds failed to launch with no checks at all
+:::
+```
+
+### `figure`
+
+Caption and source for whatever it wraps — a pipe table, an image, a grid or html block; state vintage and denominator in the caption.
+
+From `artoo-kit`. Body: Markdown.
+
+| attribute | meaning |
+|---|---|
+| `caption` | what the reader is looking at, with vintage and denominator |
+| `source` | where the figures come from |
+
+```markdown
+::: figure caption="Spending by category, FY2025 (USD)" source="District ledger"
+| Category | Amount |
+|---|---:|
+| Staffing | 1,600,000 |
+:::
+```
+
+### `wide`
+
+Let its contents run wider than the prose column (breakout width).
+
+From `artoo-kit`. Body: Markdown.
+
+```markdown
+::: wide
+| A | B | C | D | E | F |
+|---|---|---|---|---|---|
+| 1 | 2 | 3 | 4 | 5 | 6 |
+:::
+```
+
+### `full`
+
+Let its contents run edge to edge.
+
+From `artoo-kit`. Body: Markdown.
+
+```markdown
+::: full
+![Panorama of the site](assets/panorama.png)
+:::
+```
+
+### `cards`
+
+Navigation cards to other pages, one `[Title](page.html) — description` line each.
+
+From `artoo-kit`. Body: one item per line.
+
+| attribute | meaning |
+|---|---|
+| `label` | accessible name for the group (default: Pages) |
+
+```markdown
+::: cards
+[Method](method.html) — how the figures were built
+[Data](data.html) — every table, downloadable
+:::
+```
+
+### `lede`
+
+The opening paragraph, set larger.
+
+From `artoo-kit`. Body: one item per line.
+
+```markdown
+::: lede
+The district spent more on substitutes than on textbooks.
+:::
+```
+
+### `grid`
+
+A sortable dense table bound to a [[data]] pack; one `field | Title | format flags` line per column. Fields are checked against the pack at build time.
+
+From `artoo-grid`. Body: one item per line.
+
+| attribute | meaning |
+|---|---|
+| `data` | the [[data]] pack's global name (required) |
+| `rows` | dotted key of the row array inside the pack, if it is not the root |
+| `index` | field that identifies a row |
+| `search` | show the free-text filter (flag) |
+| `columns` | show the column picker (flag) |
+| `download` | CSV filename for the export button |
+| `note` | footer: vintage, denominator, source |
+| `caption` | figure caption under the table |
+
+```markdown
+::: grid data=DISTRICTS index=id search columns download=districts.csv note="ACS 2020–2024"
+name | District | name frozen sub=county
+hhi | Median household income | currency bar
+prof | Proficient | percent heat decimals=1
+:::
+```
+
+### `html`
+
+Raw HTML, copied verbatim — for the figure that carries the argument, or an interaction no block covers. Use kit classes and tokens (`var(--accent)`); the class check, verify, the design lint and the browser checks still apply.
+
+From core. Body: raw HTML, verbatim.
+
+```markdown
+::: html #timeline
+<figure class="article-figure diagram">
+  <svg viewBox="0 0 320 40" role="img" aria-label="Spending rose each year"><rect class="timeline-bar" x="0" y="10" width="320" height="20"/></svg>
+</figure>
+:::
+```
+
+---
+
 # artifact.toml
 
 *On its own: `artoo docs manifest`*
@@ -162,6 +443,7 @@ title = "Where the money went"    # required
 description = "…"
 kind = "report"                   # see the kinds list below
 form = "article"                  # article | explorer | collection | deck
+look = "ledger"                   # editorial (default) | ledger | broadsheet | field
 status = "draft"                  # draft | building | live | archived
 created = "2026-08-18"
 updated = "2026-08-18"            # stamped by a successful `artoo build`
@@ -190,6 +472,9 @@ include_private = false           # opt in to projecting a non-public notebook
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
 
+[verify]
+browser = "auto"                  # auto | always | never: Chromium checks during `artoo build`
+
 [state]                         # optional shared saved-data opt-in
 collections = ["feedback"]      # bounded JSON namespaces under artifact/state/
 
@@ -199,6 +484,9 @@ target = "github-pages"           # github-pages | rsync | command
 
 [workers]
 # generator model tiers, e.g. cheap = "codex", strong = "claude"
+
+[verify]
+allow = ["raw-color"]             # design-lint rules this artifact breaks on purpose
 
 [[libraries]]                     # written by `artoo lib add`; do not hand-edit
 name = "artoo-kit"
@@ -228,6 +516,10 @@ reference-guide → collection, everything else → article.
 - `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
   files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
+- `verify.browser` is `auto` (the default: run browser checks where Playwright
+  and Chromium are installed, note the skip elsewhere), `always` (their
+  absence fails the build) or `never`. `artoo build --browser` and
+  `--no-browser` override it for one run; see `artoo docs verify`.
 - `state.collections` is a list of slug names. Only declared collections can be
   served by the shared-state API; no declaration means no state access. `state/`
   must not overlap `build.site`. Disk writes do not commit or push Git; see
@@ -235,6 +527,9 @@ reference-guide → collection, everything else → article.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
   is the source of truth. It must never overlap `build.site`.
+- `verify.allow` names design-lint rules (`artoo docs verify`, "Design lint").
+  An id that is not a known rule fails the build with the list of real ones, so
+  a typo cannot silently allow nothing.
 - `[[libraries]]` and `[[vendor]]` entries carry their hashes. Editing a
   vendored file by hand shows up as `modified` in `artoo status`; that is
   the intended signal, not a failure.
@@ -295,21 +590,151 @@ Warnings identify images without `alt`, tables without headings or with uneven
 row widths, and empty or nowhere-pointing controls. They are review prompts,
 not taste scores, and do not fail a build.
 
-## Optional browser proof
+## Browser checks
+
+Some faults only exist once a page is drawn: a table that pushes the page
+sideways on a phone, a diagram that never rendered, text cut off by its box.
+A static pass cannot see them and an author rarely looks at every page at
+every width, so `artoo build` opens the pages itself.
+
+After the static checks pass (a structurally broken site fails fast, without
+a browser), the build firewall-stages the site, opens every publishable page
+in Chromium at phone (390×844) and desktop (1440×900) width, and runs the
+checks below in the page.
+
+These fail the build:
+
+- page errors and console errors, with the file and line that raised them;
+- horizontal overflow, naming up to three boxes that cause it: the widest
+  ones whose right edge passes the viewport, skipping anything inside a
+  scroll or clip container and anything inside a box already named;
+- broken images: loaded, but not decodable as an image;
+- Mermaid diagrams that did not render: a `pre.mermaid` block (or its
+  rendered host) with no `<svg>` after a few seconds. A diagram whose source
+  failed to parse is reported once, through its console error.
+
+These are warnings, review prompts that do not fail the build:
+
+- clipped text: text cut at the edge of a box with `overflow: hidden` or
+  `clip`. Scroll containers, `text-overflow: ellipsis`, line clamps, the
+  sr-only pattern and text staged wholly outside its box (an inactive slide)
+  are deliberate and skipped;
+- small text: visible text under 10.5px. Real artifacts use 11px labels and
+  10.8px code in a colophon on purpose; the line is drawn below them;
+- contrast under WCAG AA: 4.5:1, or 3:1 for large text (24px, or 18.66px
+  bold), against the background composited from the element's ancestors. A
+  background image, gradient, blend or positioned box in the way makes the
+  background unknown, and unknown is skipped, never guessed. Ornament
+  characters such as `·` are not judged;
+- overlap: text in an absolutely positioned box whose glyphs land on other
+  text. Fixed and sticky chrome floats over content by design and is left out.
+
+Each finding names the page, the viewport, a short selector, the nearest
+heading with an id (`§methods`) and, where the page records one, the source
+line it came from (`content.md:42`). A rule reports at most three findings per
+page and viewport, then "and N more"; a finding seen at both widths is one
+line naming both.
+
+### The contact sheet
+
+The build writes a screenshot of every page at both widths to
+`work/verification/` and composes them into one image,
+`work/verification/contact-sheet.png`, which the build prints as
+`look once: …`. Look at it once, after the checks pass: it is the cheapest
+way to see the whole artifact the way a reader will, and a better use of a
+review than another polishing loop. `work/` never publishes.
+
+### When it runs
+
+`[verify] browser` in `artifact.toml` sets the policy:
+
+- `auto` (the default) runs the checks where Playwright and Chromium are
+  installed. Elsewhere the build prints one note line and carries on.
+- `always` makes their absence a build failure, for a machine or CI job that
+  is meant to prove the pages render.
+- `never` skips them.
+
+`artoo build --browser` or `--no-browser` overrides the manifest for one run.
+Playwright is a soft dependency that core artoo never requires. To install it
+beside a `uv tool` install:
+
+```bash
+uv tool install artoo-artifacts --with-executables-from playwright
+playwright install chromium
+```
+
+`artoo verify` stays static unless asked:
 
 ```bash
 artoo verify path/to/artifact --browser
 artoo verify path/to/artifact --browser --screenshots work/verification
 ```
 
-Browser verification is a soft Playwright integration. When requested, it
-firewall-stages the site, opens every publishable page in Chromium at phone and
-desktop widths, reports page and console errors, checks horizontal overflow,
-and optionally records full-page screenshots. Core Artoo does not depend on Playwright; if it is absent the
-command names the install needed or lets you omit `--browser`.
+`--browser` runs the same checks; `--screenshots DIR` also writes the
+per-page screenshots and the contact sheet there.
 
 A clean check proves structural and runtime integrity. It does not promote an
 artifact's status or establish factual, editorial, visual, or human acceptance.
+
+## Design lint
+
+A page can pass every integrity check and still read as generated: gradient
+headline text, frosted-glass panels, an emoji in front of every heading, "01 /
+02" eyebrows, cards that hold content instead of linking anywhere, colours and
+fonts typed in by hand instead of taken from the kit, stock model prose. Those
+habits are easier to name than to notice, so artoo names them. Each rule below
+is deterministic — no model call, no score — and carries its fix in kit
+vocabulary.
+
+`artoo build` and `artoo verify` run the lint over the artifact's own
+publishable HTML and CSS, including inline `style=` attributes and `<style>`
+blocks. Vendored libraries under `site/lib/` are never linted: their CSS is
+where the tokens are defined. Findings are **warnings** — printed, and listed
+under `"warnings"` in `--json` output — and never fail a build. Each names the
+file, line, and rule:
+
+```text
+site/index.html:42 [raw-color] color: #1f2430 — use a kit token — var(--text), …
+```
+
+A rule reports at most three hits per file and five files per artifact, then
+counts the rest, so one shared inline `<style>` across a generated site says
+it once.
+
+| rule | what it catches | fix |
+|---|---|---|
+| `raw-color` | a hex, rgb(), or hsl() colour typed into page CSS or a style= attribute | use a kit token — var(--text), var(--muted), var(--accent), var(--surface), var(--border), var(--chart-1)…var(--chart-8) — or define your own once as a custom property (--brand: #…) and use var(--brand) |
+| `foreign-font` | a font-family that names a web font, or sets a family without a kit font token | use var(--font-prose), var(--font-ui), var(--font-display), or var(--font-numeric); the kit stacks are offline system fonts |
+| `gradient-text` | text painted with a gradient via background-clip: text | give the text a solid colour such as var(--text) or var(--accent); let size and weight carry the emphasis |
+| `glass` | a frosted-glass panel: backdrop-filter with blur() | use an opaque surface: background: var(--surface); border: 1px solid var(--border) |
+| `emoji-icon` | a heading, list item, button, or nav link whose text starts with an emoji | drop the emoji and let the words lead; if an icon earns its place, use an inline SVG with aria-hidden="true" |
+| `numbered-eyebrow` | a counter used as decoration: an element that is only "01" / "02 —", or a heading that starts "01." | drop the counter and name the section; if order matters, use an &lt;ol> (or class="toc" for contents) |
+| `card-as-container` | a nav-card (or card) that is not a link and holds no link | nav-card is for links to destinations: make it &lt;a class="nav-card" href=…>, or use a plain &lt;section> or class="callout" for content |
+| `stock-copy` | a stock phrase of generated prose ("delve", "seamless integration", "unlock the power", "it's not just X, it's Y" …) | say the specific thing in plain words: what it does, for whom, by how much |
+
+Two choices keep the rules quiet on good work. Defining a token is the right
+pattern, so a colour inside a custom-property definition (`--brand: #0b5`)
+passes, as does any `var(--x)` and the fallback inside it; only a literal at a
+usage site is reported. Likewise any `font-family: var(--…)` passes, and a
+web font is caught where it is first named. A plain `.card` is only a
+finding on pages that load artoo-kit, where it is the deprecated alias of
+`nav-card`; elsewhere it is the page's own class. A blurred backdrop on a
+sticky or fixed bar, a near-opaque surface, or a dialog's `::backdrop` is a
+legibility device, not glass. Check marks, arrows, and stars (✓ → ★) are
+typography; the emoji rule covers pictographs and anything written with the
+emoji selector (⚠️).
+
+An artifact that breaks a rule on purpose — its own design system with
+literal colours, say — says so in the manifest, where the exception stays
+visible:
+
+```toml
+[verify]
+allow = ["raw-color", "foreign-font"]
+```
+
+An id in `allow` that is not a rule is a build problem that lists the real
+ones, because a typo there would silently allow nothing.
 
 ---
 
@@ -1164,7 +1589,7 @@ the kit's `kit.js` instead. Use one renderer per page.
 
 ---
 
-# artoo-grid 0.1.0
+# artoo-grid 0.2.0
 
 *On its own: `artoo docs artoo-grid`*
 
@@ -1319,7 +1744,7 @@ artoo-grid owns `grid-`. A class starting with one of those that the vendored st
 
 ---
 
-# artoo-kit 0.7.3
+# artoo-kit 0.8.0
 
 *On its own: `artoo docs artoo-kit`*
 

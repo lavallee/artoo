@@ -12,6 +12,7 @@ title = "Where the money went"    # required
 description = "…"
 kind = "report"                   # see the kinds list below
 form = "article"                  # article | explorer | collection | deck
+look = "ledger"                   # editorial (default) | ledger | broadsheet | field
 status = "draft"                  # draft | building | live | archived
 created = "2026-08-18"
 updated = "2026-08-18"            # stamped by a successful `artoo build`
@@ -40,6 +41,9 @@ include_private = false           # opt in to projecting a non-public notebook
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
 
+[verify]
+browser = "auto"                  # auto | always | never: Chromium checks during `artoo build`
+
 [state]                         # optional shared saved-data opt-in
 collections = ["feedback"]      # bounded JSON namespaces under artifact/state/
 
@@ -49,6 +53,9 @@ target = "github-pages"           # github-pages | rsync | command
 
 [workers]
 # generator model tiers, e.g. cheap = "codex", strong = "claude"
+
+[verify]
+allow = ["raw-color"]             # design-lint rules this artifact breaks on purpose
 
 [[libraries]]                     # written by `artoo lib add`; do not hand-edit
 name = "artoo-kit"
@@ -78,6 +85,10 @@ reference-guide → collection, everything else → article.
 - `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
   files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
+- `verify.browser` is `auto` (the default: run browser checks where Playwright
+  and Chromium are installed, note the skip elsewhere), `always` (their
+  absence fails the build) or `never`. `artoo build --browser` and
+  `--no-browser` override it for one run; see `artoo docs verify`.
 - `state.collections` is a list of slug names. Only declared collections can be
   served by the shared-state API; no declaration means no state access. `state/`
   must not overlap `build.site`. Disk writes do not commit or push Git; see
@@ -85,6 +96,9 @@ reference-guide → collection, everything else → article.
 - `research.notebook` is relative. It **may** escape the artifact with `..`:
   a report can be rendered from a canonical notebook that lives elsewhere and
   is the source of truth. It must never overlap `build.site`.
+- `verify.allow` names design-lint rules (`artoo docs verify`, "Design lint").
+  An id that is not a known rule fails the build with the list of real ones, so
+  a typo cannot silently allow nothing.
 - `[[libraries]]` and `[[vendor]]` entries carry their hashes. Editing a
   vendored file by hand shows up as `modified` in `artoo status`; that is
   the intended signal, not a failure.

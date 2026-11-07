@@ -7,6 +7,9 @@ status = "draft"
 created = "2026-07-10"
 updated = "2026-10-26"
 
+[verify]
+allow = ["card-as-container"]
+
 [deploy]
 target = "github-pages"
 

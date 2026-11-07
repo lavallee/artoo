@@ -1,4 +1,4 @@
-# artoo-grid 0.1.0
+# artoo-grid 0.2.0
 
 Declarative dense data tables: sorting, frozen identity columns, in-cell bars and heat, column picker, CSV export, and an honest missing-value convention.
 

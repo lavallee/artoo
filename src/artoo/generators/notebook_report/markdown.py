@@ -34,8 +34,12 @@ Supported, and nothing else:
 Image sources stay local in practice: ``artoo verify`` flags missing files,
 remote runtime assets, and images without ``alt``.
 
+When the caller passes a block context (``artoo build`` does; the
+notebook-report generator does not), ``::: name …`` fenced directives render
+through :mod:`artoo.blocks`, which is also where ``::: html`` passthrough lives.
+
 Deliberate non-goals (documented limits): nested lists, reference-style links,
-HTML passthrough, setext headings, footnotes, table cells spanning columns. A draft that needs
+HTML passthrough outside ``::: html``, setext headings, footnotes, table cells spanning columns. A draft that needs
 those should be authored as HTML upstream. Bracketed flip ids like ``[C7]`` are
 left untouched on purpose — they carry no ``(url)`` so the link rule skips them,
 and the artoo-kit provenance hydrator turns them into claim anchors client-side.
@@ -50,6 +54,7 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _ULIST = re.compile(r"^[-*]\s+(.*)$")
 _OLIST = re.compile(r"^\d+\.\s+(.*)$")
 _HR = re.compile(r"^(-{3,}|\*{3,}|_{3,})$")
+_STRAY_CLOSE = re.compile(r"^:{3,}$")
 _LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 _IMAGE = re.compile(r'!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)')
 _FIGURE = re.compile(r'^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$')
@@ -188,12 +193,19 @@ def _inline(text: str) -> str:
     return text
 
 
-def to_html(md: str, *, poster_exists=None) -> str:
+inline = _inline
+
+
+def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -> str:
     """Render a Markdown draft (the flip subset above) to an HTML fragment.
 
     ``poster_exists``, when given, is called with a candidate ``<stem>.poster.png``
     path for each video figure and says whether that file exists; the renderer
-    passes one that resolves against the site, the generator passes none."""
+    passes one that resolves against the site, the generator passes none.
+
+    ``blocks`` is an :class:`artoo.blocks.Context`; with it, ``:::`` directives
+    render as blocks and report problems as ``file:line``. ``line_offset`` is the
+    number of file lines before ``md`` starts, so those lines stay true."""
     lines = md.replace("\r\n", "\n").split("\n")
     out: list[str] = []
     i = 0
@@ -233,6 +245,38 @@ def to_html(md: str, *, poster_exists=None) -> str:
         if not stripped:
             close_list()
             i += 1
+            continue
+
+        if blocks is not None and _STRAY_CLOSE.match(stripped):
+            blocks.error(
+                line_offset + i + 1,
+                f"{stripped} closes a block that was never opened; delete it, or check "
+                "that the opening fence has the same number of colons",
+            )
+            i += 1
+            continue
+
+        directive = _directive(stripped) if blocks is not None else None
+        if directive:
+            close_list()
+            from ... import blocks as blocks_mod
+
+            colons, name, args = directive.groups()
+            start = i
+            body: list[str] = []
+            i += 1
+            while i < n and lines[i].strip() != colons:
+                body.append(lines[i])
+                i += 1
+            if i >= n:
+                blocks.error(
+                    line_offset + start + 1,
+                    f"`{name}` block is never closed; end it with a line of {colons}",
+                )
+            i += 1  # consume the closing fence
+            rendered = blocks_mod.render(name, args, body, line_offset + start + 1, blocks)
+            if rendered:
+                out.append(rendered)
             continue
 
         if _HR.match(stripped):
@@ -289,7 +333,12 @@ def to_html(md: str, *, poster_exists=None) -> str:
 
         # Paragraph: gather consecutive non-blank, non-structural lines.
         para: list[str] = []
-        while i < n and lines[i].strip() and not _is_block_start(lines[i].strip()):
+        while (
+            i < n
+            and lines[i].strip()
+            and not _is_block_start(lines[i].strip())
+            and not (blocks is not None and _directive(lines[i].strip()))
+        ):
             para.append(lines[i].strip())
             i += 1
         close_list()
@@ -304,6 +353,12 @@ def to_html(md: str, *, poster_exists=None) -> str:
 
     close_list()
     return "\n".join(out)
+
+
+def _directive(stripped: str):
+    from ... import blocks as blocks_mod
+
+    return blocks_mod.OPEN.match(stripped)
 
 
 def _is_block_start(stripped: str) -> bool:
