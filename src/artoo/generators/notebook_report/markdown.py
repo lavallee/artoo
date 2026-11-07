@@ -27,7 +27,9 @@ Supported, and nothing else:
   article-toggle">``: one image shown at a time, switched by labelled radio
   buttons. Pure CSS, so it works from ``file://`` with no script.
 - pipe tables: a header row, a ``---|---`` separator row (``---:`` right-aligns
-  and marks the column ``numeric``), then body rows
+  and marks the column ``numeric``), then body rows; wrapped in a focusable
+  ``article-table`` region that scrolls sideways when the table is wider than
+  the screen
 
 Image sources stay local in practice: ``artoo verify`` flags missing files,
 remote runtime assets, and images without ``alt``.
@@ -145,7 +147,10 @@ def _table(rows: list[str]) -> str:
 
     thead = "<tr>" + "".join(cell("th", c, i, ' scope="col"') for i, c in enumerate(head)) + "</tr>"
     tbody = "".join("<tr>" + "".join(cell("td", c, i) for i, c in enumerate(r)) + "</tr>" for r in body)
-    return f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>"
+    # Wrapped so a wide table scrolls inside its own region instead of widening the page
+    # on a phone; focusable so the scroll works from the keyboard.
+    return (f'<div class="article-table" role="region" tabindex="0" aria-label="Table">'
+            f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table></div>")
 
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _ITALIC = re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)")

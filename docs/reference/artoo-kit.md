@@ -1,4 +1,4 @@
-# artoo-kit 0.7.0
+# artoo-kit 0.7.1
 
 Long-form article layout, evidence regions, and the provenance panel.
 
@@ -99,7 +99,9 @@ labelled radios. Pure CSS, so it works from `file://`. Use it when the reader sh
 a state themselves rather than watch a loop of it.
 
 Pipe tables (`| a | b |`, a `|---|---:|` separator, then rows) render as `<table>`;
-`---:` right-aligns a column and marks it `numeric`.
+`---:` right-aligns a column and marks it `numeric`. Each sits in an `article-table`
+region that scrolls sideways when the table is wider than the screen, and long code in a
+cell wraps, so a table never widens the page on a phone.
 
 A collection page can open with front matter between `---` lines: `description` (its own
 dek and meta description), `kicker`, `image` (a site-relative social card, written as
@@ -171,6 +173,7 @@ authoring, migration, and recovery contract.
 | `article-byline` | publication line; wrap the date in `<time datetime=…>` |
 | `article-lede` | opening paragraph, set larger |
 | `article-figure` | figure wrapper for a table or chart; put vintage, denominator, and source in the `figcaption` |
+| `article-table` | scroll region around a table (Markdown pipe tables get one): wide tables scroll sideways inside it instead of widening the page |
 | `article-loop` | a silent looping video inside an `article-figure` (Markdown: an image whose src is a video); named by `aria-label`, paused with controls for reduced motion, click toggles |
 | `article-toggle` | figure variant: one of 2–4 images or loops shown at a time, switched by labelled radios; `__bar` holds the labels, `__panels` the media (Markdown: a ```` ```toggle ```` fence) |
 | `article-marginnote` | right-gutter note, inline on mobile; `--def`, `--source`, `--callout` variants, `.term` for the term defined |

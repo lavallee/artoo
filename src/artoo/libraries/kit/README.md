@@ -97,7 +97,9 @@ labelled radios. Pure CSS, so it works from `file://`. Use it when the reader sh
 a state themselves rather than watch a loop of it.
 
 Pipe tables (`| a | b |`, a `|---|---:|` separator, then rows) render as `<table>`;
-`---:` right-aligns a column and marks it `numeric`.
+`---:` right-aligns a column and marks it `numeric`. Each sits in an `article-table`
+region that scrolls sideways when the table is wider than the screen, and long code in a
+cell wraps, so a table never widens the page on a phone.
 
 A collection page can open with front matter between `---` lines: `description` (its own
 dek and meta description), `kicker`, `image` (a site-relative social card, written as

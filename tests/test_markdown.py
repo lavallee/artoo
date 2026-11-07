@@ -128,7 +128,8 @@ def test_malformed_toggle_stays_a_code_block():
 
 def test_pipe_table_with_right_aligned_numbers():
     out = md.to_html("| Version | Words |\n|---|---:|\n| V1 | 508 |\n| V2 | 256 |")
-    assert out.startswith("<table><thead><tr><th scope=\"col\">Version</th>")
+    assert out.startswith('<div class="article-table" role="region" tabindex="0" aria-label="Table"><table><thead>')
+    assert '<th scope="col">Version</th>' in out and out.endswith("</table></div>")
     assert '<th scope="col" class="numeric">Words</th>' in out
     assert '<td class="numeric">508</td>' in out
     assert out.count("<tr>") == 3
