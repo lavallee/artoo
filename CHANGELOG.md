@@ -6,6 +6,8 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-11-07
+
 ### Fixed
 
 - A toggle with three or four options no longer runs off a phone screen: its bar tightens below 480px and wraps
