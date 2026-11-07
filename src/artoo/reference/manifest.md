@@ -41,6 +41,9 @@ include_private = false           # opt in to projecting a non-public notebook
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
 
+[verify]
+browser = "auto"                  # auto | always | never: Chromium checks during `artoo build`
+
 [state]                         # optional shared saved-data opt-in
 collections = ["feedback"]      # bounded JSON namespaces under artifact/state/
 
@@ -82,6 +85,10 @@ reference-guide → collection, everything else → article.
 - `[[data]].path` and `script` stay inside `build.site`, name `.json` and `.js`
   files respectively, and its source may remain private.
 - `build.site` is relative and inside the artifact — no `..`, no absolute path.
+- `verify.browser` is `auto` (the default: run browser checks where Playwright
+  and Chromium are installed, note the skip elsewhere), `always` (their
+  absence fails the build) or `never`. `artoo build --browser` and
+  `--no-browser` override it for one run; see `artoo docs verify`.
 - `state.collections` is a list of slug names. Only declared collections can be
   served by the shared-state API; no declaration means no state access. `state/`
   must not overlap `build.site`. Disk writes do not commit or push Git; see
