@@ -92,3 +92,43 @@ def test_image_syntax_in_code_is_literal():
     out = md.to_html("`![not](img.png)`")
     assert "<img" not in out
     assert "<code>![not](img.png)</code>" in out
+
+
+def test_video_figure_is_a_named_silent_loop():
+    out = md.to_html('![The agent adds a waitlist box](assets/presence.mp4 "Real time.")')
+    assert '<figure class="article-figure"><video class="article-loop" autoplay loop muted playsinline' in out
+    assert 'aria-label="The agent adds a waitlist box"' in out
+    assert '<source src="assets/presence.mp4" type="video/mp4">' in out
+    assert "<figcaption>Real time.</figcaption>" in out
+    assert "<img" not in out
+
+
+def test_video_poster_only_when_the_renderer_says_it_exists():
+    src = "![loop](a/clip.webm)"
+    assert "poster=" not in md.to_html(src)
+    out = md.to_html(src, poster_exists=lambda rel: rel == "a/clip.poster.png")
+    assert 'poster="a/clip.poster.png"' in out and 'type="video/webm"' in out
+
+
+def test_toggle_fence_switches_between_labelled_images():
+    out = md.to_html(
+        "```toggle\nProposed: ![dashed box](a.png)\nAccepted: ![solid box](b.png)\ncaption: Flip it.\n```"
+    )
+    assert out.startswith('<figure class="article-figure article-toggle">')
+    assert out.count('type="radio"') == 2 and out.count(" checked") == 1
+    assert ">Proposed</label>" in out and ">Accepted</label>" in out
+    assert 'alt="dashed box"' in out and 'alt="solid box"' in out
+    assert "<figcaption>Flip it.</figcaption>" in out
+
+
+def test_malformed_toggle_stays_a_code_block():
+    out = md.to_html("```toggle\njust text\n```")
+    assert '<pre><code class="language-toggle">' in out
+
+
+def test_pipe_table_with_right_aligned_numbers():
+    out = md.to_html("| Version | Words |\n|---|---:|\n| V1 | 508 |\n| V2 | 256 |")
+    assert out.startswith("<table><thead><tr><th scope=\"col\">Version</th>")
+    assert '<th scope="col" class="numeric">Words</th>' in out
+    assert '<td class="numeric">508</td>' in out
+    assert out.count("<tr>") == 3

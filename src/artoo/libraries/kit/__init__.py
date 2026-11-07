@@ -21,7 +21,7 @@ from pathlib import Path
 
 from .. import Library
 
-VERSION = "0.6.1"
+VERSION = "0.7.0"
 
 # Class prefixes the kit owns outright. A class starting with one of these
 # that the stylesheet does not define is a guess, not an authorial choice, so
@@ -46,6 +46,8 @@ CLASSES = {
     "article-lede": "opening paragraph, set larger",
     # Evidence regions.
     "article-figure": "figure wrapper for a table or chart; put vintage, denominator, and source in the `figcaption`",
+    "article-loop": "a silent looping video inside an `article-figure` (Markdown: an image whose src is a video); named by `aria-label`, paused with controls for reduced motion, click toggles",
+    "article-toggle": "figure variant: one of 2–4 images or loops shown at a time, switched by labelled radios; `__bar` holds the labels, `__panels` the media (Markdown: a ```` ```toggle ```` fence)",
     "article-marginnote": "right-gutter note, inline on mobile; `--def`, `--source`, `--callout` variants, `.term` for the term defined",
     "article-pullquote": "breakout-width quote; attribute it with `<cite>`",
     "article-pullnumber": "breakout-width figure; `.num` is the value, `.label` its caption",

@@ -205,3 +205,17 @@ def test_diagrams_glue_is_self_contained():
 def test_kit_leaves_diagrams_to_pele_when_both_are_loaded():
     js = (libraries.available()["artoo-kit"].root / "kit.js").read_text()
     assert "window.mermaid && !window.pele" in js
+
+
+def test_class_from_a_newer_kit_says_update_not_invented(tmp_path):
+    """Markdown renders kit classes newer than an artifact's vendored copy; the error
+    has to send the author to `artoo lib update`, not tell them they invented a class."""
+    from artoo import libraries, scaffold
+    m = scaffold.init_artifact(tmp_path / "a", title="A")
+    m.libraries[0]["version"] = "0.0.1"   # pretend the vendored kit is old
+    (m.site_dir / "index.html").write_text('<video class="article-loop" aria-label="x"></video>')
+    css = libraries.vendored_dir(m, "artoo-kit") / "article.css"
+    css.write_text(css.read_text().replace(".article-loop", ".article-loopx"))
+    findings = libraries.markup_check(m)
+    assert findings and "artoo lib update artoo-kit" in findings[0].message()
+    assert "0.0.1" in findings[0].message()

@@ -105,3 +105,31 @@ def test_markdown_figure_renders_and_verify_checks_the_file(artifact):
     (artifact.site_dir / "assets").mkdir()
     (artifact.site_dir / "assets" / "shot.png").write_bytes(b"\x89PNG\r\n\x1a\n")
     assert not [p for p in verify.static(artifact).problems if "shot.png" in p]
+
+
+def test_collection_page_front_matter_sets_dek_kicker_and_social_card(tmp_path):
+    from artoo import content
+    from artoo import manifest
+    art = tmp_path / "a"
+    (art / "content").mkdir(parents=True)
+    (art / "artifact.toml").write_text(
+        '[artifact]\nslug = "a"\ntitle = "A"\ndescription = "Manifest dek."\nkind = "walkthrough"\n'
+        'form = "collection"\nstatus = "draft"\ncreated = "2026-11-07"\n\n[content]\npages = "content"\n'
+        'order = ["index.md", "v1.md"]\n')
+    (art / "content" / "index.md").write_text("# Overview\n\nHi.\n")
+    (art / "content" / "v1.md").write_text(
+        "---\ndescription: Page dek.\nkicker: Draft V1\nimage: assets/card.png\nimage_alt: A card\nnote: kept, ignored\n---\n"
+        "# The story\n\n![a loop](assets/clip.mp4)\n")
+    (art / "site" / "assets").mkdir(parents=True)
+    (art / "site" / "assets" / "clip.poster.png").write_bytes(b"png")
+    m = manifest.load(art / "artifact.toml")
+    assert content.render(m).status == "written"
+    page = (art / "site" / "v1.html").read_text()
+    assert '<p class="article-dek">Page dek.</p>' in page
+    assert '<div class="article-kicker">Draft V1</div>' in page
+    assert '<meta property="og:image" content="assets/card.png">' in page
+    assert 'poster="assets/clip.poster.png"' in page
+    assert "note: kept" not in page
+    index = (art / "site" / "index.html").read_text()
+    assert '<p class="article-dek">Manifest dek.</p>' in index and "og:image" not in index
+    assert ">The story</a>" in index

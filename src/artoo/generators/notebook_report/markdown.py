@@ -17,13 +17,23 @@ Supported, and nothing else:
   ``[text](url)`` links, and ``![alt](src)`` images
 - figures: a paragraph that is only an image, ``![alt](src "caption")``,
   becomes ``<figure class="article-figure">`` with the optional title as its
-  ``figcaption``
+  ``figcaption``. When ``src`` is a video (``.mp4``, ``.webm``, ``.mov``,
+  ``.m4v``) the figure holds a silent loop instead: ``<video class="article-loop"
+  autoplay loop muted playsinline>`` named by the alt text (``aria-label``), with
+  ``poster`` from a sibling ``<stem>.poster.png`` when the renderer knows it
+  exists. kit.js pauses loops for readers who prefer reduced motion.
+- toggles: a ```` ```toggle ```` fence of ``Label: ![alt](src)`` lines (2–4)
+  and an optional ``caption: …`` line becomes ``<figure class="article-figure
+  article-toggle">``: one image shown at a time, switched by labelled radio
+  buttons. Pure CSS, so it works from ``file://`` with no script.
+- pipe tables: a header row, a ``---|---`` separator row (``---:`` right-aligns
+  and marks the column ``numeric``), then body rows
 
 Image sources stay local in practice: ``artoo verify`` flags missing files,
 remote runtime assets, and images without ``alt``.
 
-Deliberate non-goals (documented limits): nested lists, tables, reference-style
-links, HTML passthrough, setext headings, footnotes. A draft that needs
+Deliberate non-goals (documented limits): nested lists, reference-style links,
+HTML passthrough, setext headings, footnotes, table cells spanning columns. A draft that needs
 those should be authored as HTML upstream. Bracketed flip ids like ``[C7]`` are
 left untouched on purpose — they carry no ``(url)`` so the link rule skips them,
 and the artoo-kit provenance hydrator turns them into claim anchors client-side.
@@ -50,6 +60,92 @@ def _attr(text: str) -> str:
 
 def _img(alt: str, src: str) -> str:
     return f'<img src="{_attr(src)}" alt="{_attr(alt)}" loading="lazy">'
+
+
+_VIDEO_EXT = (".mp4", ".webm", ".mov", ".m4v")
+_VIDEO_TYPE = {".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"}
+
+
+def _is_video(src: str) -> bool:
+    return src.split("?", 1)[0].split("#", 1)[0].lower().endswith(_VIDEO_EXT)
+
+
+def _video(alt: str, src: str, poster: str | None = None) -> str:
+    """A silent loop, named by its alt text. No controls: kit.js adds them (and
+    pauses the loop) for readers who prefer reduced motion, and a click toggles it."""
+    path = src.split("?", 1)[0].split("#", 1)[0].lower()
+    kind = next((t for ext, t in _VIDEO_TYPE.items() if path.endswith(ext)), "video/mp4")
+    poster_attr = f' poster="{_attr(poster)}"' if poster else ""
+    return (f'<video class="article-loop" autoplay loop muted playsinline preload="metadata"{poster_attr} '
+            f'aria-label="{_attr(alt)}"><source src="{_attr(src)}" type="{kind}"></video>')
+
+
+def _poster_for(src: str, poster_exists) -> str | None:
+    if poster_exists is None:
+        return None
+    stem = src.rsplit(".", 1)[0]
+    candidate = f"{stem}.poster.png"
+    return candidate if poster_exists(candidate) else None
+
+
+_TOGGLE_LINE = re.compile(r'^([^:]{1,40}):\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$')
+_toggle_count = 0
+
+
+def _toggle(body: list[str]) -> str | None:
+    """``Label: ![alt](src)`` lines (2–4) and an optional ``caption:`` → a CSS-only toggle figure."""
+    global _toggle_count
+    options, caption = [], None
+    for raw in body:
+        line = raw.strip()
+        if not line:
+            continue
+        if line.lower().startswith("caption:"):
+            caption = line.split(":", 1)[1].strip()
+            continue
+        m = _TOGGLE_LINE.match(line)
+        if not m:
+            return None
+        options.append(m.groups())
+    if not 2 <= len(options) <= 4:
+        return None
+    _toggle_count += 1
+    name = f"article-toggle-{_toggle_count}"
+    inputs = "".join(
+        f'<input type="radio" name="{name}" id="{name}-{i}"{" checked" if i == 0 else ""}>'
+        for i in range(len(options)))
+    labels = "".join(f'<label for="{name}-{i}">{_inline(label.strip())}</label>' for i, (label, _, _) in enumerate(options))
+    panels = "".join(
+        (_video(alt, src) if _is_video(src) else _img(alt, src)) for _, alt, src in options)
+    cap = f"<figcaption>{_inline(caption)}</figcaption>" if caption else ""
+    return (f'<figure class="article-figure article-toggle">{inputs}'
+            f'<div class="article-toggle__bar" role="group" aria-label="Show">{labels}</div>'
+            f'<div class="article-toggle__panels">{panels}</div>{cap}</figure>')
+
+
+_TABLE_SEP = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
+
+
+def _cells(row: str) -> list[str]:
+    row = row.strip()
+    if row.startswith("|"):
+        row = row[1:]
+    if row.endswith("|"):
+        row = row[:-1]
+    return [c.strip() for c in row.split("|")]
+
+
+def _table(rows: list[str]) -> str:
+    head, sep, body = _cells(rows[0]), _cells(rows[1]), [_cells(r) for r in rows[2:]]
+    right = [c.endswith(":") and not c.startswith(":") for c in sep]
+
+    def cell(tag: str, text: str, i: int, scope: str = "") -> str:
+        cls = ' class="numeric"' if i < len(right) and right[i] else ""
+        return f"<{tag}{scope}{cls}>{_inline(text)}</{tag}>"
+
+    thead = "<tr>" + "".join(cell("th", c, i, ' scope="col"') for i, c in enumerate(head)) + "</tr>"
+    tbody = "".join("<tr>" + "".join(cell("td", c, i) for i, c in enumerate(r)) + "</tr>" for r in body)
+    return f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>"
 
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _ITALIC = re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)")
@@ -85,8 +181,12 @@ def _inline(text: str) -> str:
     return text
 
 
-def to_html(md: str) -> str:
-    """Render a Markdown draft (the flip subset above) to an HTML fragment."""
+def to_html(md: str, *, poster_exists=None) -> str:
+    """Render a Markdown draft (the flip subset above) to an HTML fragment.
+
+    ``poster_exists``, when given, is called with a candidate ``<stem>.poster.png``
+    path for each video figure and says whether that file exists; the renderer
+    passes one that resolves against the site, the generator passes none."""
     lines = md.replace("\r\n", "\n").split("\n")
     out: list[str] = []
     i = 0
@@ -113,6 +213,11 @@ def to_html(md: str) -> str:
                 body.append(lines[i])
                 i += 1
             i += 1  # consume the closing fence
+            if lang == "toggle":
+                rendered = _toggle(body)
+                if rendered:
+                    out.append(rendered)
+                    continue
             cls = f' class="language-{html.escape(lang, quote=True)}"' if lang else ""
             code = html.escape("\n".join(body))
             out.append(f"<pre><code{cls}>{code}</code></pre>")
@@ -166,6 +271,15 @@ def to_html(md: str) -> str:
             out.append(f"<blockquote><p>{_inline(' '.join(quote))}</p></blockquote>")
             continue
 
+        if stripped.startswith("|") and i + 1 < n and _TABLE_SEP.match(lines[i + 1].strip()):
+            close_list()
+            rows = []
+            while i < n and lines[i].strip().startswith("|"):
+                rows.append(lines[i])
+                i += 1
+            out.append(_table(rows))
+            continue
+
         # Paragraph: gather consecutive non-blank, non-structural lines.
         para: list[str] = []
         while i < n and lines[i].strip() and not _is_block_start(lines[i].strip()):
@@ -176,7 +290,8 @@ def to_html(md: str) -> str:
         if figure:
             alt, src, caption = figure.groups()
             caption_html = f"<figcaption>{_inline(caption)}</figcaption>" if caption else ""
-            out.append(f'<figure class="article-figure">{_img(alt, src)}{caption_html}</figure>')
+            media = _video(alt, src, _poster_for(src, poster_exists)) if _is_video(src) else _img(alt, src)
+            out.append(f'<figure class="article-figure">{media}{caption_html}</figure>')
             continue
         out.append(f"<p>{_inline(' '.join(para))}</p>")
 
@@ -187,7 +302,7 @@ def to_html(md: str) -> str:
 def _is_block_start(stripped: str) -> bool:
     """True when a line begins a block that must not be folded into a paragraph."""
     return bool(
-        stripped.startswith(("```", ">"))
+        stripped.startswith(("```", ">", "|"))
         or _HEADING.match(stripped)
         or _ULIST.match(stripped)
         or _OLIST.match(stripped)

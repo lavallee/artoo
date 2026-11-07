@@ -136,8 +136,15 @@ class Finding:
     library: str
     namespace: str
     suggestion: str = ""
+    outdated: str = ""   # "vendored → installed" when the installed library defines the class
 
     def message(self) -> str:
+        if self.outdated:
+            return (
+                f'{self.file}: class "{self.cls}" comes from {self.library} {self.outdated.split(" → ")[1]}, '
+                f"but this artifact vendors {self.outdated.split(' → ')[0]} — run "
+                f"`artoo lib update {self.library} --artifact <this artifact>` and rebuild"
+            )
         hint = f' (did you mean "{self.suggestion}"?)' if self.suggestion else ""
         return (
             f'{self.file}: class "{self.cls}" is in the {self.library} '

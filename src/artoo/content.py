@@ -34,6 +34,43 @@ class RenderResult:
     problems: list[str] = field(default_factory=list)
 
 
+_FRONT = re.compile(r"\A---\n(.*?)\n---\n?", re.S)
+FRONT_KEYS = ("description", "kicker", "image", "image_alt")
+
+
+def _front(source: str) -> tuple[dict[str, str], str]:
+    """Optional page front matter: ``key: value`` lines between ``---`` fences at the top.
+
+    Known keys: ``description`` (the page's dek and meta description, instead of the
+    manifest's), ``kicker`` (instead of the kind), ``image`` (a site-relative social
+    card: og:image and a large Twitter card) and ``image_alt``. Unknown keys are kept
+    in the dict and ignored, so drafts can carry their own notes."""
+    match = _FRONT.match(source)
+    if not match:
+        return {}, source
+    meta = {}
+    for line in match.group(1).splitlines():
+        if ":" in line and not line.lstrip().startswith("#"):
+            key, value = line.split(":", 1)
+            meta[key.strip()] = value.strip()
+    return meta, source[match.end():]
+
+
+def _social(title: str, description: str, meta: dict[str, str]) -> str:
+    """Open Graph and Twitter tags for a page with a front-matter ``image``."""
+    if not meta.get("image"):
+        return ""
+    tags = [
+        f'<meta property="og:title" content="{html.escape(title, quote=True)}">',
+        f'<meta property="og:description" content="{html.escape(description, quote=True)}">',
+        f'<meta property="og:image" content="{html.escape(meta["image"], quote=True)}">',
+        '<meta name="twitter:card" content="summary_large_image">',
+    ]
+    if meta.get("image_alt"):
+        tags.append(f'<meta property="og:image:alt" content="{html.escape(meta["image_alt"], quote=True)}">')
+    return "\n".join(tags) + "\n"
+
+
 def _title(source: str, fallback: str) -> str:
     match = _H1.search(source)
     return match.group(1).strip() if match else fallback
@@ -55,9 +92,13 @@ def _slug(value: str, used: set[str]) -> str:
     return candidate
 
 
-def _body_and_toc(source: str) -> tuple[str, list[tuple[int, str, str]]]:
+def _body_and_toc(source: str, site: Path | None = None) -> tuple[str, list[tuple[int, str, str]]]:
+    def poster_exists(rel: str) -> bool:
+        return site is not None and not rel.startswith(("http:", "https:", "/")) and (site / rel).is_file()
+
     fragment = _MERMAID_FENCE.sub(
-        r'<pre class="mermaid">\1</pre>', markdown.to_html(_without_first_h1(source))
+        r'<pre class="mermaid">\1</pre>',
+        markdown.to_html(_without_first_h1(source), poster_exists=poster_exists),
     )
     used: set[str] = set()
     toc: list[tuple[int, str, str]] = []
@@ -137,14 +178,16 @@ def _ensure_diagrams(m: Manifest) -> None:
         libraries.add(m, DIAGRAMS)
 
 
-def _head(m: Manifest, title: str, diagrams: bool = False) -> str:
-    description = html.escape(m.description or f"{title} — {m.kind}", quote=True)
+def _head(m: Manifest, title: str, diagrams: bool = False, meta: dict[str, str] | None = None) -> str:
+    meta = meta or {}
+    plain = meta.get("description") or m.description or f"{title} — {m.kind}"
+    description = html.escape(plain, quote=True)
     return f"""<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
 <meta name="description" content="{description}">
-<link rel="icon" href="lib/artoo-kit/favicon.svg">
+{_social(title, plain, meta)}<link rel="icon" href="lib/artoo-kit/favicon.svg">
 <link rel="stylesheet" href="lib/artoo-kit/tokens.css">
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
@@ -160,15 +203,16 @@ def _dates(m: Manifest) -> str:
 
 
 def _article(m: Manifest, source: str) -> str:
+    meta, source = _front(source)
     title = _title(source, m.title)
-    body, toc = _body_and_toc(source)
+    body, toc = _body_and_toc(source, m.site_dir)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
         scripts = "\n".join(part for part in (DIAGRAM_SCRIPTS, scripts) if part)
     return f"""<!doctype html>
 <html lang="en" data-theme="light">
-{_head(m, title, diagrams)}
+{_head(m, title, diagrams, meta)}
 <body>
 <header class="article-masthead">
   <a class="article-masthead__name" href="index.html">{html.escape(m.title)}</a>
@@ -176,9 +220,9 @@ def _article(m: Manifest, source: str) -> str:
 </header>
 <main class="article" data-claim-anchors>
   <header class="article-header">
-    <div class="article-kicker">{html.escape(m.kind)}</div>
+    <div class="article-kicker">{html.escape(meta.get("kicker") or m.kind)}</div>
     <h1 class="article-title">{html.escape(title)}</h1>
-    <p class="article-dek">{html.escape(m.description)}</p>
+    <p class="article-dek">{html.escape(meta.get("description") or m.description)}</p>
     <p class="article-byline">{_dates(m)}</p>
   </header>
 {_toc(toc)}
@@ -202,8 +246,9 @@ def _collection_page(
     position: int,
 ) -> str:
     slug, fallback = pages[position]
+    meta, source = _front(source)
     title = _title(source, fallback)
-    body, toc = _body_and_toc(source)
+    body, toc = _body_and_toc(source, m.site_dir)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
@@ -227,7 +272,7 @@ def _collection_page(
         pager.append(f'<a rel="next" href="{href}">{html.escape(following[1])} →</a>')
     return f"""<!doctype html>
 <html lang="en" data-theme="light">
-{_head(m, title, diagrams)}
+{_head(m, title, diagrams, meta)}
 <body>
 <nav class="site-nav" aria-label="Collection">
   <a class="brand" href="index.html">{html.escape(m.title)}</a>
@@ -239,9 +284,9 @@ def _collection_page(
 <main class="article" data-claim-anchors>
   <nav aria-label="Breadcrumb"><a href="index.html">{html.escape(m.title)}</a> / {html.escape(title)}</nav>
   <header class="article-header">
-    <div class="article-kicker">{html.escape(m.kind)}</div>
+    <div class="article-kicker">{html.escape(meta.get("kicker") or m.kind)}</div>
     <h1 class="article-title">{html.escape(title)}</h1>
-    <p class="article-dek">{html.escape(m.description)}</p>
+    <p class="article-dek">{html.escape(meta.get("description") or m.description)}</p>
     <p class="article-byline">{_dates(m)}</p>
   </header>
 {_toc(toc)}
@@ -315,7 +360,7 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
         )
     page_sources = [(path, path.read_text(encoding="utf-8")) for path in sources]
     pages = [
-        (path.stem, _title(source, path.stem.replace("-", " ").title()))
+        (path.stem, _title(_front(source)[1], path.stem.replace("-", " ").title()))
         for path, source in page_sources
     ]
     written = []

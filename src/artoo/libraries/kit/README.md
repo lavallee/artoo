@@ -68,6 +68,41 @@ This is done client-side, matching the kit's existing client-side enhancements
 (theme, nav, legacy mermaid.js). Nothing rewrites the committed HTML; the anchors are an
 enhancement layered at load time.
 
+## Media figures: loops, toggles, tables
+
+Markdown content (`[content]`) renders these without hand-written HTML:
+
+```markdown
+![What happens, for a reader who can't see it](assets/clip.mp4 "Caption. Say if it's sped up.")
+```
+
+A paragraph that is only an image whose `src` is a video (`.mp4`, `.webm`, `.mov`,
+`.m4v`) becomes an `article-figure` holding a silent loop: `<video class="article-loop"
+autoplay loop muted playsinline>`, named by the alt text through `aria-label`. If
+`assets/clip.poster.png` exists in `site/`, it becomes the `poster`. kit.js pauses loops
+and shows controls for readers who prefer reduced motion; a click toggles play. Keep
+words out of the loop itself: the alt text and caption carry them.
+
+```markdown
+```toggle
+Proposed: ![The backups box is dashed: proposed](assets/dashed.png)
+Accepted: ![The same box, now solid](assets/solid.png)
+caption: Flip between the proposal and the accepted change.
+```
+```
+
+A `toggle` fence of 2–4 `Label: ![alt](src)` lines (images or videos) and an optional
+`caption:` line becomes an `article-toggle` figure: one panel at a time, switched by
+labelled radios. Pure CSS, so it works from `file://`. Use it when the reader should flip
+a state themselves rather than watch a loop of it.
+
+Pipe tables (`| a | b |`, a `|---|---:|` separator, then rows) render as `<table>`;
+`---:` right-aligns a column and marks it `numeric`.
+
+A collection page can open with front matter between `---` lines: `description` (its own
+dek and meta description), `kicker`, `image` (a site-relative social card, written as
+`og:image` with a large Twitter card) and `image_alt`. Other keys are ignored.
+
 ## Gotchas
 
 ### SVG and CSS custom properties
