@@ -6,6 +6,38 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-11-07
+
+### Added
+
+- **Video figures in Markdown content.** A paragraph that is only an image whose
+  `src` is a video (`.mp4`, `.webm`, `.mov`, `.m4v`) renders as a silent loop:
+  `<video class="article-loop" autoplay loop muted playsinline>` inside an
+  `article-figure`, named by the alt text (`aria-label`), with the optional title
+  as its `figcaption`. A sibling `<stem>.poster.png` in `site/` becomes its poster.
+- **Toggle figures.** A ```` ```toggle ```` fence of 2–4 `Label: ![alt](src)` lines
+  and an optional `caption:` line renders an `article-toggle` figure: one image or
+  loop at a time, switched by labelled radios. Pure CSS, so it works from `file://`.
+  A fence that doesn't parse stays a code block.
+- **Pipe tables** in Markdown content: header row, `|---|---:|` separator (`---:`
+  right-aligns and marks the column `numeric`), body rows.
+- **Page front matter** on article and collection pages: `description` (the page's
+  own dek and meta description), `kicker`, `image` (`og:image` with a large Twitter
+  card) and `image_alt`. Other keys are ignored. Every collection page used to show
+  the manifest's description.
+- **artoo-kit 0.7.0:** `article-loop` and `article-toggle` in the vocabulary and
+  stylesheet; kit.js pauses loops and shows their controls for readers who prefer
+  reduced motion, and a click toggles a loop.
+
+### Changed
+
+- A class that the installed library defines but the artifact's vendored copy
+  doesn't is now reported as an outdated library ("comes from artoo-kit 0.7.0, but
+  this artifact vendors 0.6.1 — run `artoo lib update artoo-kit`"), not as an
+  invented class.
+- `artoo verify` counts a `<video>` without an accessible name (`aria-label`,
+  `aria-labelledby` or `title`) alongside images without alt.
+
 ## [0.8.0] — 2026-10-27
 
 ### Added
