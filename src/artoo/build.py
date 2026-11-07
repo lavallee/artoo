@@ -82,8 +82,11 @@ def build(m: Manifest, *, dry_run: bool = False) -> BuildResult:
     result.generated.extend(str(path.relative_to(m.dir)) for path in rendered.written)
     result.problems.extend(rendered.problems)
 
-    result.problems.extend(firewall.check(m))
-    if m.site_dir.is_dir():
+    # A content error means the page was not written; the site checks below
+    # would only report the missing page as a second, misleading problem.
+    if not rendered.problems:
+        result.problems.extend(firewall.check(m))
+    if m.site_dir.is_dir() and not rendered.problems:
         result.problems.extend(provenance_mod.data_json_problems(m.site_dir))
         # A class invented inside a library's namespace renders as nothing at
         # all — the page loads, the layout is silently wrong, and the failure

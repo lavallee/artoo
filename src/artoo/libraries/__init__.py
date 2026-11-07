@@ -57,6 +57,10 @@ class Library:
     # artifact using one is still not flagged.
     vendored: tuple[str, ...] = ()
     reference: Path | None = None  # prose contract; defaults to README.md
+    # Markdown blocks this library renders (artoo.blocks.Block). Declared here
+    # beside the classes they emit, so a block cannot reach for vocabulary the
+    # library does not define without a test noticing.
+    blocks: tuple = ()
 
     def __post_init__(self) -> None:
         if self.reference is None:

@@ -20,6 +20,7 @@ the next author has to reverse-engineer from the stylesheet.
 from pathlib import Path
 
 from .. import Library
+from .blocks import BLOCKS
 
 VERSION = "0.7.1"
 
@@ -81,4 +82,5 @@ library = Library(
     root=Path(__file__).parent / "assets",
     namespaces=NAMESPACES,
     classes=CLASSES,
+    blocks=BLOCKS,
 )

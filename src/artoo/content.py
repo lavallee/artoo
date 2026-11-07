@@ -8,11 +8,12 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import blocks as blocks_mod
 from . import libraries
 from .generators.notebook_report import markdown
 from .manifest import Manifest
 
-_H1 = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+_H1 = re.compile(r"^#[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 _HEADING = re.compile(r"<(h[23])>(.*?)</\1>")
 _TAGS = re.compile(r"<[^>]+>")
 _OUTPUTS = "artoo-content.json"
@@ -53,7 +54,9 @@ def _front(source: str) -> tuple[dict[str, str], str]:
         if ":" in line and not line.lstrip().startswith("#"):
             key, value = line.split(":", 1)
             meta[key.strip()] = value.strip()
-    return meta, source[match.end():]
+    # Blank lines stand in for the front matter so block errors keep reporting
+    # the line number an editor shows.
+    return meta, "\n" * match.group(0).count("\n") + source[match.end():]
 
 
 def _social(title: str, description: str, meta: dict[str, str]) -> str:
@@ -77,7 +80,8 @@ def _title(source: str, fallback: str) -> str:
 
 
 def _without_first_h1(source: str) -> str:
-    return _H1.sub("", source, count=1).lstrip()
+    # Blanked rather than removed, for the same reason as front matter.
+    return _H1.sub("", source, count=1)
 
 
 def _slug(value: str, used: set[str]) -> str:
@@ -92,13 +96,27 @@ def _slug(value: str, used: set[str]) -> str:
     return candidate
 
 
-def _body_and_toc(source: str, site: Path | None = None) -> tuple[str, list[tuple[int, str, str]]]:
-    def poster_exists(rel: str) -> bool:
-        return site is not None and not rel.startswith(("http:", "https:", "/")) and (site / rel).is_file()
+def _context(m: Manifest, source_name: str) -> blocks_mod.Context:
+    site = m.site_dir
 
+    def poster_exists(rel: str) -> bool:
+        return not rel.startswith(("http:", "https:", "/")) and (site / rel).is_file()
+
+    return blocks_mod.Context(
+        registry=blocks_mod.registry(),
+        source=source_name,
+        data_packs=m.data_packs,
+        artifact_dir=m.dir,
+        poster_exists=poster_exists,
+    )
+
+
+def _body_and_toc(source: str, ctx: blocks_mod.Context) -> tuple[str, list[tuple[int, str, str]]]:
     fragment = _MERMAID_FENCE.sub(
         r'<pre class="mermaid">\1</pre>',
-        markdown.to_html(_without_first_h1(source), poster_exists=poster_exists),
+        markdown.to_html(
+            _without_first_h1(source), poster_exists=ctx.poster_exists, blocks=ctx
+        ),
     )
     used: set[str] = set()
     toc: list[tuple[int, str, str]] = []
@@ -168,6 +186,14 @@ def _has_diagram(body: str) -> bool:
     return 'class="mermaid"' in body
 
 
+def _ensure_block_libraries(m: Manifest, ctx: blocks_mod.Context) -> None:
+    """Vendor what a block needs the first time it is used; never re-vendor."""
+    recorded = {entry.get("name") for entry in m.libraries}
+    for name in ctx.libraries:
+        if name not in recorded:
+            libraries.add(m, name)
+
+
 def _ensure_diagrams(m: Manifest) -> None:
     """Vendor artoo-diagrams the first time content needs it; never re-vendor.
 
@@ -178,8 +204,16 @@ def _ensure_diagrams(m: Manifest) -> None:
         libraries.add(m, DIAGRAMS)
 
 
-def _head(m: Manifest, title: str, diagrams: bool = False, meta: dict[str, str] | None = None) -> str:
+def _head(
+    m: Manifest,
+    title: str,
+    diagrams: bool = False,
+    meta: dict[str, str] | None = None,
+    styles: list[str] | None = None,
+) -> str:
     meta = meta or {}
+    extra = "".join(f'<link rel="stylesheet" href="{html.escape(href, quote=True)}">\n'
+                    for href in styles or [])
     plain = meta.get("description") or m.description or f"{title} — {m.kind}"
     description = html.escape(plain, quote=True)
     return f"""<head>
@@ -192,7 +226,18 @@ def _head(m: Manifest, title: str, diagrams: bool = False, meta: dict[str, str] 
 <link rel="stylesheet" href="lib/artoo-kit/base.css">
 <link rel="stylesheet" href="lib/artoo-kit/article.css">
 <link rel="stylesheet" href="lib/artoo-kit/components.css">
-{DIAGRAM_STYLES + chr(10) if diagrams else ""}</head>"""
+{DIAGRAM_STYLES + chr(10) if diagrams else ""}{extra}</head>"""
+
+
+def _html_open(m: Manifest) -> str:
+    look = f' data-look="{m.look}"' if m.look and m.look != "editorial" else ""
+    return f'<html lang="en" data-theme="light"{look}>'
+
+
+def _scripts(ctx: blocks_mod.Context, *parts: str) -> str:
+    """Block scripts first (libraries, data packs), then the page's own."""
+    tags = [f'<script src="{html.escape(src, quote=True)}"></script>' for src in ctx.scripts]
+    return "\n".join(part for part in (*tags, *parts) if part)
 
 
 def _dates(m: Manifest) -> str:
@@ -202,17 +247,18 @@ def _dates(m: Manifest) -> str:
     return published + f' · Updated <time datetime="{m.updated}">{m.updated}</time>'
 
 
-def _article(m: Manifest, source: str) -> str:
+def _article(m: Manifest, source: str, ctx: blocks_mod.Context) -> str:
     meta, source = _front(source)
     title = _title(source, m.title)
-    body, toc = _body_and_toc(source, m.site_dir)
+    body, toc = _body_and_toc(source, ctx)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
         scripts = "\n".join(part for part in (DIAGRAM_SCRIPTS, scripts) if part)
+    scripts = _scripts(ctx, scripts)
     return f"""<!doctype html>
-<html lang="en" data-theme="light">
-{_head(m, title, diagrams, meta)}
+{_html_open(m)}
+{_head(m, title, diagrams, meta, ctx.styles)}
 <body>
 <header class="article-masthead">
   <a class="article-masthead__name" href="index.html">{html.escape(m.title)}</a>
@@ -244,15 +290,17 @@ def _collection_page(
     source: str,
     pages: list[tuple[str, str]],
     position: int,
+    ctx: blocks_mod.Context,
 ) -> str:
     slug, fallback = pages[position]
     meta, source = _front(source)
     title = _title(source, fallback)
-    body, toc = _body_and_toc(source, m.site_dir)
+    body, toc = _body_and_toc(source, ctx)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
         scripts = "\n".join(part for part in (DIAGRAM_SCRIPTS, scripts) if part)
+    block_scripts = _scripts(ctx)
     nav = "\n".join(
         "  <a{} href=\"{}\">{}</a>".format(
             ' aria-current="page"' if index == position else "",
@@ -271,8 +319,8 @@ def _collection_page(
         href = "index.html" if following[0] == "index" else f"{following[0]}.html"
         pager.append(f'<a rel="next" href="{href}">{html.escape(following[1])} →</a>')
     return f"""<!doctype html>
-<html lang="en" data-theme="light">
-{_head(m, title, diagrams, meta)}
+{_html_open(m)}
+{_head(m, title, diagrams, meta, ctx.styles)}
 <body>
 <nav class="site-nav" aria-label="Collection">
   <a class="brand" href="index.html">{html.escape(m.title)}</a>
@@ -295,6 +343,7 @@ def _collection_page(
   <nav class="collection-pager" aria-label="Previous and next pages">{' '.join(pager)}</nav>
   <footer class="article-colophon">Part of {html.escape(m.title)}.</footer>
 </main>
+{block_scripts}
 <script src="lib/artoo-kit/kit.js"></script>
 {scripts}
 </body>
@@ -324,9 +373,13 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
                 problems=[f"content source {m.content_source} does not exist"],
             )
         dest = m.site_dir / "index.html"
-        rendered = _article(m, source.read_text(encoding="utf-8"))
+        ctx = _context(m, m.content_source)
+        rendered = _article(m, source.read_text(encoding="utf-8"), ctx)
+        if ctx.diagnostics:
+            return RenderResult("error", problems=ctx.diagnostics)
         if dry_run:
             return RenderResult("checked")
+        _ensure_block_libraries(m, ctx)
         if _has_diagram(rendered):
             _ensure_diagrams(m)
         dest.write_text(rendered, encoding="utf-8")
@@ -364,11 +417,18 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
         for path, source in page_sources
     ]
     written = []
+    rendered_pages = []
+    problems: list[str] = []
     for position, (path, source) in enumerate(page_sources):
         name = "index.html" if path.stem == "index" else f"{path.stem}.html"
-        dest = m.site_dir / name
-        rendered = _collection_page(m, source, pages, position)
+        ctx = _context(m, f"{m.content_pages.rstrip('/')}/{path.name}")
+        rendered_pages.append((m.site_dir / name, _collection_page(m, source, pages, position, ctx), ctx))
+        problems.extend(ctx.diagnostics)
+    if problems:
+        return RenderResult("error", problems=problems)
+    for dest, rendered, ctx in rendered_pages:
         if not dry_run:
+            _ensure_block_libraries(m, ctx)
             if _has_diagram(rendered):
                 _ensure_diagrams(m)
             dest.write_text(rendered, encoding="utf-8")

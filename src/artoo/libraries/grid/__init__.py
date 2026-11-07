@@ -28,6 +28,7 @@ an author writes against.
 from pathlib import Path
 
 from .. import Library
+from .blocks import BLOCKS
 
 VERSION = "0.1.0"
 
@@ -67,5 +68,6 @@ library = Library(
     root=Path(__file__).parent / "assets",
     namespaces=NAMESPACES,
     classes=CLASSES,
+    blocks=BLOCKS,
     vendored=("tabulator.min.css",),
 )
