@@ -217,7 +217,7 @@ def markup_check(m: Manifest) -> list[markup.Finding]:
         except KeyError:
             continue
         if lib.namespaces:
-            checkable.append((lib, markup.declared_classes_in_dir(dest)))
+            checkable.append((lib, markup.declared_classes_in_dir(dest), entry.get("version", "?")))
     if not checkable:
         return []
 
@@ -226,18 +226,22 @@ def markup_check(m: Manifest) -> list[markup.Finding]:
         rel = path.relative_to(m.dir)
         used = markup.classes_used(path.read_text(encoding="utf-8", errors="replace"))
         for cls in sorted(used):
-            for lib, declared in checkable:
+            for lib, declared, vendored_version in checkable:
                 if cls in declared:
                     break
                 namespace = lib.owns(cls)
                 if namespace:
+                    # Defined by the installed library but not by the vendored copy: the
+                    # artifact is behind, not wrong. Say how to catch up.
+                    current = markup.declared_classes_in_dir(lib.root) if vendored_version != lib.version else set()
                     findings.append(
                         markup.Finding(
                             file=str(rel),
                             cls=cls,
                             library=lib.name,
                             namespace=namespace,
-                            suggestion=markup.closest(cls, declared, namespace),
+                            suggestion="" if cls in current else markup.closest(cls, declared, namespace),
+                            outdated=(f"{vendored_version} → {lib.version}" if cls in current else ""),
                         )
                     )
                     break

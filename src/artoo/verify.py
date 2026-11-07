@@ -82,6 +82,8 @@ class _Parser(HTMLParser):
             self.doc.scripts.append(values["src"] or "")
         if tag == "img" and "alt" not in values:
             self.doc.missing_alt += 1
+        if tag == "video" and not (values.get("aria-label") or values.get("title") or values.get("aria-labelledby")):
+            self.doc.missing_alt += 1   # a video needs an accessible name, as an image needs alt
         if tag == "a" and values.get("href", "") in {"", "#"}:
             self.doc.empty_controls += 1
         if tag == "button":
@@ -191,7 +193,7 @@ def static(m: Manifest) -> VerificationResult:
         if parser.doc.missing_alt:
             result.warnings.append(
                 f"{_rel(site, page)} has {parser.doc.missing_alt} image(s) without alt; "
-                "use alt=\"\" for decorative images"
+                "use alt=\"\" for decorative images; name a video with aria-label"
             )
         if parser.doc.empty_controls:
             result.warnings.append(
