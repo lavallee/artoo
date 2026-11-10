@@ -154,6 +154,20 @@ class GitHubPagesDeployer:
                 mode = detected_mode
                 if mode == "docs":
                     ctx.config.setdefault("docs_dir", details["path"])
+            elif mode == "branch" and detected_mode == "docs":
+                # A classic Pages site is served from a branch and a folder. A
+                # dedicated publishing branch served from its root is exactly what
+                # branch mode writes, so that agrees with the manifest.
+                branch = ctx.config.get("branch", "gh-pages")
+                if (details["branch"], details["path"]) != (branch, "."):
+                    return DeployResult(
+                        ok=False,
+                        message=(
+                            f"manifest publishes the root of branch {branch!r} but the "
+                            f"repo's Pages config serves {details['path']!r} on branch "
+                            f"{details['branch']!r}. Fix one of them — refusing to guess."
+                        ),
+                    )
             elif mode != detected_mode:
                 return DeployResult(
                     ok=False,

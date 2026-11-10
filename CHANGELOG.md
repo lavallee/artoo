@@ -6,6 +6,14 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **`artoo deploy` in branch mode no longer refuses its own second deploy.**
+  Once GitHub Pages was serving the publishing branch, detection reported the
+  site as `docs` mode and the manifest's `mode = "branch"` was rejected as a
+  mismatch. A Pages source at the root of the manifest's branch now agrees
+  with branch mode; any other branch or folder is still refused.
+
 ## [0.10.2] — 2026-11-07
 
 ### Fixed

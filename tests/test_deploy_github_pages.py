@@ -129,3 +129,31 @@ def test_in_place_artifact_commits_without_copying(git_repo, tmp_path, monkeypat
         ["git", "log", "--oneline", "-1"], cwd=git_repo, capture_output=True, text=True
     ).stdout
     assert "artoo deploy: chart-forms" in log
+
+
+def _detected(monkeypatch, branch, path):
+    monkeypatch.setattr(
+        "artoo.deploy.github_pages.detect_pages_config",
+        lambda _root: {"build_type": "legacy", "source": {"branch": branch, "path": path},
+                       "owner": "o", "repo": "r"},
+    )
+
+
+def test_branch_mode_agrees_with_pages_served_from_that_branch(git_repo, tmp_path, monkeypatch):
+    # The second deploy of a branch-mode site: Pages is now enabled on gh-pages at "/".
+    m = _artifact_in(git_repo, monkeypatch)
+    _detected(monkeypatch, "gh-pages", "/")
+    config = {"mode": "branch", "branch": "gh-pages", "subpath": ""}
+    result = GitHubPagesDeployer().deploy(_ctx(m, tmp_path, config))
+    assert result.ok, result.message
+
+
+def test_branch_mode_refuses_pages_served_from_elsewhere(git_repo, tmp_path, monkeypatch):
+    m = _artifact_in(git_repo, monkeypatch)
+    config = {"mode": "branch", "branch": "gh-pages", "subpath": ""}
+    cases = (("main", "/docs"), ("gh-pages", "/docs"), ("main", "/"))
+    for number, (branch, path) in enumerate(cases):
+        _detected(monkeypatch, branch, path)
+        result = GitHubPagesDeployer().deploy(_ctx(m, tmp_path / str(number), config))
+        assert not result.ok
+        assert "refusing to guess" in result.message
