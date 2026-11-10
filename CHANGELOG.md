@@ -6,6 +6,8 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.3] — 2026-11-09
+
 ### Fixed
 
 - **`artoo deploy` in branch mode no longer refuses its own second deploy.**
