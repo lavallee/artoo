@@ -6,6 +6,8 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-11-19
+
 ### Added
 
 - **Source maps.** `[content] sourcemap = true` marks every block a build renders
