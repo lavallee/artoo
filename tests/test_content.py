@@ -12,6 +12,15 @@ def test_article_render_has_toc_and_stable_section_ids(artifact):
     assert page.count("<h1") == 1
 
 
+def test_toc_label_escapes_ampersand_once(artifact):
+    source = artifact.dir / artifact.content_source
+    source.write_text("# Decision\n\n## News & Observer\n\nThe News & Observer ran it.\n")
+    content.render(artifact)
+    page = (artifact.site_dir / "index.html").read_text()
+    assert '<a href="#news-observer">News &amp; Observer</a>' in page
+    assert "&amp;amp;" not in page
+
+
 def test_no_content_declaration_preserves_raw_html(artifact):
     artifact.content_source = ""
     index = artifact.site_dir / "index.html"

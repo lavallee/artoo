@@ -125,7 +125,8 @@ def _body_and_toc(source: str, ctx: blocks_mod.Context) -> tuple[str, list[tuple
         tag = match.group(1)
         text = match.group(2)
         anchor = _slug(text, used)
-        toc.append((int(tag[1]), _TAGS.sub("", text), anchor))
+        # The heading is already escaped HTML; _toc escapes the label, so store it plain.
+        toc.append((int(tag[1]), html.unescape(_TAGS.sub("", text)), anchor))
         return f'<{tag} id="{anchor}">{text}</{tag}>'
 
     return _HEADING.sub(add_id, fragment), toc

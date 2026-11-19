@@ -42,6 +42,13 @@ def test_html_is_escaped():
     assert "&lt;" in out and "&amp;" in out and "&gt;" in out
 
 
+def test_ampersands_are_escaped_exactly_once():
+    out = md.to_html("## News & Observer\n\nThe [News & Observer](https://x.test/?a=1&b=2) ran it.")
+    assert "<h2>News &amp; Observer</h2>" in out
+    assert '<a href="https://x.test/?a=1&amp;b=2">News &amp; Observer</a>' in out
+    assert "&amp;amp;" not in out
+
+
 def test_bracket_claim_refs_are_left_untouched():
     # [C7] carries no (url): the link rule must skip it so the kit can anchor it.
     out = md.to_html("The result [C7] holds.")

@@ -181,8 +181,10 @@ def _inline(text: str) -> str:
 
     text = _IMAGE.sub(_stash_image, text)
     text = html.escape(text, quote=False)
+    # The URL was escaped with the rest of the text; undo that before escaping it as an
+    # attribute, or a query string's & reaches the browser as a literal &amp;.
     text = _LINK.sub(
-        lambda m: f'<a href="{html.escape(m.group(2), quote=True)}">{m.group(1)}</a>',
+        lambda m: f'<a href="{_attr(html.unescape(m.group(2)))}">{m.group(1)}</a>',
         text,
     )
     text = _BOLD.sub(r"<strong>\1</strong>", text)

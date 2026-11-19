@@ -6,6 +6,13 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **An `&` is escaped once, not twice.** A heading such as `## News & Observer` reached the
+  on-this-page contents as `News &amp;amp; Observer`, and a link URL with a query string
+  (`?a=1&b=2`) reached the browser as `?a=1&amp;b=2`. Body text, link text, table cells and
+  `::: html` islands were already right.
+
 ## [0.10.3] — 2026-11-09
 
 ### Fixed
