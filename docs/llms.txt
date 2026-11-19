@@ -16,6 +16,7 @@ With artoo installed, the same reference is available offline as `artoo docs <to
 - [firewall](https://lavallee.github.io/artoo/reference/firewall.md): What publishes, what is withheld, and why it is structural.
 - [serve](https://lavallee.github.io/artoo/reference/serve.md): Running an artifact locally, and the state store that makes saves durable.
 - [provenance](https://lavallee.github.io/artoo/reference/provenance.md): Attaching a flip notebook, the projection, and the roundtrip verbs.
+- [edit](https://lavallee.github.io/artoo/reference/edit.md): Editing pages in place with `artoo edit`, and the source map behind it.
 - [generators](https://lavallee.github.io/artoo/reference/generators.md): Plugin generators, worker tiers, and the two built in.
 - [code-maps](https://lavallee.github.io/artoo/reference/code-maps.md): Evidence-bearing repository graphs, bounded questions, and interactive views.
 

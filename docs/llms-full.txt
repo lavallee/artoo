@@ -147,6 +147,13 @@ fall back to index-first alphabetical order. Artoo records the HTML files it
 generated in `work/artoo-content.json`, so a renamed page removes its stale
 generated output without touching hand-authored files in `site/`.
 
+A page's own `# Title` is its heading. Navigation, the breadcrumb and the
+previous/next links use the page's `label:` front matter when it has one, so a
+long title (a chapter's finding as a sentence) can be the heading while the
+links say "Timing". A build command may write the pages from other files, a
+chapter per page, say: origin comments keep the source map true to those files
+(`artoo docs edit`).
+
 ## Deck
 
 The deck scaffold owns one-frame-at-a-time reading, acts, speaker notes,
@@ -456,6 +463,7 @@ commands = ["make data"]          # refresh generated inputs; run with the artif
 source = "content.md"             # article Markdown rendered deterministically
 # pages = "content"               # or a flat collection containing index.md
 # order = ["index.md", "evidence.md"]  # collection navigation and page order
+# sourcemap = true                # mark rendered blocks; write work/artoo-sourcemap.json
 
 [[data]]
 source = "work/items.json"        # canonical JSON, outside the publish root
@@ -469,8 +477,14 @@ source = "work/evidence.json"     # provider-neutral artoo-evidence/1 projection
 [research]
 notebook = "notebook"             # relative path to a flip notebook; may escape with ../
 include_private = false           # opt in to projecting a non-public notebook
+# publish = false                 # keep the projection private: work/provenance.json, no panel
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
+
+[edit]                            # optional: how `artoo edit` opens the pages
+# config = "production/copycat.json"  # an editor config of your own; else one is generated
+# comments = "edit/comments.json"     # comments beside the source
+# status = "edit/status.json"         # section status: draft, in review, locked
 
 [verify]
 browser = "auto"                  # auto | always | never: Chromium checks during `artoo build`
@@ -1057,11 +1071,130 @@ artoo generate notebook-report --notebook path/to/notebook --out site/report
 artoo feedback site/report "C7 overstates the effect" --claim C7
 ```
 
+## A private projection
+
+A client-confidential notebook can back a page without the page carrying it:
+
+```toml
+[research]
+notebook = "../../notebooks/client"
+include_private = true
+publish = false
+```
+
+The projection then lands in `work/provenance.json`, never `site/`; no panel is
+rendered and an earlier public projection is removed. With `[content]
+sourcemap = true`, the source map carries each rendered block's evidence: the
+notebook sources whose captured SHA-256 equals a file the block came from or
+derives from (origin comments name those, `artoo docs edit`), the claims citing
+those sources whose numbers appear in the block, and the derived files the
+notebook does not hold at their current revision, which is how a stale capture
+shows. A page's `evidence: Q20, C30` front matter names ids it answers or
+asserts; an id the notebook lacks fails the build. `artoo evidence <artifact>`
+prints the result; nothing of it publishes.
+
 ## The publish gate
 
 `artoo deploy` runs `flip doctor` on the attached notebook first and refuses to
 publish on ERROR-level findings. `--allow-doctor-errors` overrides it
 deliberately.
+
+---
+
+# Editing pages in place, and the source map
+
+*On its own: `artoo docs edit`*
+
+`artoo edit <artifact>` opens every page the artifact renders for editing in the
+browser: text in place with a review of each change and revert, a Markdown source
+view, comments, section status, and a rebuild after every save. The editor is
+Copycat, a separate local tool found through
+`--copycat DIR` or `COPYCAT_HOME`; Artoo makes no edits itself and runs without it.
+
+```toml
+[content]
+pages = "content"                 # or source = "content.md"
+sourcemap = true                  # required by `artoo edit`
+
+[edit]
+comments = "edit/comments.json"   # optional; comments anchored to source spans
+status = "edit/status.json"       # optional; draft, in review, locked per file
+# config = "editor/copycat.json"  # optional; your own editor config instead
+```
+
+```bash
+artoo edit .                       # build, then serve with the editor on 127.0.0.1:8916
+artoo edit . --share-origin https://host.example   # also admit one authenticated https origin
+artoo edit . --agent codex --agent-bin /abs/path/codex
+artoo edit . --print-config        # write and show the generated editor config
+```
+
+The editor binds to loopback. `--share-origin` admits exactly one https origin,
+which must already be behind authentication; it is not a way to publish. Saves
+write the source files, never `site/`, and never commit.
+
+Without `[edit] config`, Artoo writes `work/editor/copycat.json`: every Markdown
+file the source map names, the manifest title, the `[edit]` files, and
+`artoo build --no-browser .` as the rebuild. Registered files are the editor's
+write boundary, so an artifact with text in other files (figure text from
+generated JSON, say) keeps a config of its own and names it in `[edit] config`.
+
+## The source map
+
+With `sourcemap = true`, each block a build renders from Markdown (heading,
+paragraph, list item, table, quote, image figure, and the page's title, dek and
+masthead) carries an opaque `data-artoo-src` id, and the build writes
+`work/artoo-sourcemap.json` (`artoo-sourcemap/1`):
+
+```json
+{
+  "contract": "artoo-sourcemap/1",
+  "files": {"chapters/03.md": "<sha256 at build time>"},
+  "pages": {
+    "03.html": {
+      "source": "work/pages/03.md",
+      "evidence": ["Q20"],
+      "blocks": [
+        {"id": "a1", "kind": "title", "file": "chapters/03.md", "lines": [1, 1]},
+        {"id": "a3", "kind": "paragraph", "file": "chapters/03.md", "lines": [3, 4]},
+        {"id": null, "kind": "block:html", "file": "specs/curve.json", "lines": null,
+         "derives": ["work/receipt.json"]}
+      ]
+    }
+  }
+}
+```
+
+An editor maps each block to its file and lines instead of matching rendered
+text back to Markdown, so repeated text is editable and a renderer change cannot
+silently mis-map. A file whose hash differs from `files` has changed since the
+build; that part of the map is stale until the next build. Ids carry no paths,
+and the map stays in `work/`, which never publishes. A `:::` block renders raw
+HTML and cannot carry an id; it is listed with `id: null`.
+
+## Pages assembled from other files
+
+A build command that writes the Markdown Artoo renders (a chapter per page, with
+figures rendered from data) keeps the map true with origin comments, one per
+line, which never render:
+
+```markdown
+<!-- artoo:source chapters/03.md:1 derives=work/v3/timing.json -->
+# The chapter's finding
+<!-- artoo:source specs/curve.json derives=work/v3/timing.json -->
+::: html
+<figure>…</figure>
+:::
+<!-- artoo:source chapters/03.md:5 -->
+The paragraph after the figure.
+<!-- artoo:source - -->
+```
+
+`FILE:LINE` says the next line is that file's line LINE, and so on; a file
+with no line names where a generated block came from; `derives=` lists the files
+its numbers come from (used for evidence, `artoo docs provenance`); `-` marks
+generated lines with no source. Put the comment directly above the line it
+describes. Leading comments may precede front matter.
 
 ---
 

@@ -16,7 +16,9 @@ from . import libraries as libraries_mod
 from . import manifest as manifest_mod
 from . import provenance as provenance_mod
 from . import review as review_mod
+from . import edit as edit_mod
 from . import scaffold, serve as serve_mod, skill as skill_mod, vizier as vizier_mod
+from . import sourcemap as sourcemap_mod
 from . import verify as verify_mod
 from .codegraph_cli import map_group
 from .manifest import FORMS, KINDS, Manifest
@@ -387,6 +389,7 @@ def build_cmd(path: Path | None, dry_run: bool, use_browser: bool | None, as_jso
                     "withheld": result.withheld,
                     "stamped": result.stamped,
                     "provenance": result.provenance,
+                    "notes": result.notes,
                     "browser": result.browser,
                     "contact_sheet": result.contact_sheet,
                 },
@@ -401,6 +404,8 @@ def build_cmd(path: Path | None, dry_run: bool, use_browser: bool | None, as_jso
         click.echo(f"generated {len(result.generated)} file(s)")
     if result.provenance:
         click.echo(result.provenance)
+    for note in result.notes:
+        click.echo(note)
     for problem in result.problems:
         click.secho(f"✗ {problem}", fg="red")
     for warning in result.warnings:
@@ -543,6 +548,99 @@ def serve_cmd(path: Path | None, port: int, host: str, open_browser: bool, quiet
         click.echo("\nstopped")
     finally:
         httpd.server_close()
+
+
+@main.command(name="edit")
+@click.argument("path", type=click.Path(path_type=Path), required=False)
+@click.option("--port", default=8916, show_default=True, help="Loopback port for the editor.")
+@click.option("--copycat", "copycat", type=click.Path(path_type=Path), default=None,
+              help="Copycat checkout (default: $COPYCAT_HOME).")
+@click.option("--share-origin", default="", help="Exact https:// origin of an authenticated share.")
+@click.option("--agent", type=click.Choice(["none", "codex", "claude"]), default="none",
+              show_default=True, help="Coding agent for the editor's agent panel.")
+@click.option("--agent-bin", default="", help="Absolute path to the agent's CLI.")
+@click.option("--no-build", is_flag=True, help="Serve the current site without building first.")
+@click.option("--print-config", is_flag=True, help="Write and print the editor config, then exit.")
+def edit_cmd(path: Path | None, port: int, copycat: Path | None, share_origin: str, agent: str,
+             agent_bin: str, no_build: bool, print_config: bool):
+    """Open the artifact's pages for editing in place, with Copycat.
+
+    Every page Artoo renders can be edited: text in place with review and revert,
+    the Markdown source view, comments and section status where [edit] declares
+    their files, and a rebuild after every save. The editor reads the source map
+    (`sourcemap = true` under [content]) to know which file and lines each block
+    came from. It binds to loopback; --share-origin admits one authenticated
+    https origin. See `artoo docs edit`.
+    """
+    m = _resolve(str(path) if path else None)
+    if not m.content_sourcemap:
+        raise click.ClickException(
+            "artoo edit needs a source map: set `sourcemap = true` under [content] in artifact.toml"
+        )
+    if not no_build and not print_config:
+        result = build_mod.build(m, browser="never")
+        for problem in result.problems:
+            click.secho(f"✗ {problem}", fg="red")
+        if not m.site_dir.is_dir():
+            raise click.ClickException("the build wrote no site; fix the problems above")
+    try:
+        if print_config:
+            config = edit_mod.config_path(m, port)
+            click.echo(config.read_text(encoding="utf-8"), nl=False)
+            return
+        argv, env = edit_mod.command(
+            m, copycat=edit_mod.copycat_home(copycat), port=port, share_origin=share_origin,
+            agent=agent, agent_bin=agent_bin,
+        )
+    except edit_mod.EditError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"editing {m.slug} with {env['COPYCAT_CONFIG']}")
+    edit_mod.launch(argv, env)
+
+
+@main.command(name="evidence")
+@click.argument("path", type=click.Path(path_type=Path), required=False)
+@click.option("--page", default="", help="One page, e.g. 03-timing.html.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the source map's evidence as JSON.")
+def evidence_cmd(path: Path | None, page: str, as_json: bool):
+    """Show which notebook sources and claims back each rendered block.
+
+    Reads work/artoo-sourcemap.json, written by `artoo build` when [content]
+    sets `sourcemap = true` and a notebook is attached. Private: nothing here
+    is published.
+    """
+    m = _resolve(str(path) if path else None)
+    data = sourcemap_mod.read(m.dir)
+    if data is None:
+        raise click.ClickException(
+            "no source map: set `sourcemap = true` under [content] in artifact.toml, then `artoo build`"
+        )
+    pages = data["pages"]
+    if page:
+        if page not in pages:
+            raise click.ClickException(f"no page {page}; pages are {', '.join(pages)}")
+        pages = {page: pages[page]}
+    if as_json:
+        click.echo(json.dumps({"pages": pages, "evidence": data.get("evidence", {})}, indent=2))
+        return
+    if "evidence" not in data:
+        click.echo("no evidence in the map: attach a notebook ([research] notebook) and rebuild")
+    for name, entry in pages.items():
+        declared = ", ".join(entry.get("evidence", [])) or "none declared"
+        click.secho(f"{name}  ({declared})", bold=True)
+        for block in entry["blocks"]:
+            found = block.get("evidence", {})
+            if not found.get("claims") and not found.get("sources"):
+                continue
+            where = block["file"] + (f":{block['lines'][0]}" if block.get("lines") else "")
+            claims = ", ".join(found.get("claims", [])) or "-"
+            sources = ", ".join(found.get("sources", []))
+            click.echo(f"  {block['kind']:<10} {where:<44} claims {claims:<12} sources {sources}")
+    uncaptured = data.get("evidence", {}).get("uncaptured", [])
+    if uncaptured:
+        click.secho(f"{len(uncaptured)} derived file(s) are not captured in the notebook:", fg="yellow")
+        for name in uncaptured:
+            click.echo(f"  {name}")
 
 
 @main.command(name="deploy")

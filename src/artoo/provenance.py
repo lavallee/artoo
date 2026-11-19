@@ -26,6 +26,24 @@ from .manifest import Manifest
 DATA_DIR = "data"
 PROVENANCE_JSON = "provenance.json"
 PROVENANCE_JS = "provenance.js"
+# Where a private projection lands (`[research] publish = false`): beside the
+# other build records in work/, which the firewall never ships.
+PRIVATE_PROJECTION = Path("work") / PROVENANCE_JSON
+
+
+def projection_path(m: Manifest) -> Path:
+    """The projection file this artifact's build writes, public or private."""
+    if m.research_publish:
+        return m.site_dir / DATA_DIR / PROVENANCE_JSON
+    return m.dir / PRIVATE_PROJECTION
+
+
+def read_projection(m: Manifest) -> dict | None:
+    path = projection_path(m)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 @dataclass
@@ -79,6 +97,17 @@ def _write_projection(
     vintage: dict | None = None,
     generated_from: str,
 ) -> ProvenanceResult:
+    if not m.research_publish:
+        # Private: no browser global and no panel, and an earlier public
+        # projection is removed so the site stops carrying the notebook.
+        dest = m.dir / PRIVATE_PROJECTION
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        for name in (PROVENANCE_JSON, PROVENANCE_JS):
+            (m.site_dir / DATA_DIR / name).unlink(missing_ok=True)
+        return ProvenanceResult(
+            "written", path=dest, vintage=vintage or {}, counts=_counts(data), data=data
+        )
     data_dir = m.site_dir / DATA_DIR
     data_dir.mkdir(parents=True, exist_ok=True)
     dest = data_dir / PROVENANCE_JSON

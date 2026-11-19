@@ -61,6 +61,10 @@ class Manifest:
     content_source: str = ""
     content_pages: str = ""
     content_order: list[str] = field(default_factory=list)
+    # Opt-in: mark each rendered block with an opaque `data-artoo-src` id and write
+    # work/artoo-sourcemap.json, the map an in-page editor reads instead of
+    # matching rendered text back to Markdown.
+    content_sourcemap: bool = False
     data_packs: list[dict] = field(default_factory=list)
     evidence_source: str = ""
     notebook: str = ""
@@ -71,8 +75,16 @@ class Manifest:
     # `rendered_updated` are the notebook vintage the site was last rendered
     # from — the join `artoo status` uses to detect a stale render.
     research_include_private: bool = False
+    # `publish = false` keeps the notebook projection private: it lands in
+    # work/provenance.json, never site/, and no evidence panel is rendered.
+    research_publish: bool = True
     rendered_uid: str = ""
     rendered_updated: str = ""
+
+    # [edit]: how `artoo edit` opens the artifact in an in-page editor.
+    edit_config: str = ""
+    edit_comments: str = ""
+    edit_status: str = ""
 
     deploy_target: str = ""
     deploy_config: dict = field(default_factory=dict)
@@ -175,6 +187,17 @@ class Manifest:
             nb = Path(self.notebook)
             if nb == site or site in nb.parents or nb in site.parents:
                 problems.append("research.notebook must not overlap build.site")
+        if self.content_sourcemap and not (self.content_source or self.content_pages):
+            problems.append("content.sourcemap needs content.source or content.pages to map")
+        for key, value in (
+            ("edit.config", self.edit_config),
+            ("edit.comments", self.edit_comments),
+            ("edit.status", self.edit_status),
+        ):
+            if value and (Path(value).is_absolute() or ".." in Path(value).parts):
+                problems.append(f"{key} must be a path inside the artifact")
+            elif value and (Path(value) == Path(self.site) or Path(self.site) in Path(value).parents):
+                problems.append(f"{key} must not be inside build.site, which can publish")
         for lib in self.libraries:
             if "name" not in lib:
                 problems.append("[[libraries]] entry missing name")
@@ -274,6 +297,8 @@ def dumps(m: Manifest) -> str:
         content_pairs.append(("pages", m.content_pages))
     if m.content_order:
         content_pairs.append(("order", m.content_order))
+    if m.content_sourcemap:
+        content_pairs.append(("sourcemap", True))
     if content_pairs:
         blocks.append(_table("content", content_pairs))
 
@@ -285,12 +310,26 @@ def dumps(m: Manifest) -> str:
         research_pairs.append(("notebook", m.notebook))
     if m.research_include_private:
         research_pairs.append(("include_private", m.research_include_private))
+    if not m.research_publish:
+        research_pairs.append(("publish", False))
     if m.rendered_uid:
         research_pairs.append(("rendered_uid", m.rendered_uid))
     if m.rendered_updated:
         research_pairs.append(("rendered_updated", m.rendered_updated))
     if research_pairs:
         blocks.append(_table("research", research_pairs))
+
+    edit_pairs: list[tuple[str, object]] = [
+        (key, value)
+        for key, value in (
+            ("config", m.edit_config),
+            ("comments", m.edit_comments),
+            ("status", m.edit_status),
+        )
+        if value
+    ]
+    if edit_pairs:
+        blocks.append(_table("edit", edit_pairs))
 
     verify_pairs: list[tuple[str, object]] = []
     if m.verify_browser != "auto":
@@ -358,12 +397,17 @@ def loads(text: str) -> Manifest:
         content_source=content.get("source", ""),
         content_pages=content.get("pages", ""),
         content_order=list(content.get("order", [])),
+        content_sourcemap=bool(content.get("sourcemap", False)),
         data_packs=[dict(x) for x in data.get("data", [])],
         evidence_source=evidence.get("source", ""),
         notebook=research.get("notebook", ""),
         research_include_private=bool(research.get("include_private", False)),
+        research_publish=bool(research.get("publish", True)),
         rendered_uid=str(research.get("rendered_uid", "")),
         rendered_updated=str(research.get("rendered_updated", "")),
+        edit_config=str(data.get("edit", {}).get("config", "")),
+        edit_comments=str(data.get("edit", {}).get("comments", "")),
+        edit_status=str(data.get("edit", {}).get("status", "")),
         deploy_target=target,
         deploy_config=dict(deploy_config),
         workers=dict(data.get("workers", {})),

@@ -25,6 +25,7 @@ commands = ["make data"]          # refresh generated inputs; run with the artif
 source = "content.md"             # article Markdown rendered deterministically
 # pages = "content"               # or a flat collection containing index.md
 # order = ["index.md", "evidence.md"]  # collection navigation and page order
+# sourcemap = true                # mark rendered blocks; write work/artoo-sourcemap.json
 
 [[data]]
 source = "work/items.json"        # canonical JSON, outside the publish root
@@ -38,8 +39,14 @@ source = "work/evidence.json"     # provider-neutral artoo-evidence/1 projection
 [research]
 notebook = "notebook"             # relative path to a flip notebook; may escape with ../
 include_private = false           # opt in to projecting a non-public notebook
+# publish = false                 # keep the projection private: work/provenance.json, no panel
 rendered_uid = ""                 # notebook vintage the site was last rendered from
 rendered_updated = ""
+
+[edit]                            # optional: how `artoo edit` opens the pages
+# config = "production/copycat.json"  # an editor config of your own; else one is generated
+# comments = "edit/comments.json"     # comments beside the source
+# status = "edit/status.json"         # section status: draft, in review, locked
 
 [verify]
 browser = "auto"                  # auto | always | never: Chromium checks during `artoo build`

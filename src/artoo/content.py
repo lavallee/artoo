@@ -8,18 +8,24 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import __version__
 from . import blocks as blocks_mod
 from . import libraries
+from . import sourcemap as sourcemap_mod
 from .generators.notebook_report import markdown
 from .manifest import Manifest
 
 _H1 = re.compile(r"^#[ \t]+(.+?)[ \t]*$", re.MULTILINE)
-_HEADING = re.compile(r"<(h[23])>(.*?)</\1>")
+# Only headings the Markdown renderer wrote (bare, or carrying a source-map id);
+# a heading inside a `::: html` island keeps its own markup and stays off the TOC.
+_HEADING = re.compile(r'<(h[23])( data-artoo-src="a\d+")?>(.*?)</\1>')
 _TAGS = re.compile(r"<[^>]+>")
 _OUTPUTS = "artoo-content.json"
 # A ```mermaid fence becomes the source block artoo-diagrams renders, the same
 # markup an author writes by hand, so there is one diagram contract, not two.
-_MERMAID_FENCE = re.compile(r'<pre><code class="language-mermaid">(.*?)</code></pre>', re.S)
+_MERMAID_FENCE = re.compile(
+    r'<pre( data-artoo-src="a\d+")?><code class="language-mermaid">(.*?)</code></pre>', re.S
+)
 DIAGRAMS = "artoo-diagrams"
 DIAGRAM_STYLES = '<link rel="stylesheet" href="lib/artoo-diagrams/diagrams.css">'
 DIAGRAM_SCRIPTS = (
@@ -33,10 +39,11 @@ class RenderResult:
     status: str
     written: list[Path] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
 
 _FRONT = re.compile(r"\A---\n(.*?)\n---\n?", re.S)
-FRONT_KEYS = ("description", "kicker", "image", "image_alt")
+FRONT_KEYS = ("description", "kicker", "image", "image_alt", "label", "evidence")
 
 
 def _front(source: str) -> tuple[dict[str, str], str]:
@@ -44,7 +51,10 @@ def _front(source: str) -> tuple[dict[str, str], str]:
 
     Known keys: ``description`` (the page's dek and meta description, instead of the
     manifest's), ``kicker`` (instead of the kind), ``image`` (a site-relative social
-    card: og:image and a large Twitter card) and ``image_alt``. Unknown keys are kept
+    card: og:image and a large Twitter card), ``image_alt``, ``label`` (a short name
+    for the page in collection navigation, breadcrumb and previous/next links,
+    instead of its title) and ``evidence`` (notebook ids the page answers or asserts,
+    checked when the source map carries evidence). Unknown keys are kept
     in the dict and ignored, so drafts can carry their own notes."""
     match = _FRONT.match(source)
     if not match:
@@ -111,11 +121,13 @@ def _context(m: Manifest, source_name: str) -> blocks_mod.Context:
     )
 
 
-def _body_and_toc(source: str, ctx: blocks_mod.Context) -> tuple[str, list[tuple[int, str, str]]]:
+def _body_and_toc(
+    source: str, ctx: blocks_mod.Context, marks: sourcemap_mod.PageMap | None = None
+) -> tuple[str, list[tuple[int, str, str]]]:
     fragment = _MERMAID_FENCE.sub(
-        r'<pre class="mermaid">\1</pre>',
+        lambda m: f'<pre class="mermaid"{m.group(1) or ""}>{m.group(2)}</pre>',
         markdown.to_html(
-            _without_first_h1(source), poster_exists=ctx.poster_exists, blocks=ctx
+            _without_first_h1(source), poster_exists=ctx.poster_exists, blocks=ctx, marks=marks
         ),
     )
     used: set[str] = set()
@@ -123,11 +135,11 @@ def _body_and_toc(source: str, ctx: blocks_mod.Context) -> tuple[str, list[tuple
 
     def add_id(match: re.Match) -> str:
         tag = match.group(1)
-        text = match.group(2)
+        text = match.group(3)
         anchor = _slug(text, used)
         # The heading is already escaped HTML; _toc escapes the label, so store it plain.
         toc.append((int(tag[1]), html.unescape(_TAGS.sub("", text)), anchor))
-        return f'<{tag} id="{anchor}">{text}</{tag}>'
+        return f'<{tag} id="{anchor}"{match.group(2) or ""}>{text}</{tag}>'
 
     return _HEADING.sub(add_id, fragment), toc
 
@@ -248,10 +260,58 @@ def _dates(m: Manifest) -> str:
     return published + f' · Updated <time datetime="{m.updated}">{m.updated}</time>'
 
 
-def _article(m: Manifest, source: str, ctx: blocks_mod.Context) -> str:
+def _front_line(source: str, key: str) -> int | None:
+    """0-based line of a front-matter key, before `_front` blanks the block."""
+    match = _FRONT.match(source)
+    if not match:
+        return None
+    found = re.search(rf"^{re.escape(key)}[ \t]*:", match.group(1), re.M)
+    return sourcemap_mod.line_of(source, match.start(1) + found.start()) if found else None
+
+
+def _title_line(source: str) -> int | None:
+    match = _H1.search(source)
+    return sourcemap_mod.line_of(source, match.start()) if match else None
+
+
+def _origin_attr(pmap: sourcemap_mod.PageMap | None, kind: str, index: int | None) -> str:
+    if pmap is None or index is None:
+        return ""
+    origin = pmap.origin_of(index)
+    if origin is None or origin.file == "-":
+        return ""
+    return pmap.special(kind, origin.file, [origin.line, origin.line] if origin.line else None)
+
+
+def _manifest_attr(pmap: sourcemap_mod.PageMap | None, kind: str, key: str) -> str:
+    return pmap.special(kind, "artifact.toml", None, key) if pmap is not None else ""
+
+
+def _header_marks(
+    m: Manifest, source: str, pmap: sourcemap_mod.PageMap | None, title_fallback_key: str
+) -> tuple[dict[str, str], str, dict[str, str]]:
+    """Front matter, the source without it, and source-map attributes for the header."""
+    dek_line = _front_line(source, "description")
     meta, source = _front(source)
+    title_line = _title_line(source)
+    attrs = {
+        "title": _origin_attr(pmap, "title", title_line)
+        if title_line is not None
+        else (_manifest_attr(pmap, "title", title_fallback_key) if title_fallback_key else ""),
+        "dek": _origin_attr(pmap, "dek", dek_line)
+        if meta.get("description")
+        else (_manifest_attr(pmap, "dek", "artifact.description") if m.description else ""),
+        "masthead": _manifest_attr(pmap, "masthead", "artifact.title"),
+    }
+    return meta, source, attrs
+
+
+def _article(
+    m: Manifest, source: str, ctx: blocks_mod.Context, pmap: sourcemap_mod.PageMap | None = None
+) -> str:
+    meta, source, attrs = _header_marks(m, source, pmap, "artifact.title")
     title = _title(source, m.title)
-    body, toc = _body_and_toc(source, ctx)
+    body, toc = _body_and_toc(source, ctx, pmap)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
@@ -262,14 +322,14 @@ def _article(m: Manifest, source: str, ctx: blocks_mod.Context) -> str:
 {_head(m, title, diagrams, meta, ctx.styles)}
 <body>
 <header class="article-masthead">
-  <a class="article-masthead__name" href="index.html">{html.escape(m.title)}</a>
+  <a class="article-masthead__name" href="index.html"{attrs["masthead"]}>{html.escape(m.title)}</a>
   <span class="article-masthead__label">Artoo artifact</span>
 </header>
 <main class="article" data-claim-anchors>
   <header class="article-header">
     <div class="article-kicker">{html.escape(meta.get("kicker") or m.kind)}</div>
-    <h1 class="article-title">{html.escape(title)}</h1>
-    <p class="article-dek">{html.escape(meta.get("description") or m.description)}</p>
+    <h1 class="article-title"{attrs["title"]}>{html.escape(title)}</h1>
+    <p class="article-dek"{attrs["dek"]}>{html.escape(meta.get("description") or m.description)}</p>
     <p class="article-byline">{_dates(m)}</p>
   </header>
 {_toc(toc)}
@@ -286,17 +346,23 @@ def _article(m: Manifest, source: str, ctx: blocks_mod.Context) -> str:
 """
 
 
+def _page_href(slug: str) -> str:
+    return "index.html" if slug == "index" else f"{slug}.html"
+
+
 def _collection_page(
     m: Manifest,
     source: str,
     pages: list[tuple[str, str]],
     position: int,
     ctx: blocks_mod.Context,
+    pmap: sourcemap_mod.PageMap | None = None,
 ) -> str:
-    slug, fallback = pages[position]
-    meta, source = _front(source)
-    title = _title(source, fallback)
-    body, toc = _body_and_toc(source, ctx)
+    """One page of a collection. ``pages`` holds (slug, navigation label) in order."""
+    slug, label = pages[position]
+    meta, source, attrs = _header_marks(m, source, pmap, "")
+    title = _title(source, label)
+    body, toc = _body_and_toc(source, ctx, pmap)
     evidence, scripts = _evidence(m)
     diagrams = _has_diagram(body)
     if diagrams:
@@ -305,37 +371,35 @@ def _collection_page(
     nav = "\n".join(
         "  <a{} href=\"{}\">{}</a>".format(
             ' aria-current="page"' if index == position else "",
-            "index.html" if page_slug == "index" else f"{page_slug}.html",
-            html.escape(page_title),
+            _page_href(page_slug),
+            html.escape(page_label),
         )
-        for index, (page_slug, page_title) in enumerate(pages)
+        for index, (page_slug, page_label) in enumerate(pages)
     )
     previous = pages[position - 1] if position else None
     following = pages[position + 1] if position + 1 < len(pages) else None
     pager = []
     if previous:
-        href = "index.html" if previous[0] == "index" else f"{previous[0]}.html"
-        pager.append(f'<a rel="prev" href="{href}">← {html.escape(previous[1])}</a>')
+        pager.append(f'<a rel="prev" href="{_page_href(previous[0])}">← {html.escape(previous[1])}</a>')
     if following:
-        href = "index.html" if following[0] == "index" else f"{following[0]}.html"
-        pager.append(f'<a rel="next" href="{href}">{html.escape(following[1])} →</a>')
+        pager.append(f'<a rel="next" href="{_page_href(following[0])}">{html.escape(following[1])} →</a>')
     return f"""<!doctype html>
 {_html_open(m)}
 {_head(m, title, diagrams, meta, ctx.styles)}
 <body>
 <nav class="site-nav" aria-label="Collection">
-  <a class="brand" href="index.html">{html.escape(m.title)}</a>
+  <a class="brand" href="index.html"{attrs["masthead"]}>{html.escape(m.title)}</a>
   <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false">Menu</button>
   <div class="nav-links">
 {nav}
   </div>
 </nav>
 <main class="article" data-claim-anchors>
-  <nav aria-label="Breadcrumb"><a href="index.html">{html.escape(m.title)}</a> / {html.escape(title)}</nav>
+  <nav aria-label="Breadcrumb"><a href="index.html">{html.escape(m.title)}</a> / {html.escape(label if meta.get("label") else title)}</nav>
   <header class="article-header">
     <div class="article-kicker">{html.escape(meta.get("kicker") or m.kind)}</div>
-    <h1 class="article-title">{html.escape(title)}</h1>
-    <p class="article-dek">{html.escape(meta.get("description") or m.description)}</p>
+    <h1 class="article-title"{attrs["title"]}>{html.escape(title)}</h1>
+    <p class="article-dek"{attrs["dek"]}>{html.escape(meta.get("description") or m.description)}</p>
     <p class="article-byline">{_dates(m)}</p>
   </header>
 {_toc(toc)}
@@ -350,6 +414,26 @@ def _collection_page(
 </body>
 </html>
 """
+
+
+def _declared_evidence(source: str) -> list[str]:
+    value = _front(source)[0].get("evidence", "")
+    return [ref for ref in re.split(r"[\s,]+", value) if ref]
+
+
+def _write_sourcemap(
+    m: Manifest, maps: dict[str, sourcemap_mod.PageMap], declared: dict[str, list[str]]
+) -> tuple[list[str], list[str]]:
+    from . import provenance as provenance_mod
+
+    projection = provenance_mod.read_projection(m) if (m.notebook or m.evidence_source) else None
+    where = provenance_mod.projection_path(m)
+    path, notes, problems = sourcemap_mod.write(
+        m.dir, maps, generator=f"artoo {__version__}", declared=declared, projection=projection,
+        projection_file=str(where.relative_to(m.dir)) if projection else "",
+    )
+    blocks = sum(len(page.blocks) for page in maps.values())
+    return [f"source map: {blocks} block(s) on {len(maps)} page(s) → {path.relative_to(m.dir)}", *notes], problems
 
 
 def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
@@ -375,7 +459,9 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
             )
         dest = m.site_dir / "index.html"
         ctx = _context(m, m.content_source)
-        rendered = _article(m, source.read_text(encoding="utf-8"), ctx)
+        clean, origins = sourcemap_mod.split(source.read_text(encoding="utf-8"), m.content_source)
+        pmap = sourcemap_mod.PageMap(m.content_source, origins) if m.content_sourcemap else None
+        rendered = _article(m, clean, ctx, pmap)
         if ctx.diagnostics:
             return RenderResult("error", problems=ctx.diagnostics)
         if dry_run:
@@ -385,7 +471,14 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
             _ensure_diagrams(m)
         dest.write_text(rendered, encoding="utf-8")
         _record_outputs(m, [dest])
-        return RenderResult("written", [dest])
+        problems: list[str] = []
+        notes: list[str] = []
+        if pmap is not None:
+            pmap.collect_texts(rendered)
+            notes, problems = _write_sourcemap(
+                m, {"index.html": pmap}, {"index.html": _declared_evidence(clean)}
+            )
+        return RenderResult("error" if problems else "written", [dest], problems, notes)
 
     root = m.dir / m.content_pages
     if not root.is_dir():
@@ -412,18 +505,30 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
             "error",
             problems=[f"content pages directory {m.content_pages} needs index.md"],
         )
-    page_sources = [(path, path.read_text(encoding="utf-8")) for path in sources]
-    pages = [
-        (path.stem, _title(_front(source)[1], path.stem.replace("-", " ").title()))
-        for path, source in page_sources
-    ]
+    prefix = m.content_pages.rstrip("/")
+    page_sources = []
+    for path in sources:
+        clean, origins = sourcemap_mod.split(path.read_text(encoding="utf-8"), f"{prefix}/{path.name}")
+        page_sources.append((path, clean, origins))
+    pages = []
+    for path, clean, _origins in page_sources:
+        meta, body = _front(clean)
+        pages.append((path.stem, meta.get("label") or _title(body, path.stem.replace("-", " ").title())))
     written = []
     rendered_pages = []
+    maps: dict[str, sourcemap_mod.PageMap] = {}
+    declared: dict[str, list[str]] = {}
     problems: list[str] = []
-    for position, (path, source) in enumerate(page_sources):
+    for position, (path, clean, origins) in enumerate(page_sources):
         name = "index.html" if path.stem == "index" else f"{path.stem}.html"
-        ctx = _context(m, f"{m.content_pages.rstrip('/')}/{path.name}")
-        rendered_pages.append((m.site_dir / name, _collection_page(m, source, pages, position, ctx), ctx))
+        ctx = _context(m, f"{prefix}/{path.name}")
+        pmap = sourcemap_mod.PageMap(f"{prefix}/{path.name}", origins) if m.content_sourcemap else None
+        rendered = _collection_page(m, clean, pages, position, ctx, pmap)
+        rendered_pages.append((m.site_dir / name, rendered, ctx))
+        if pmap is not None:
+            pmap.collect_texts(rendered)
+            maps[name] = pmap
+            declared[name] = _declared_evidence(clean)
         problems.extend(ctx.diagnostics)
     if problems:
         return RenderResult("error", problems=problems)
@@ -434,6 +539,10 @@ def render(m: Manifest, *, dry_run: bool = False) -> RenderResult:
                 _ensure_diagrams(m)
             dest.write_text(rendered, encoding="utf-8")
             written.append(dest)
+    notes: list[str] = []
     if not dry_run:
         _record_outputs(m, written)
-    return RenderResult("checked" if dry_run else "written", written)
+        if maps:
+            notes, problems = _write_sourcemap(m, maps, declared)
+    status = "error" if problems else ("checked" if dry_run else "written")
+    return RenderResult(status, written, problems, notes)
