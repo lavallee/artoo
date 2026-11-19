@@ -6,6 +6,8 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.4] — 2026-11-19
+
 ### Fixed
 
 - **An `&` is escaped once, not twice.** A heading such as `## News & Observer` reached the
