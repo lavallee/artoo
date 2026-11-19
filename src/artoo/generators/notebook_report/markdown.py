@@ -198,7 +198,7 @@ def _inline(text: str) -> str:
 inline = _inline
 
 
-def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -> str:
+def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0, marks=None) -> str:
     """Render a Markdown draft (the flip subset above) to an HTML fragment.
 
     ``poster_exists``, when given, is called with a candidate ``<stem>.poster.png``
@@ -207,12 +207,18 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
 
     ``blocks`` is an :class:`artoo.blocks.Context`; with it, ``:::`` directives
     render as blocks and report problems as ``file:line``. ``line_offset`` is the
-    number of file lines before ``md`` starts, so those lines stay true."""
+    number of file lines before ``md`` starts, so those lines stay true.
+
+    ``marks`` is an :class:`artoo.sourcemap.PageMap`; with it, every block's
+    opening tag carries the source-map id for the lines it came from."""
     lines = md.replace("\r\n", "\n").split("\n")
     out: list[str] = []
     i = 0
     n = len(lines)
     list_stack: str | None = None  # "ul" | "ol" | None
+
+    def mark(kind: str, start: int, end: int) -> str:
+        return marks.mark(kind, start, end) if marks is not None else ""
 
     def close_list() -> None:
         nonlocal list_stack
@@ -229,6 +235,7 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
             close_list()
             lang = stripped[3:].strip()
             body: list[str] = []
+            fence = i
             i += 1
             while i < n and not lines[i].strip().startswith("```"):
                 body.append(lines[i])
@@ -237,11 +244,12 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
             if lang == "toggle":
                 rendered = _toggle(body)
                 if rendered:
-                    out.append(rendered)
+                    attr = mark("figure", fence, i - 1)
+                    out.append(rendered.replace("<figure ", f"<figure{attr} ", 1) if attr else rendered)
                     continue
             cls = f' class="language-{html.escape(lang, quote=True)}"' if lang else ""
             code = html.escape("\n".join(body))
-            out.append(f"<pre><code{cls}>{code}</code></pre>")
+            out.append(f"<pre{mark('code', fence, i - 1)}><code{cls}>{code}</code></pre>")
             continue
 
         if not stripped:
@@ -278,12 +286,14 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
             i += 1  # consume the closing fence
             rendered = blocks_mod.render(name, args, body, line_offset + start + 1, blocks)
             if rendered:
+                if marks is not None:
+                    marks.record(f"block:{name}", start, i - 1, rendered)
                 out.append(rendered)
             continue
 
         if _HR.match(stripped):
             close_list()
-            out.append("<hr>")
+            out.append(f"<hr{mark('hr', i, i)}>")
             i += 1
             continue
 
@@ -291,7 +301,7 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
         if heading:
             close_list()
             level = len(heading.group(1))
-            out.append(f"<h{level}>{_inline(heading.group(2).strip())}</h{level}>")
+            out.append(f"<h{level}{mark('heading', i, i)}>{_inline(heading.group(2).strip())}</h{level}>")
             i += 1
             continue
 
@@ -301,7 +311,7 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
                 close_list()
                 out.append("<ul>")
                 list_stack = "ul"
-            out.append(f"<li>{_inline(ul.group(1).strip())}</li>")
+            out.append(f"<li{mark('item', i, i)}>{_inline(ul.group(1).strip())}</li>")
             i += 1
             continue
 
@@ -311,30 +321,35 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
                 close_list()
                 out.append("<ol>")
                 list_stack = "ol"
-            out.append(f"<li>{_inline(ol.group(1).strip())}</li>")
+            out.append(f"<li{mark('item', i, i)}>{_inline(ol.group(1).strip())}</li>")
             i += 1
             continue
 
         if stripped.startswith(">"):
             close_list()
             quote: list[str] = []
+            first = i
             while i < n and lines[i].strip().startswith(">"):
                 quote.append(lines[i].strip()[1:].strip())
                 i += 1
-            out.append(f"<blockquote><p>{_inline(' '.join(quote))}</p></blockquote>")
+            out.append(f"<blockquote{mark('quote', first, i - 1)}><p>{_inline(' '.join(quote))}</p></blockquote>")
             continue
 
         if stripped.startswith("|") and i + 1 < n and _TABLE_SEP.match(lines[i + 1].strip()):
             close_list()
             rows = []
+            first = i
             while i < n and lines[i].strip().startswith("|"):
                 rows.append(lines[i])
                 i += 1
-            out.append(_table(rows))
+            attr = mark("table", first, i - 1)
+            table = _table(rows)
+            out.append(table.replace('<div class="article-table"', f'<div class="article-table"{attr}', 1))
             continue
 
         # Paragraph: gather consecutive non-blank, non-structural lines.
         para: list[str] = []
+        first = i
         while (
             i < n
             and lines[i].strip()
@@ -349,9 +364,10 @@ def to_html(md: str, *, poster_exists=None, blocks=None, line_offset: int = 0) -
             alt, src, caption = figure.groups()
             caption_html = f"<figcaption>{_inline(caption)}</figcaption>" if caption else ""
             media = _video(alt, src, _poster_for(src, poster_exists)) if _is_video(src) else _img(alt, src)
-            out.append(f'<figure class="article-figure">{media}{caption_html}</figure>')
+            attr = mark("figure", first, i - 1)
+            out.append(f'<figure class="article-figure"{attr}>{media}{caption_html}</figure>')
             continue
-        out.append(f"<p>{_inline(' '.join(para))}</p>")
+        out.append(f"<p{mark('paragraph', first, i - 1)}>{_inline(' '.join(para))}</p>")
 
     close_list()
     return "\n".join(out)

@@ -92,6 +92,28 @@ artoo generate notebook-report --notebook path/to/notebook --out site/report
 artoo feedback site/report "C7 overstates the effect" --claim C7
 ```
 
+## A private projection
+
+A client-confidential notebook can back a page without the page carrying it:
+
+```toml
+[research]
+notebook = "../../notebooks/client"
+include_private = true
+publish = false
+```
+
+The projection then lands in `work/provenance.json`, never `site/`; no panel is
+rendered and an earlier public projection is removed. With `[content]
+sourcemap = true`, the source map carries each rendered block's evidence: the
+notebook sources whose captured SHA-256 equals a file the block came from or
+derives from (origin comments name those, `artoo docs edit`), the claims citing
+those sources whose numbers appear in the block, and the derived files the
+notebook does not hold at their current revision, which is how a stale capture
+shows. A page's `evidence: Q20, C30` front matter names ids it answers or
+asserts; an id the notebook lacks fails the build. `artoo evidence <artifact>`
+prints the result; nothing of it publishes.
+
 ## The publish gate
 
 `artoo deploy` runs `flip doctor` on the attached notebook first and refuses to

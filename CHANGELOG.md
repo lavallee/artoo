@@ -6,6 +6,32 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Source maps.** `[content] sourcemap = true` marks every block a build renders
+  from Markdown (headings, paragraphs, list items, tables, quotes, image figures,
+  and each page's title, dek and masthead) with an opaque `data-artoo-src` id and
+  writes `work/artoo-sourcemap.json` (`artoo-sourcemap/1`): for each page and id,
+  the file and line range it came from, and every file's SHA-256 at build time.
+  A build command that assembles pages from other files keeps the map true with
+  `<!-- artoo:source FILE:LINE derives=… -->` origin comments, which never render.
+  See `artoo docs edit`.
+- **`artoo edit`** opens an artifact's pages for editing in place with Copycat
+  (found through `--copycat` or `COPYCAT_HOME`, a soft dependency like flip):
+  builds, writes or reads the editor config (`[edit] config`, `comments`,
+  `status`), and serves on loopback, with `--share-origin` for one authenticated
+  https origin and `--agent` for the editor's agent panel.
+- **A private notebook projection.** `[research] publish = false` writes the flip
+  projection to `work/provenance.json`, never `site/`, with no panel. With a
+  source map, each block then carries its evidence: notebook sources whose
+  captured hash matches a file it came from or derives from, claims citing them
+  whose numbers appear in the block, and derived files the notebook does not hold
+  at their current revision. A page's `evidence:` front matter names notebook ids
+  it answers; an unknown id fails the build. `artoo evidence` prints it.
+- **Collection labels.** A page's `label:` front matter names it in collection
+  navigation, the breadcrumb and previous/next links, so a page can keep a long
+  title as its heading.
+
 ## [0.10.4] — 2026-11-19
 
 ### Fixed

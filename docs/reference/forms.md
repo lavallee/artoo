@@ -40,6 +40,13 @@ fall back to index-first alphabetical order. Artoo records the HTML files it
 generated in `work/artoo-content.json`, so a renamed page removes its stale
 generated output without touching hand-authored files in `site/`.
 
+A page's own `# Title` is its heading. Navigation, the breadcrumb and the
+previous/next links use the page's `label:` front matter when it has one, so a
+long title (a chapter's finding as a sentence) can be the heading while the
+links say "Timing". A build command may write the pages from other files, a
+chapter per page, say: origin comments keep the source map true to those files
+(`artoo docs edit`).
+
 ## Deck
 
 The deck scaffold owns one-frame-at-a-time reading, acts, speaker notes,

@@ -24,6 +24,7 @@ class BuildResult:
     withheld: list[str] = field(default_factory=list)
     stamped: str = ""  # the `updated` date written back, if any
     provenance: str = ""  # one-line note on the provenance projection, if any
+    notes: list[str] = field(default_factory=list)  # source map and evidence summaries
     browser: str = ""  # one-line summary of the browser checks, or why they did not run
     contact_sheet: str = ""  # every page at both widths in one image, when the browser ran
 
@@ -74,9 +75,10 @@ def build(m: Manifest, *, dry_run: bool = False, browser: str = "never") -> Buil
                 if m.evidence_source
                 else f"notebook {prov.vintage.get('uid') or '?'}"
             )
+            where = "" if m.research_publish else ", private: work/provenance.json"
             result.provenance = (
                 f"provenance.json ← {origin} "
-                f"({c.get('sources', 0)} sources, {c.get('claims', 0)} claims)"
+                f"({c.get('sources', 0)} sources, {c.get('claims', 0)} claims{where})"
             )
         elif prov.status == "error":
             result.provenance = f"provenance skipped: {prov.note}"
@@ -88,6 +90,7 @@ def build(m: Manifest, *, dry_run: bool = False, browser: str = "never") -> Buil
     rendered = content_mod.render(m, dry_run=dry_run)
     result.generated.extend(str(path.relative_to(m.dir)) for path in rendered.written)
     result.problems.extend(rendered.problems)
+    result.notes.extend(rendered.notes)
 
     # A content error means the page was not written; the site checks below
     # would only report the missing page as a second, misleading problem.

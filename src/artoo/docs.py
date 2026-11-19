@@ -35,6 +35,7 @@ AUTHORED = {
     "firewall": "What publishes, what is withheld, and why it is structural.",
     "serve": "Running an artifact locally, and the state store that makes saves durable.",
     "provenance": "Attaching a flip notebook, the projection, and the roundtrip verbs.",
+    "edit": "Editing pages in place with `artoo edit`, and the source map behind it.",
     "generators": "Plugin generators, worker tiers, and the two built in.",
     "code-maps": "Evidence-bearing repository graphs, bounded questions, and interactive views.",
 }
