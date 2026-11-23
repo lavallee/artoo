@@ -1221,10 +1221,41 @@ def context(
     }
 
 
+def describe_view(view: dict[str, Any], limit: int = 6) -> str:
+    """Say what a view's picture shows, in one line of plain words.
+
+    The words come from the same nodes and edges the picture is drawn from, so
+    they cannot drift from it. It is the diagram's `accDescr`: what a screen
+    reader says, and what an agent can check against the request without
+    looking at the picture.
+    """
+    labels = {node["id"]: _plain(node.get("label", node["id"])) for node in view["nodes"]}
+    edges = view["edges"]
+    said = [
+        f"{labels[edge['source']]} {edge['kind'].replace('_', ' ')} {labels[edge['target']]}"
+        for edge in edges[:limit]
+    ]
+    more = len(edges) - len(said)
+    parts = f"{len(labels)} part{'' if len(labels) == 1 else 's'}"
+    links = f"{len(edges)} link{'' if len(edges) == 1 else 's'}"
+    detail = "; ".join(said) + (f"; and {more} more" if more > 0 else "")
+    return f"{parts} and {links}" + (f". {detail}." if detail else ".")
+
+
+def _plain(text: Any) -> str:
+    """One line with no Mermaid punctuation, safe after `accTitle:` or `accDescr:`."""
+    return re.sub(r"\s+", " ", re.sub(r'[\n"{}:;]', " ", str(text))).strip()
+
+
 def to_mermaid(view: dict[str, Any]) -> str:
     """Compile a validated bounded view to deterministic Mermaid source."""
     node_ids = {node["id"]: f"n{index}" for index, node in enumerate(view["nodes"])}
     lines = ["flowchart LR"]
+    about = view.get("view") or {}
+    title = _plain(about.get("question") or about.get("id") or "")
+    if title:
+        lines.append(f"  accTitle: {title}")
+    lines.append(f"  accDescr: {describe_view(view)}")
     for node in view["nodes"]:
         label = str(node.get("label", node["id"])).replace('"', "'").replace("\n", " ")
         mermaid_id = node_ids[node["id"]]

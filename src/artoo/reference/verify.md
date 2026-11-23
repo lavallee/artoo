@@ -12,9 +12,10 @@ Hard failures cover:
 - remote scripts, styles, fonts, images, and other runtime dependencies;
 - literal remote CSS imports or JavaScript fetch/import calls.
 
-Warnings identify images without `alt`, tables without headings or with uneven
-row widths, and empty or nowhere-pointing controls. They are review prompts,
-not taste scores, and do not fail a build.
+Warnings identify images without `alt`, Mermaid diagrams without an
+`accDescr:` description, tables without headings or with uneven row widths, and
+empty or nowhere-pointing controls. They are review prompts, not taste scores,
+and do not fail a build.
 
 ## Browser checks
 

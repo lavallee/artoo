@@ -6,6 +6,26 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-11-23
+
+### Added
+
+- **A diagram has to say what it shows.** `artoo verify` and `artoo build` warn
+  about a Mermaid diagram with no `accDescr:`, naming the page and how many. The
+  description is what a screen reader says, and what an agent can check against
+  the request without looking at the picture. It is a warning, so no build fails.
+- **Code maps describe themselves.** `artoo map view --format mermaid` now starts
+  with `accTitle:` (the view's question) and `accDescr:`, a line made from the
+  same nodes and edges as the picture: how many parts and links, and the first
+  few links in words. `codegraph.describe_view` returns that line.
+
+### Credits
+
+- Both follow [open-diagram](https://github.com/lukendeasy/open-diagram) by
+  [Luke Deasy](https://github.com/lukendeasy) (MIT), where every picture carries
+  a plain-words description built from its own data. The idea is his; no code of
+  open-diagram is used.
+
 ## [0.11.0] — 2026-11-19
 
 ### Added
