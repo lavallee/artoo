@@ -56,6 +56,7 @@ class _Document:
     tables: list[list[int]] = field(default_factory=list)
     table_headers: list[bool] = field(default_factory=list)
     diagrams: int = 0
+    undescribed_diagrams: int = 0
     scripts: list[str] = field(default_factory=list)
 
 
@@ -69,6 +70,7 @@ class _Parser(HTMLParser):
         self._button_text = ""
         self._pre_depth = 0
         self._pre_counted = False
+        self._diagram_source = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -80,6 +82,7 @@ class _Parser(HTMLParser):
         classes = set((values.get("class") or "").split())
         if tag == "pre":
             self._pre_depth += 1
+            self._diagram_source = ""
             self._pre_counted = "mermaid" in classes
             self.doc.diagrams += self._pre_counted
         elif tag == "code" and self._pre_depth and "language-mermaid" in classes:
@@ -120,6 +123,10 @@ class _Parser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "pre" and self._pre_depth:
             self._pre_depth -= 1
+            if self._pre_counted and not self._pre_depth:
+                # Mermaid's own syntax for a description, on one line or as a block.
+                self.doc.undescribed_diagrams += not re.search(r"\baccDescr\b", self._diagram_source)
+                self._pre_counted = False
         if tag == "tr" and self._table is not None and self._row_cells:
             self._table["rows"].append(self._row_cells)
         elif tag == "table" and self._table is not None:
@@ -134,6 +141,8 @@ class _Parser(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._button_depth:
             self._button_text += data
+        if self._pre_depth and self._pre_counted:
+            self._diagram_source += data
 
 
 def _rel(site: Path, path: Path) -> str:
@@ -209,6 +218,14 @@ def static(m: Manifest) -> VerificationResult:
         problem = _diagram_problem(parser.doc)
         if problem:
             result.problems.append(f"{_rel(site, page)} {problem}")
+        if parser.doc.undescribed_diagrams:
+            # A picture should say what it shows in words too: for a screen reader, and for an
+            # agent checking the page against what was asked without looking at it.
+            result.warnings.append(
+                f"{_rel(site, page)} has {parser.doc.undescribed_diagrams} Mermaid diagram(s) with "
+                "no description; start each with `accTitle:` and `accDescr:` "
+                "(see `artoo docs artoo-diagrams`)"
+            )
         for index, rows in enumerate(parser.doc.tables):
             if not parser.doc.table_headers[index]:
                 result.warnings.append(f"{_rel(site, page)} table {index + 1} has no <th> headings")

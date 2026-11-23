@@ -600,9 +600,10 @@ Hard failures cover:
 - remote scripts, styles, fonts, images, and other runtime dependencies;
 - literal remote CSS imports or JavaScript fetch/import calls.
 
-Warnings identify images without `alt`, tables without headings or with uneven
-row widths, and empty or nowhere-pointing controls. They are review prompts,
-not taste scores, and do not fail a build.
+Warnings identify images without `alt`, Mermaid diagrams without an
+`accDescr:` description, tables without headings or with uneven row widths, and
+empty or nowhere-pointing controls. They are review prompts, not taste scores,
+and do not fail a build.
 
 ## Browser checks
 
@@ -1657,6 +1658,9 @@ either order. With JavaScript off, the reader sees the source.
   `figcaption`. Pie, XY, and quadrant charts are fine for sketches.
 - **Start with `accTitle:` and `accDescr:`.** They become the SVG's
   accessible name and description. The `figcaption` carries the point.
+  `artoo verify` warns about a diagram with no `accDescr:`. Write it from the
+  diagram's own parts and links, so the words say what the picture shows; a
+  reader who cannot see it, and an agent checking the page, rely on them.
 - **Name a role, never a color.** Mermaid `style`, `classDef`, and `linkStyle`
   take literal colors, which stay fixed when the theme changes, and the parser
   rejects `var(--token)` there. Tag the node instead, and the color comes from

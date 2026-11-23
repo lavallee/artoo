@@ -78,6 +78,11 @@ def test_bounded_views_explanations_paths_and_mermaid(fake_repo):
 
     source = codegraph.to_mermaid(view)
     assert source.startswith("flowchart LR\n")
+    # The picture says what it shows in words, made from the same nodes and edges.
+    described = next(line for line in source.splitlines() if line.startswith("  accDescr: "))
+    assert described == "  accDescr: 2 parts and 1 link. main calls helper."
+    assert " calls " in described and '"' not in described
+    assert any(line.startswith("  accTitle: ") for line in source.splitlines())
     assert "|calls|" in source
     assert "truth-static" in source
 

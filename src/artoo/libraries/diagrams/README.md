@@ -64,6 +64,9 @@ either order. With JavaScript off, the reader sees the source.
   `figcaption`. Pie, XY, and quadrant charts are fine for sketches.
 - **Start with `accTitle:` and `accDescr:`.** They become the SVG's
   accessible name and description. The `figcaption` carries the point.
+  `artoo verify` warns about a diagram with no `accDescr:`. Write it from the
+  diagram's own parts and links, so the words say what the picture shows; a
+  reader who cannot see it, and an agent checking the page, rely on them.
 - **Name a role, never a color.** Mermaid `style`, `classDef`, and `linkStyle`
   take literal colors, which stay fixed when the theme changes, and the parser
   rejects `var(--token)` there. Tag the node instead, and the color comes from

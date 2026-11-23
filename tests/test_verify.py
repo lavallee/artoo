@@ -275,6 +275,35 @@ def test_static_fails_a_diagram_page_with_no_renderer(artifact):
     )
 
 
+def test_static_warns_about_a_diagram_with_no_description(artifact):
+    from artoo import libraries
+
+    libraries.add(artifact, "artoo-diagrams")
+    scripts = (
+        '<script src="lib/artoo-diagrams/pele.global.js"></script>'
+        '<script src="lib/artoo-diagrams/diagrams.js"></script>'
+    )
+    described = "flowchart LR\n  accTitle: A to B\n  accDescr: A feeds B.\n  A-->B"
+    block = "sequenceDiagram\n  accDescr {\n    A asks B.\n  }\n  A->>B: hi"
+    _raw(
+        artifact,
+        f'<!doctype html><html><body><pre class="mermaid">{described}</pre>'
+        f'<pre><code class="language-mermaid">{block}</code></pre>'
+        '<pre class="mermaid">graph LR\nA-->B</pre>'
+        f'<pre>accDescr is only a word here</pre>{scripts}</body></html>',
+    )
+    warnings = [w for w in verify.static(artifact).warnings if "Mermaid" in w]
+    assert len(warnings) == 1
+    assert "1 Mermaid diagram(s) with no description" in warnings[0]
+    assert "`accDescr:`" in warnings[0] and "artoo docs artoo-diagrams" in warnings[0]
+
+    _raw(
+        artifact,
+        f'<!doctype html><html><body><pre class="mermaid">{described}</pre>{scripts}</body></html>',
+    )
+    assert not [w for w in verify.static(artifact).warnings if "Mermaid" in w]
+
+
 def test_static_names_the_one_missing_diagram_script(artifact):
     from artoo import libraries
 
