@@ -52,3 +52,8 @@ chapter per page, say: origin comments keep the source map true to those files
 The deck scaffold owns one-frame-at-a-time reading, acts, speaker notes,
 overview, keyboard and touch navigation, and landscape print. It remains raw
 HTML because slide composition is intentionally spatial.
+
+Raw HTML does not mean edited in a text editor only. `artoo edit` opens a deck
+on the slide itself: text, slides, acts, short labels and speaker notes are
+changed in place and saved into `site/index.html`, with every other byte of the
+file kept (`artoo docs edit`).

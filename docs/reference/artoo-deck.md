@@ -1,4 +1,4 @@
-# artoo-deck 0.1.0
+# artoo-deck 0.2.0
 
 Slides: acts, speaker notes, overview, keyboard/touch nav, landscape print.
 
@@ -55,6 +55,24 @@ can break the other.
 - Slides are deep-linkable: `#4` opens slide four.
 - With JavaScript off every slide remains in the document and printing still
   produces the whole deck.
+
+## Editing in place
+
+`artoo edit` opens a deck for editing on the slide (`artoo docs edit`). `deck.js`
+keeps out of the editor's way and tells it what it needs:
+
+- a key pressed in editable text (an input, a textarea, anything
+  `contenteditable`, also inside a shadow root) belongs to the text, as does a
+  key another listener has claimed with `preventDefault()`; a swipe that starts
+  in the text holding the caret, or ends with text selected, belongs to it too;
+- `window.artooDeck` is `{ version, index, count, go(i), toggle(cls, on),
+  refresh() }`. `refresh()` reads the slides again after they were added,
+  removed or reordered, rebuilds the overview and stays on the slide in view;
+- the stage fires `deck:change` (`detail: { index, count }`) when the slide in
+  view or the number of slides changes.
+
+None of this changes the markup contract: a deck written for 0.1.0 runs on 0.2.0
+as it is.
 
 ## Printing
 

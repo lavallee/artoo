@@ -104,3 +104,46 @@ page that is not, such as one assembled from several sources or one that wraps
 blocks in raw HTML, edits as before. Text inside `::: wide` and `::: full` stays
 editable. This applies to a generated config; a config named in `[edit] config`
 sets `"live": true` on its own sources.
+
+## Decks
+
+A deck authored as HTML (`form = "deck"`, or `kind = "presentation"`, with no
+`[content]` table) is its own source: `site/index.html`. `artoo edit` opens it with
+no source map and no build, and the deck is edited on the slide itself.
+
+```bash
+artoo init talk --form deck
+artoo edit talk --copycat ~/Projects/copycat
+```
+
+- **Text** in a slide is edited in place: Enter splits a paragraph or list item,
+  Backspace and Delete at an edge join two, and selected words take bold, italic or a
+  link (`<strong>`, `<em>`, `<a href>`). What is typed is text, never markup. A margin
+  handle moves a block within its slide and adds one below it.
+- **Slides** are added after the one in view (title, statement, bullets, two columns,
+  figures: the scaffold's own layouts), duplicated, deleted, moved, and reordered by
+  dragging in the overview. The same menu sets a slide's short label (`data-short`)
+  and renames an act (`data-act`).
+- **Speaker notes** are edited in place when Notes is on, and one action adds a note
+  to a slide that has none.
+- **Figures, tables and anything else the editor does not draw** stay as built: they
+  can be moved, and open as HTML in a small source editor. A label inside an SVG in
+  a `deck-figure` is reworded in place.
+- **The deck's own keys and swipes** belong to the text while the caret is in it, and
+  to the deck otherwise.
+- **Saving** writes `site/index.html` with only the edited characters changed, then
+  runs `artoo build --no-browser .`, which on a deck renders nothing and still
+  reports a `deck-` class the library does not define. Nothing is deployed.
+- **The agent** (`--agent`) is told the markup contract below and the `deck-` prefix
+  rule, and which slide is in view.
+
+Without `[edit] config`, Artoo writes `work/editor/copycat.json` with that one file
+as an HTML source (`"html": true, "live": true`, scope `main.deck-stage`), `"deck":
+true` on the page, and comments and status from `[edit]` when it names them. The
+deck's name in its bar and `<title>` are part of the HTML outside the stage and are
+changed there, not in `artifact.toml`: nothing renders a deck from the manifest.
+
+Slides can be added, removed and reordered while the page is open only with
+artoo-deck 0.2.0 or later (`artoo lib update artoo-deck`). An older deck still
+edits; the editor says what it needs when asked to rearrange slides. A deck rendered
+from Markdown (`[content] source`) is edited through its source map like any page.
