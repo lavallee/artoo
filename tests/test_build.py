@@ -94,3 +94,17 @@ def test_declared_evidence_is_hard_and_wires_generated_article(artifact):
     page = (artifact.site_dir / "index.html").read_text()
     assert "data-artoo-provenance" in page
     assert 'src="data/provenance.js"' in page
+
+
+def test_build_stamp_keeps_tables_artoo_does_not_own(artifact):
+    """A host's own table and comments survive the date stamp."""
+    path = artifact.dir / "artifact.toml"
+    kept = '\n# masthead, read by the project\'s own renderer\n[document]\nrecipient = "Client"\nabout = true\n'
+    path.write_text(path.read_text().replace('updated = ', '# was ') + kept)
+    result = build.build(manifest_mod.load(artifact.dir))
+    assert result.ok, result.problems
+    assert result.stamped == date.today().isoformat()
+    text = path.read_text()
+    assert kept in text
+    assert manifest_mod.load(artifact.dir).updated == date.today().isoformat()
+    assert text.count("updated = ") == 1
