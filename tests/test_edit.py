@@ -82,3 +82,15 @@ def test_cli_edit_needs_a_source_map_and_evidence_reads_it(tmp_path):
     m.save()
     out = runner.invoke(main, ["edit", str(m.dir)])
     assert out.exit_code != 0 and "sourcemap = true" in out.output
+
+
+
+def test_live_is_opt_in_and_names_the_kit_containers(tmp_path):
+    m = _artifact(tmp_path)
+    plain = json.loads(edit.config_path(m, 9000).read_text())["pages"][0]["sources"]
+    assert all("live" not in s for s in plain)
+    m.edit_live = True
+    live = json.loads(edit.config_path(m, 9000).read_text())["pages"][0]["sources"]
+    markdown = [s for s in live if s.get("markdown")]
+    assert markdown and all(s["live"] is True and s["containers"]["wide"] == "div.article-breakout" for s in markdown)
+    assert "live" not in live[0]

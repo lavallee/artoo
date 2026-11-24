@@ -14,6 +14,7 @@ sourcemap = true                  # required by `artoo edit`
 [edit]
 comments = "edit/comments.json"   # optional; comments anchored to source spans
 status = "edit/status.json"       # optional; draft, in review, locked per file
+live = true                       # optional; edit like a document (see below)
 # config = "editor/copycat.json"  # optional; your own editor config instead
 ```
 
@@ -90,3 +91,16 @@ with no line names where a generated block came from; `derives=` lists the files
 its numbers come from (used for evidence, `artoo docs provenance`); `-` marks
 generated lines with no source. Put the comment directly above the line it
 describes. Leading comments may precede front matter.
+
+
+## Live pages
+
+`live = true` under `[edit]` asks Copycat to draw each page from the draft Markdown
+itself, so the page edits like a document: Enter breaks a paragraph, selecting words
+offers bold, italic, links and block types, a margin handle moves a block, and an
+agent's edits appear in place. Copycat does this only on a page that is its source
+drawn block for block (figures, code and other built blocks are kept as built). A
+page that is not, such as one assembled from several sources or one that wraps
+blocks in raw HTML, edits as before. Text inside `::: wide` and `::: full` stays
+editable. This applies to a generated config; a config named in `[edit] config`
+sets `"live": true` on its own sources.

@@ -28,6 +28,12 @@ from .manifest import Manifest
 
 GENERATED = Path("work") / "editor" / "copycat.json"
 
+# Kit blocks that wrap ordinary Markdown, as the element and class each one renders to.
+LIVE_CONTAINERS = {
+    "wide": "div.article-breakout",
+    "full": "div.article-full",
+}
+
 
 class EditError(Exception):
     """A road sign: what is missing and the flag, key or command that fixes it."""
@@ -75,17 +81,23 @@ def generated_config(m: Manifest, port: int) -> dict:
         }
     ]
     for name in markdown_files:
-        sources.append(
-            {
-                "file": name,
-                "markdown": True,
-                "title": True,
-                "frontmatter": ["description"],
-                "scope": "main.article",
-                "sourceView": True,
-                "status": bool(m.edit_status),
-            }
-        )
+        source = {
+            "file": name,
+            "markdown": True,
+            "title": True,
+            "frontmatter": ["description"],
+            "scope": "main.article",
+            "sourceView": True,
+            "status": bool(m.edit_status),
+        }
+        if m.edit_live:
+            # Copycat draws the page from the draft itself, so it edits like a document. It
+            # does so only where the page is the source drawn block for block, and edits the
+            # page as before everywhere else. The kit's layout blocks are named so text
+            # inside them stays editable.
+            source["live"] = True
+            source["containers"] = LIVE_CONTAINERS
+        sources.append(source)
     path = f"/{m.slug}/"
     page: dict = {
         "name": m.title,
