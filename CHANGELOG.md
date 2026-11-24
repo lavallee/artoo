@@ -25,6 +25,14 @@ All notable changes to artoo are documented here. The format follows
   on the root). The markup contract is unchanged; decks on 0.1.0 keep working and
   take the new version with `artoo lib update artoo-deck`.
 
+### Fixed
+
+- **The deck scaffold no longer writes a NUL byte.** `--deck-print-id` in a new
+  deck's `<style>` was meant to end with the CSS escape `\00b7` (a middle dot);
+  the template's unescaped backslash wrote a NUL character and `b7` instead, so the
+  printed foot was wrong and the file was not plain text. Decks already scaffolded
+  keep the byte until it is corrected by hand.
+
 ## [0.12.0] — 2026-11-23
 
 ### Added

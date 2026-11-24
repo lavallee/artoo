@@ -102,6 +102,11 @@ def _deck(tmp_path, **init):
 
 def test_a_deck_is_edited_as_html_with_no_source_map(tmp_path):
     m = _deck(tmp_path)
+    # The scaffold is text an editor can hold: the print id's middle dot is the CSS escape
+    # \00b7, not a NUL byte followed by "b7" (which is what an unescaped "\00" in the
+    # template used to write).
+    page_text = (m.dir / "site" / "index.html").read_text()
+    assert "\x00" not in page_text and '--deck-print-id: "Talk \\00b7"' in page_text
     assert edit.is_deck(m) and not m.content_sourcemap
     path = edit.config_path(m, 9000)
     config = json.loads(path.read_text())
