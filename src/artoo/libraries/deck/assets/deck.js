@@ -8,6 +8,18 @@
  *   .deck-slide[data-act]    groups slides into acts in the overview
  *   .deck-slide[data-short]  labels a slide in the overview
  *   .deck-notes              speaker notes, hidden until toggled
+ *
+ * For a tool that edits the deck in place (0.2.0):
+ *   - a key pressed in editable text (an input, a textarea, or anything
+ *     contenteditable, also inside a shadow root) belongs to the text, as
+ *     does a key another listener has already claimed with preventDefault();
+ *     a swipe that starts in the text that has the caret, or that ends with
+ *     text selected, belongs to the text too;
+ *   - window.artooDeck = { version, index, count, go(i), toggle(cls, on),
+ *     refresh() }: refresh() reads the slides again after they were added,
+ *     removed or reordered, and rebuilds the overview;
+ *   - the stage fires "deck:change" ({ index, count }) whenever the slide
+ *     in view, or the number of slides, changes.
  */
 (function () {
   "use strict";
@@ -15,7 +27,11 @@
   var stage = document.querySelector("[data-deck]");
   if (!stage) return;
 
-  var slides = Array.prototype.slice.call(stage.querySelectorAll(".deck-slide"));
+  var slides = [];
+  function readSlides() {
+    slides = Array.prototype.slice.call(stage.querySelectorAll(".deck-slide"));
+  }
+  readSlides();
   if (!slides.length) return;
 
   var body = document.body;
@@ -29,7 +45,11 @@
 
   /* ---- overview grid, grouped by act ---- */
 
-  if (overview) {
+  function buildOverview() {
+    if (!overview) return;
+    Array.prototype.slice.call(overview.querySelectorAll(".deck-ov-act")).forEach(function (el) {
+      el.parentNode.removeChild(el);
+    });
     var acts = [];
     slides.forEach(function (slide, i) {
       var act = slide.getAttribute("data-act") || "Slides";
@@ -72,6 +92,7 @@
       overview.appendChild(wrap);
     });
   }
+  buildOverview();
 
   /* ---- navigation ---- */
 
@@ -95,6 +116,28 @@
       history.replaceState(null, "", "#" + (index + 1));
     }
     slides[index].scrollTop = 0;
+    stage.dispatchEvent(new CustomEvent("deck:change", { detail: { index: index, count: slides.length } }));
+  }
+
+  /* The slides were added, removed or reordered (by an editor): read them
+     again, and stay on the slide that was in view when it is still there. */
+  function refresh() {
+    var showing = slides[current];
+    readSlides();
+    buildOverview();
+    if (!slides.length) return;
+    var at = slides.indexOf(showing);
+    go(at < 0 ? current : at);
+  }
+
+  /* Where an event began, looking through shadow roots. */
+  function origin(event) {
+    var path = event.composedPath ? event.composedPath() : [];
+    return path[0] && path[0].nodeType === 1 ? path[0] : event.target;
+  }
+  function inText(el) {
+    var tag = ((el && el.tagName) || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || !!(el && el.isContentEditable);
   }
 
   function toggle(cls, on) {
@@ -126,11 +169,22 @@
     el.addEventListener("click", function () { toggle("deck-show-help", false); });
   });
 
+  /* Text that has the caret: a swipe across it selects or moves the caret.
+     Editable text that is only being read can still be swiped past. */
+  function editing(el) {
+    var tag = ((el && el.tagName) || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return true;
+    var active = document.activeElement;
+    return !!(el && el.isContentEditable && active && active !== body && active.contains(el));
+  }
+
   document.addEventListener("keydown", function (event) {
-    var tag = (event.target.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || event.target.isContentEditable) return;
+    var from = origin(event);
+    if (event.defaultPrevented || inText(from)) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     var key = event.key;
+    /* Space on a focused control presses it; it does not also turn the slide. */
+    if (key === " " && from.closest && from.closest("button, a[href], summary, [role=button]")) return;
 
     if (key === "ArrowRight" || key === "ArrowDown" || key === " " || key === "PageDown") {
       event.preventDefault(); go(current + 1);
@@ -164,12 +218,14 @@
 
   var touchX = null;
   stage.addEventListener("touchstart", function (event) {
-    touchX = event.changedTouches[0].clientX;
+    touchX = editing(origin(event)) ? null : event.changedTouches[0].clientX;
   }, { passive: true });
   stage.addEventListener("touchend", function (event) {
     if (touchX === null) return;
     var dx = event.changedTouches[0].clientX - touchX;
-    if (Math.abs(dx) > 60) go(current + (dx < 0 ? 1 : -1));
+    var selection = window.getSelection ? window.getSelection() : null;
+    var selecting = !!selection && !selection.isCollapsed;
+    if (Math.abs(dx) > 60 && !selecting) go(current + (dx < 0 ? 1 : -1));
     touchX = null;
   }, { passive: true });
 
@@ -180,5 +236,14 @@
     return isNaN(n) ? 0 : n - 1;
   }
   window.addEventListener("hashchange", function () { go(fromHash()); });
+
+  window.artooDeck = {
+    version: "0.2.0",
+    get index() { return current; },
+    get count() { return slides.length; },
+    go: go,
+    toggle: toggle,
+    refresh: refresh,
+  };
   go(fromHash());
 })();

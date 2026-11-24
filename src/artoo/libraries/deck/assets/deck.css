@@ -30,6 +30,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
+/* A swipe turns the slide; it must not also be the browser's swipe back to the
+   previous page (the root element is where the browser reads this from). */
+html { overscroll-behavior-x: none; }
 
 body.deck-root {
   margin: 0;

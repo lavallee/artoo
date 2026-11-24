@@ -127,7 +127,7 @@ DECK_PAGE = """<!doctype html>
 <style>
   /* Your deck's own vocabulary. Keep these out of the `deck-` namespace so
      the library and your content cannot capture each other's classes. */
-  .deck-root {{ --deck-print-id: "{title} \00b7"; }}
+  .deck-root {{ --deck-print-id: "{title} \\00b7"; }}
 </style>
 </head>
 <body class="deck-root">

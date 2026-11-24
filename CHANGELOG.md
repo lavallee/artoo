@@ -6,6 +6,33 @@ All notable changes to artoo are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`artoo edit` opens a deck.** A deck authored as HTML (`form = "deck"` or
+  `kind = "presentation"`, no `[content]`) is edited on the slide itself, with
+  Copycat: text in place, slides added, duplicated, deleted, moved and reordered
+  in the overview, acts and short labels, speaker notes, the agent briefed on the
+  markup contract and the `deck-` prefix rule. No source map is needed: the
+  generated config registers `site/index.html` as an HTML source and marks the page
+  as a deck. Saves change only the edited characters of the file, then run
+  `artoo build --no-browser .` as a check. `artoo docs edit` has the details.
+- **artoo-deck 0.2.0.** `deck.js` leaves keys and swipes to editable text (also
+  inside a shadow root, and when another listener has claimed the key), exposes
+  `window.artooDeck` with `go`, `toggle` and `refresh()` (read the slides again
+  after they were added, removed or reordered), and fires `deck:change` on the
+  stage. Space on a focused button presses it without also turning the slide, and
+  a swipe no longer doubles as the browser's swipe back (`overscroll-behavior-x`
+  on the root). The markup contract is unchanged; decks on 0.1.0 keep working and
+  take the new version with `artoo lib update artoo-deck`.
+
+### Fixed
+
+- **The deck scaffold no longer writes a NUL byte.** `--deck-print-id` in a new
+  deck's `<style>` was meant to end with the CSS escape `\00b7` (a middle dot);
+  the template's unescaped backslash wrote a NUL character and `b7` instead, so the
+  printed foot was wrong and the file was not plain text. Decks already scaffolded
+  keep the byte until it is corrected by hand.
+
 ## [0.12.0] — 2026-11-23
 
 ### Added

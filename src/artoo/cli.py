@@ -571,13 +571,17 @@ def edit_cmd(path: Path | None, port: int, copycat: Path | None, share_origin: s
     (`sourcemap = true` under [content]) to know which file and lines each block
     came from. It binds to loopback; --share-origin admits one authenticated
     https origin. See `artoo docs edit`.
+
+    A deck authored as HTML (form deck, no [content]) needs no source map and no
+    build: its site/index.html is edited on the slide itself.
     """
     m = _resolve(str(path) if path else None)
-    if not m.content_sourcemap:
+    deck = edit_mod.is_deck(m)
+    if not m.content_sourcemap and not deck:
         raise click.ClickException(
             "artoo edit needs a source map: set `sourcemap = true` under [content] in artifact.toml"
         )
-    if not no_build and not print_config:
+    if not no_build and not print_config and not deck:
         result = build_mod.build(m, browser="never")
         for problem in result.problems:
             click.secho(f"✗ {problem}", fg="red")
