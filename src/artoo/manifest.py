@@ -85,6 +85,7 @@ class Manifest:
     edit_config: str = ""
     edit_comments: str = ""
     edit_status: str = ""
+    edit_live: bool = False
 
     deploy_target: str = ""
     deploy_config: dict = field(default_factory=dict)
@@ -325,6 +326,7 @@ def dumps(m: Manifest) -> str:
             ("config", m.edit_config),
             ("comments", m.edit_comments),
             ("status", m.edit_status),
+            ("live", m.edit_live),
         )
         if value
     ]
@@ -408,6 +410,7 @@ def loads(text: str) -> Manifest:
         edit_config=str(data.get("edit", {}).get("config", "")),
         edit_comments=str(data.get("edit", {}).get("comments", "")),
         edit_status=str(data.get("edit", {}).get("status", "")),
+        edit_live=bool(data.get("edit", {}).get("live", False)),
         deploy_target=target,
         deploy_config=dict(deploy_config),
         workers=dict(data.get("workers", {})),
