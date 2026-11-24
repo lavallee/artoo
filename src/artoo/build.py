@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import date
@@ -129,10 +130,35 @@ def build(m: Manifest, *, dry_run: bool = False, browser: str = "never") -> Buil
                 result.ok = False
                 result.problems.extend(refreshed.problems)
                 return result
-            m.save()
+            _stamp_updated(m.path, today)
             result.stamped = today
 
     return result
+
+
+def _stamp_updated(path: Path, today: str) -> None:
+    """Write `updated` into the manifest's text, leaving every other line as it was.
+
+    A full save would rewrite the file from the fields artoo knows, and drop
+    anything a project keeps beside them: a host's own tables such as
+    `[document]`, comments, key order. A date stamp must not cost that.
+    """
+    if path.is_dir():
+        path = path / "artifact.toml"
+    lines = path.read_text(encoding="utf-8").split("\n")
+    start = next((i for i, line in enumerate(lines) if line.strip() == "[artifact]"), None)
+    if start is None:
+        raise ValueError(f"{path} has no [artifact] table to stamp")
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
+    stamp = f'updated = "{today}"'
+    for i in range(start + 1, end):
+        if re.match(r"\s*updated\s*=", lines[i]):
+            lines[i] = stamp
+            break
+    else:
+        last = max(i for i in range(start, end) if lines[i].strip())
+        lines.insert(last + 1, stamp)
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def verification_dir(m: Manifest) -> Path:
